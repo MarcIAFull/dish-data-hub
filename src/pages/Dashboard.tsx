@@ -7,6 +7,8 @@ import { Plus, ChefHat, Settings, LogOut } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 
+console.log('Dashboard component loaded - icons:', { Plus, ChefHat, Settings, LogOut });
+
 interface Restaurant {
   id: string;
   name: string;
