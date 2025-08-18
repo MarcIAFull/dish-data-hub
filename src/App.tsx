@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import RestaurantForm from "./pages/RestaurantForm";
+import RestaurantManagement from "./pages/RestaurantManagement";
 import RestaurantPublic from "./pages/RestaurantPublic";
 import NotFound from "./pages/NotFound";
 
@@ -29,9 +30,14 @@ const App = () => (
                 <Dashboard />
               </ProtectedRoute>
             } />
-            <Route path="/restaurant/:id" element={
+            <Route path="/restaurant/new" element={
               <ProtectedRoute>
                 <RestaurantForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/restaurant/:id" element={
+              <ProtectedRoute>
+                <RestaurantManagement />
               </ProtectedRoute>
             } />
             <Route path="/r/:slug" element={<RestaurantPublic />} />
