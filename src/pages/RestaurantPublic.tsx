@@ -49,6 +49,8 @@ export default function RestaurantPublic() {
 
   const fetchRestaurantData = async () => {
     try {
+      console.log('Fetching restaurant with slug:', slug);
+      
       // Fetch restaurant
       const { data: restaurantData, error: restaurantError } = await supabase
         .from('restaurants')
@@ -57,7 +59,12 @@ export default function RestaurantPublic() {
         .eq('is_active', true)
         .single();
 
-      if (restaurantError) throw restaurantError;
+      if (restaurantError) {
+        console.error('Restaurant error:', restaurantError);
+        throw restaurantError;
+      }
+      
+      console.log('Restaurant found:', restaurantData);
       setRestaurant(restaurantData);
 
       // Fetch categories
@@ -67,19 +74,31 @@ export default function RestaurantPublic() {
         .eq('restaurant_id', restaurantData.id)
         .order('display_order');
 
-      if (categoriesError) throw categoriesError;
+      if (categoriesError) {
+        console.error('Categories error:', categoriesError);
+        throw categoriesError;
+      }
+      
+      console.log('Categories found:', categoriesData);
       setCategories(categoriesData || []);
 
-      // Fetch products
-      const { data: productsData, error: productsError } = await supabase
-        .from('products')
-        .select('*')
-        .in('category_id', categoriesData?.map(c => c.id) || [])
-        .eq('is_available', true)
-        .order('display_order');
+      // Fetch products only if we have categories
+      if (categoriesData && categoriesData.length > 0) {
+        const { data: productsData, error: productsError } = await supabase
+          .from('products')
+          .select('*')
+          .in('category_id', categoriesData.map(c => c.id))
+          .eq('is_available', true)
+          .order('display_order');
 
-      if (productsError) throw productsError;
-      setProducts(productsData || []);
+        if (productsError) {
+          console.error('Products error:', productsError);
+          throw productsError;
+        }
+        
+        console.log('Products found:', productsData);
+        setProducts(productsData || []);
+      }
 
     } catch (error) {
       console.error('Error fetching restaurant data:', error);

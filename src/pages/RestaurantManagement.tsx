@@ -107,7 +107,17 @@ export default function RestaurantManagement() {
             <div className="flex gap-2">
               <Button 
                 variant="outline" 
-                onClick={() => window.open(`/r/${restaurant.slug}`, '_blank')}
+                onClick={() => {
+                  if (restaurant.slug) {
+                    window.open(`/r/${restaurant.slug}`, '_blank');
+                  } else {
+                    toast({
+                      title: 'Erro',
+                      description: 'Slug do restaurante não encontrado. Verifique as informações do restaurante.',
+                      variant: 'destructive',
+                    });
+                  }
+                }}
               >
                 <Eye className="w-4 h-4 mr-2" />
                 Ver Página
