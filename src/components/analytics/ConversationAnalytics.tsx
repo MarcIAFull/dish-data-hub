@@ -241,7 +241,7 @@ export const ConversationAnalytics: React.FC<ConversationAnalyticsProps> = ({
                     className="w-3 h-3 rounded-full" 
                     style={{ backgroundColor: COLORS[index % COLORS.length] }}
                   />
-                  <span className="text-sm">{item.name}: {item.value}</span>
+                  <span className="text-sm">{item.name}: {Number(item.value)}</span>
                 </div>
               ))}
             </div>
@@ -294,7 +294,7 @@ export const ConversationAnalytics: React.FC<ConversationAnalyticsProps> = ({
                 {topKeywords.map((keyword, index) => (
                   <div key={keyword.topic} className="flex items-center justify-between p-2 rounded-lg border">
                     <span className="font-medium">{keyword.topic}</span>
-                    <Badge variant="secondary">{keyword.count}</Badge>
+                    <Badge variant="secondary">{Number(keyword.count)}</Badge>
                   </div>
                 ))}
               </div>

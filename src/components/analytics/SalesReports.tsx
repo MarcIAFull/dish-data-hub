@@ -354,7 +354,7 @@ export const SalesReports: React.FC<SalesReportsProps> = ({
                     className="w-3 h-3 rounded-full" 
                     style={{ backgroundColor: COLORS[index % COLORS.length] }}
                   />
-                  <span className="text-sm">{item.name}: {item.value}</span>
+                  <span className="text-sm">{item.name}: {Number(item.value)}</span>
                 </div>
               ))}
             </div>
@@ -415,8 +415,8 @@ export const SalesReports: React.FC<SalesReportsProps> = ({
                     name === 'revenue' ? 'Revenue' : 'Pedidos'
                   ]}
                 />
-                <Bar yAxisId="left" dataKey="orders" fill="hsl(var(--green))" radius={[4, 4, 0, 0]} />
-                <Bar yAxisId="right" dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar yAxisId="left" dataKey="orders" fill="hsl(var(--green))" />
+                <Bar yAxisId="right" dataKey="revenue" fill="hsl(var(--primary))" />
               </BarChart>
             </ResponsiveContainer>
           </div>

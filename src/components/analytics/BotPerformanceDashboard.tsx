@@ -255,7 +255,7 @@ export const BotPerformanceDashboard: React.FC<BotPerformanceDashboardProps> = (
                   <XAxis dataKey="hour" />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="messages" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="messages" fill="hsl(var(--primary))" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
