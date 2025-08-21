@@ -12,7 +12,28 @@ serve(async (req) => {
   }
 
   try {
-    const { instance, token } = await req.json();
+    console.log('Function called:', req.method);
+    const body = await req.text();
+    console.log('Request body:', body);
+    
+    let parsedBody;
+    try {
+      parsedBody = JSON.parse(body);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          message: 'Invalid JSON in request body' 
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
+    const { instance, token } = parsedBody;
 
     if (!instance || !token) {
       return new Response(

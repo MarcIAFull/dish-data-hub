@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Evolution Connection</title>
+</head>
+<body>
+    <h1>Test Evolution API Connection</h1>
+    <button onclick="testConnection()">Test Connection</button>
+    <div id="result"></div>
+
+    <script>
+        async function testConnection() {
+            try {
+                const response = await fetch('https://xwjwoymweqavgnbplzod.supabase.co/functions/v1/test-evolution-connection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3andveW13ZXFhdmduYnBsem9kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1NDIyMDUsImV4cCI6MjA3MTExODIwNX0.rQ-4yLqKYk2pQi1QIdDAZzpko3gErZT5aT5VZS8mxgM'
+                    },
+                    body: JSON.stringify({
+                        instance: 'PEDRO MAGNAGO',
+                        token: 'B6IBTDGHZGORAGHRJCGZHJOD1QLO'
+                    })
+                });
+                
+                const data = await response.json();
+                document.getElementById('result').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+                document.getElementById('result').innerHTML = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
