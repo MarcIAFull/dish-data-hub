@@ -7,7 +7,6 @@ import { MapPin, Phone, MessageCircle } from 'lucide-react';
 import { CartProvider } from '@/components/cart/CartProvider';
 import { Cart } from '@/components/cart/Cart';
 import { ProductCard } from '@/components/cart/ProductCard';
-import { EmbeddedChat } from '@/components/chat/EmbeddedChat';
 
 interface Restaurant {
   id: string;
@@ -263,12 +262,6 @@ export default function RestaurantPublic() {
         
         {/* Shopping Cart */}
         <Cart restaurantWhatsApp={restaurant.whatsapp} />
-        
-        {/* Embedded Chat */}
-        <EmbeddedChat 
-          restaurantId={restaurant.id}
-          restaurantName={restaurant.name}
-        />
       </CartProvider>
     </>
   );
