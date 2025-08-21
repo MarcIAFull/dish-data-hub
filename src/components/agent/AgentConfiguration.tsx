@@ -392,8 +392,11 @@ export const AgentConfiguration: React.FC<AgentConfigurationProps> = ({
                     onChange={(e) => setSelectedAgent(prev => 
                       prev ? { ...prev, evolution_api_instance: e.target.value } : null
                     )}
-                    placeholder="Nome da instância"
+                    placeholder="Ex: minha-instancia ou subdomínio"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Nome da sua instância Evolution API (ex: "minha-empresa" para minha-empresa.evolution-api.com)
+                  </p>
                 </div>
 
                 <div>
@@ -405,8 +408,11 @@ export const AgentConfiguration: React.FC<AgentConfigurationProps> = ({
                     onChange={(e) => setSelectedAgent(prev => 
                       prev ? { ...prev, evolution_api_token: e.target.value } : null
                     )}
-                    placeholder="Token de acesso"
+                    placeholder="Token de acesso da Evolution API"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Token de autenticação fornecido pelo provedor da Evolution API
+                  </p>
                 </div>
 
                 {/* Connection Test */}

@@ -27,44 +27,67 @@ serve(async (req) => {
       );
     }
 
-    // Test Evolution API connection
-    const testUrl = `https://api.evolutionapi.com/instance/connectionState/${instance}`;
-    
-    const response = await fetch(testUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    // Test Evolution API connection - try different possible URLs
+    const possibleUrls = [
+      `https://${instance}.evolution-api.com/instance/connectionState`,
+      `https://api.evolution-api.com/instance/connectionState/${instance}`,
+      `https://api.evolutionapi.com/instance/connectionState/${instance}`,
+      `https://${instance}.evolutionapi.com/instance/connectionState`
+    ];
 
-    if (response.ok) {
-      const data = await response.json();
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'Conexão estabelecida com sucesso',
-          data 
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    let lastError = null;
+    
+    for (const testUrl of possibleUrls) {
+      try {
+        console.log(`Tentando conectar com: ${testUrl}`);
+        
+        const response = await fetch(testUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log(`Conexão bem-sucedida com: ${testUrl}`);
+          
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              message: 'Conexão estabelecida com sucesso',
+              url: testUrl,
+              data 
+            }),
+            { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        } else if (response.status !== 404) {
+          // If it's not a 404, this might be the right URL but wrong credentials
+          const errorData = await response.text();
+          lastError = `${response.status}: ${errorData}`;
+          console.log(`Erro HTTP ${response.status} em ${testUrl}: ${errorData}`);
         }
-      );
-    } else {
-      const errorData = await response.text();
-      
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          message: `Erro na API: ${response.status} - ${errorData}` 
-        }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      } catch (error) {
+        console.log(`Erro ao tentar ${testUrl}:`, error);
+        lastError = error.message;
+      }
     }
+
+    // If we get here, none of the URLs worked
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        message: `Não foi possível conectar com nenhuma URL da Evolution API. Último erro: ${lastError || 'Desconhecido'}. Verifique se a instância e token estão corretos.`
+      }),
+      { 
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
 
   } catch (error) {
     console.error('Test connection error:', error);
