@@ -14,6 +14,7 @@ import Onboarding from "./pages/Onboarding";
 import RestaurantForm from "./pages/RestaurantForm";
 import RestaurantManagement from "./pages/RestaurantManagement";
 import RestaurantPublic from "./pages/RestaurantPublic";
+import RestaurantJSON from "./pages/RestaurantJSON";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,7 +52,7 @@ const App = () => (
                   </ProtectedRoute>
                 } />
                 <Route path="/r/:slug" element={<RestaurantPublic />} />
-                <Route path="/r/:slug.json" element={<RestaurantPublic />} />
+                <Route path="/r/:slug.json" element={<RestaurantJSON />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

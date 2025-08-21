@@ -1,121 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { MapPin, Phone, MessageCircle } from 'lucide-react';
-import { CartProvider } from '@/components/cart/CartProvider';
-import { Cart } from '@/components/cart/Cart';
-import { ProductCard } from '@/components/cart/ProductCard';
-
-interface Restaurant {
-  id: string;
-  name: string;
-  description: string;
-  address: string;
-  phone: string;
-  whatsapp: string;
-  instagram: string;
-}
-
-interface Category {
-  id: string;
-  name: string;
-  description: string;
-  display_order: number;
-}
-
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  image_url: string;
-  category_id: string;
-  display_order: number;
-}
+import { useRestaurantMenu } from '@/hooks/useRestaurantMenu';
 
 export default function RestaurantPublic() {
   const { slug } = useParams();
-  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    restaurant,
+    categories,
+    loading,
+    formatPrice,
+    getProductsByCategory,
+    getCategoryEmoji,
+    getFormattedMenu,
+  } = useRestaurantMenu(slug || '');
 
-  useEffect(() => {
-    fetchRestaurantData();
-  }, [slug]);
-
-  const fetchRestaurantData = async () => {
-    try {
-      console.log('Fetching restaurant with slug:', slug);
-      
-      // Fetch restaurant
-      const { data: restaurantData, error: restaurantError } = await supabase
-        .from('restaurants')
-        .select('*')
-        .eq('slug', slug)
-        .eq('is_active', true)
-        .single();
-
-      if (restaurantError) {
-        console.error('Restaurant error:', restaurantError);
-        throw restaurantError;
-      }
-      
-      console.log('Restaurant found:', restaurantData);
-      setRestaurant(restaurantData);
-
-      // Fetch categories
-      const { data: categoriesData, error: categoriesError } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('restaurant_id', restaurantData.id)
-        .order('display_order');
-
-      if (categoriesError) {
-        console.error('Categories error:', categoriesError);
-        throw categoriesError;
-      }
-      
-      console.log('Categories found:', categoriesData);
-      setCategories(categoriesData || []);
-
-      // Fetch products only if we have categories
-      if (categoriesData && categoriesData.length > 0) {
-        const { data: productsData, error: productsError } = await supabase
-          .from('products')
-          .select('*')
-          .in('category_id', categoriesData.map(c => c.id))
-          .eq('is_available', true)
-          .order('display_order');
-
-        if (productsError) {
-          console.error('Products error:', productsError);
-          throw productsError;
-        }
-        
-        console.log('Products found:', productsData);
-        setProducts(productsData || []);
-      }
-
-    } catch (error) {
-      console.error('Error fetching restaurant data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(price);
-  };
-
-  const getProductsByCategory = (categoryId: string) => {
-    return products.filter(product => product.category_id === categoryId);
-  };
 
   if (loading) {
     return (
@@ -142,10 +40,10 @@ export default function RestaurantPublic() {
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Restaurant",
-    "name": restaurant.name,
-    "description": restaurant.description,
-    "address": restaurant.address,
-    "telephone": restaurant.phone,
+    "name": restaurant?.name || '',
+    "description": restaurant?.description || '',
+    "address": restaurant?.address || '',
+    "telephone": restaurant?.phone || '',
     "menu": categories.map(category => ({
       "@type": "MenuSection",
       "name": category.name,
@@ -157,7 +55,7 @@ export default function RestaurantPublic() {
         "offers": {
           "@type": "Offer",
           "price": product.price,
-          "priceCurrency": "BRL"
+          "priceCurrency": "EUR"
         }
       }))
     }))
@@ -170,99 +68,96 @@ export default function RestaurantPublic() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
       
-      <CartProvider restaurantId={restaurant.id}>
-        <div className="min-h-screen bg-gradient-subtle">
-          <div className="container mx-auto px-4 py-8">
-            <div className="max-w-4xl mx-auto">
-              {/* Restaurant Header */}
-              <div className="text-center mb-8">
-                <h1 className="text-4xl font-bold mb-4" data-restaurant-name={restaurant.name}>
-                  {restaurant.name}
-                </h1>
-                {restaurant.description && (
-                  <p className="text-lg text-muted-foreground mb-6" data-restaurant-description>
-                    {restaurant.description}
-                  </p>
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-4xl mx-auto">
+            {/* Header */}
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold mb-4">
+                🍕 Cardápio Completo – {restaurant?.name || 'Restaurante'} (Quarteira)
+              </h1>
+              
+              {/* Contact Info */}
+              <div className="space-y-2 text-lg">
+                {restaurant?.address && (
+                  <div className="flex items-center justify-center gap-2">
+                    <span>📍</span>
+                    <span>{restaurant.address}</span>
+                  </div>
                 )}
-                
-                <div className="flex flex-wrap justify-center gap-4">
-                  {restaurant.address && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MapPin className="w-4 h-4" />
-                      <span data-restaurant-address>{restaurant.address}</span>
-                    </div>
-                  )}
-                  {restaurant.phone && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Phone className="w-4 h-4" />
-                      <span data-restaurant-phone>{restaurant.phone}</span>
-                    </div>
-                  )}
-                  {restaurant.whatsapp && (
-                    <a
-                      href={`https://wa.me/${restaurant.whatsapp}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-green-600 hover:text-green-700"
-                      data-restaurant-whatsapp={restaurant.whatsapp}
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      <span>WhatsApp</span>
-                    </a>
-                  )}
+                {restaurant?.phone && (
+                  <div className="flex items-center justify-center gap-2">
+                    <span>📞</span>
+                    <span>{restaurant.phone}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-center gap-2">
+                  <span>⏰</span>
+                  <span>Ter–Dom: 18h00 – 01h00 (Delivery até 00h30)</span>
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <span>🚚</span>
+                  <span>Delivery próprio + Uber Eats</span>
                 </div>
               </div>
+            </div>
 
-              {/* Menu */}
-              <div className="space-y-8" data-menu-sections>
-                {categories.length === 0 ? (
-                  <Card>
-                    <CardContent className="text-center py-12">
-                      <h3 className="text-lg font-semibold mb-2">Menu em preparação</h3>
-                      <p className="text-muted-foreground">
-                        Este restaurante ainda está organizando seu menu. Volte em breve!
-                      </p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  categories.map((category) => {
-                    const categoryProducts = getProductsByCategory(category.id);
-                    if (categoryProducts.length === 0) return null;
+            {/* Menu Categories */}
+            <div className="space-y-8">
+              {categories.length === 0 ? (
+                <div className="text-center py-12">
+                  <h3 className="text-lg font-semibold mb-2">Menu em preparação</h3>
+                  <p className="text-muted-foreground">
+                    Este restaurante ainda está organizando seu menu. Volte em breve!
+                  </p>
+                </div>
+              ) : (
+                categories.map((category) => {
+                  const categoryProducts = getProductsByCategory(category.id);
+                  if (categoryProducts.length === 0) return null;
 
-                    return (
-                      <Card key={category.id} data-category-id={category.id}>
-                        <CardHeader>
-                          <CardTitle className="text-2xl" data-category-name>
-                            {category.name}
-                          </CardTitle>
-                          {category.description && (
-                            <p className="text-muted-foreground" data-category-description>
-                              {category.description}
-                            </p>
-                          )}
-                        </CardHeader>
-                        <CardContent>
-                          <div className="grid gap-4" data-category-products>
-                            {categoryProducts.map((product) => (
-                              <ProductCard
-                                key={product.id}
-                                product={product}
-                              />
-                            ))}
+                  // Get emoji for category based on name
+                  const categoryEmoji = getCategoryEmoji(category.name);
+
+                  return (
+                    <div key={category.id} className="mb-8">
+                      <h2 className="text-2xl font-bold mb-6 border-b pb-2">
+                        {categoryEmoji} {category.name}
+                      </h2>
+                      
+                      {category.description && (
+                        <p className="text-muted-foreground mb-4">{category.description}</p>
+                      )}
+                      
+                      <div className="space-y-4">
+                        {categoryProducts.map((product) => (
+                          <div key={product.id} className="border-l-4 border-primary pl-4">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <h3 className="font-semibold text-lg">
+                                  {product.name}
+                                </h3>
+                                {product.description && (
+                                  <p className="text-muted-foreground mt-1">
+                                    {product.description}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="ml-4 text-xl font-bold text-primary">
+                                {formatPrice(product.price)}
+                              </div>
+                            </div>
                           </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })
-                )}
-              </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
-        
-        {/* Shopping Cart */}
-        <Cart restaurantWhatsApp={restaurant.whatsapp} />
-      </CartProvider>
+      </div>
     </>
   );
 }
