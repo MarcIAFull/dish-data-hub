@@ -29,16 +29,22 @@ serve(async (req) => {
 
     console.log(`Testando conexão para instância: ${instance}`);
     
+    // Clean instance name for URL usage - remove spaces and special chars
+    const cleanInstance = instance.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    console.log(`Instância limpa para URL: ${cleanInstance}`);
+    
     // Try different Evolution API URL patterns
     const possibleUrls = [
-      // Common Evolution API patterns
-      `https://evolution.${instance.toLowerCase().replace(/\s+/g, '-')}.com.br/instance/connectionState`,
-      `https://${instance.toLowerCase().replace(/\s+/g, '-')}.evolution-api.com/instance/connectionState`,  
-      `https://api.${instance.toLowerCase().replace(/\s+/g, '-')}.com/instance/connectionState`,
-      `https://evolution-api.com/instance/connectionState/${instance}`,
-      // Try direct connection patterns
+      // Common Evolution API patterns with cleaned instance name
+      `https://evolution.${cleanInstance}.com.br/instance/connectionState`,
+      `https://${cleanInstance}.evolution-api.com/instance/connectionState`,  
+      `https://api.${cleanInstance}.com/instance/connectionState`,
+      `https://evolution-api.com/instance/connectionState/${encodeURIComponent(instance)}`,
+      `https://evolution-api.com/instance/connectionState/${cleanInstance}`,
+      // Try direct connection patterns with original instance name
       `https://evolution-api.com/instance/connectionState`,
-      `https://api.evolutionapi.com/instance/connectionState/${instance}`,
+      `https://api.evolutionapi.com/instance/connectionState/${encodeURIComponent(instance)}`,
+      `https://api.evolutionapi.com/instance/connectionState/${cleanInstance}`,
     ];
 
     let lastError = null;
