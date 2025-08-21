@@ -27,31 +27,59 @@ serve(async (req) => {
       );
     }
 
-    // Test Evolution API connection - try different possible URLs
+    console.log(`Testando conexão para instância: ${instance}`);
+    
+    // Try different Evolution API URL patterns
     const possibleUrls = [
-      `https://${instance}.evolution-api.com/instance/connectionState`,
-      `https://api.evolution-api.com/instance/connectionState/${instance}`,
+      // Common Evolution API patterns
+      `https://evolution.${instance.toLowerCase().replace(/\s+/g, '-')}.com.br/instance/connectionState`,
+      `https://${instance.toLowerCase().replace(/\s+/g, '-')}.evolution-api.com/instance/connectionState`,  
+      `https://api.${instance.toLowerCase().replace(/\s+/g, '-')}.com/instance/connectionState`,
+      `https://evolution-api.com/instance/connectionState/${instance}`,
+      // Try direct connection patterns
+      `https://evolution-api.com/instance/connectionState`,
       `https://api.evolutionapi.com/instance/connectionState/${instance}`,
-      `https://${instance}.evolutionapi.com/instance/connectionState`
     ];
 
     let lastError = null;
+    let allAttempts = [];
     
     for (const testUrl of possibleUrls) {
       try {
-        console.log(`Tentando conectar com: ${testUrl}`);
+        console.log(`Tentativa ${possibleUrls.indexOf(testUrl) + 1}: ${testUrl}`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
         
         const response = await fetch(testUrl, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
+            'apikey': token, // Some Evolution APIs use 'apikey' instead
             'Content-Type': 'application/json',
           },
-          signal: AbortSignal.timeout(10000) // 10 second timeout
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        console.log(`Resposta de ${testUrl}: ${response.status}`);
+        
+        const responseText = await response.text();
+        allAttempts.push({
+          url: testUrl,
+          status: response.status,
+          response: responseText.substring(0, 200) // Limit response size
         });
 
         if (response.ok) {
-          const data = await response.json();
+          let data;
+          try {
+            data = JSON.parse(responseText);
+          } catch {
+            data = { message: responseText };
+          }
+          
           console.log(`Conexão bem-sucedida com: ${testUrl}`);
           
           return new Response(
@@ -59,21 +87,32 @@ serve(async (req) => {
               success: true, 
               message: 'Conexão estabelecida com sucesso',
               url: testUrl,
-              data 
+              data,
+              allAttempts 
             }),
             { 
               headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
             }
           );
-        } else if (response.status !== 404) {
-          // If it's not a 404, this might be the right URL but wrong credentials
-          const errorData = await response.text();
-          lastError = `${response.status}: ${errorData}`;
-          console.log(`Erro HTTP ${response.status} em ${testUrl}: ${errorData}`);
+        } else if (response.status === 401) {
+          // Unauthorized - might be correct URL but wrong token
+          lastError = `Token inválido para ${testUrl}`;
+          console.log(`Token inválido para: ${testUrl}`);
+        } else if (response.status === 404) {
+          // Not found - try next URL
+          console.log(`URL não encontrada: ${testUrl}`);
+        } else {
+          lastError = `Erro HTTP ${response.status}: ${responseText}`;
+          console.log(`Erro HTTP ${response.status} em ${testUrl}: ${responseText}`);
         }
       } catch (error) {
-        console.log(`Erro ao tentar ${testUrl}:`, error);
-        lastError = error.message;
+        const errorMsg = error.name === 'AbortError' ? 'Timeout' : error.message;
+        console.log(`Erro ao tentar ${testUrl}: ${errorMsg}`);
+        lastError = errorMsg;
+        allAttempts.push({
+          url: testUrl,
+          error: errorMsg
+        });
       }
     }
 
@@ -81,7 +120,12 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        message: `Não foi possível conectar com nenhuma URL da Evolution API. Último erro: ${lastError || 'Desconhecido'}. Verifique se a instância e token estão corretos.`
+        message: `Não foi possível conectar com a Evolution API. Último erro: ${lastError}. Verifique se a instância "${instance}" está ativa e o token está correto.`,
+        debug: {
+          instance,
+          allAttempts,
+          suggestion: "Verifique no Evolution Manager se a instância está conectada e ativa. O token pode estar incorreto ou expirado."
+        }
       }),
       { 
         status: 400,
