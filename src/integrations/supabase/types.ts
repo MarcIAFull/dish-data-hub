@@ -52,6 +52,39 @@ export type Database = {
           },
         ]
       }
+      onboarding_progress: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          data: Json
+          id: string
+          step_completed: number
+          total_steps: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          data?: Json
+          id?: string
+          step_completed?: number
+          total_steps?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          data?: Json
+          id?: string
+          step_completed?: number
+          total_steps?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           category_id: string
@@ -177,6 +210,107 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_plans: {
+        Row: {
+          ai_classification: boolean
+          analytics: boolean
+          api_access: boolean
+          created_at: string
+          features: Json
+          id: string
+          max_products: number
+          max_restaurants: number
+          name: string
+          price_monthly: number
+          price_yearly: number
+          type: Database["public"]["Enums"]["plan_type"]
+          updated_at: string
+          whatsapp_integration: boolean
+        }
+        Insert: {
+          ai_classification?: boolean
+          analytics?: boolean
+          api_access?: boolean
+          created_at?: string
+          features?: Json
+          id?: string
+          max_products?: number
+          max_restaurants?: number
+          name: string
+          price_monthly?: number
+          price_yearly?: number
+          type: Database["public"]["Enums"]["plan_type"]
+          updated_at?: string
+          whatsapp_integration?: boolean
+        }
+        Update: {
+          ai_classification?: boolean
+          analytics?: boolean
+          api_access?: boolean
+          created_at?: string
+          features?: Json
+          id?: string
+          max_products?: number
+          max_restaurants?: number
+          name?: string
+          price_monthly?: number
+          price_yearly?: number
+          type?: Database["public"]["Enums"]["plan_type"]
+          updated_at?: string
+          whatsapp_integration?: boolean
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          plan_id: string
+          status: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          trial_end: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          plan_id: string
+          status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_end?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          plan_id?: string
+          status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_end?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -185,7 +319,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      plan_type: "free" | "basic" | "premium" | "enterprise"
+      subscription_status: "active" | "canceled" | "past_due" | "trialing"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -312,6 +447,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      plan_type: ["free", "basic", "premium", "enterprise"],
+      subscription_status: ["active", "canceled", "past_due", "trialing"],
+    },
   },
 } as const
