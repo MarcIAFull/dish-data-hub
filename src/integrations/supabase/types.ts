@@ -65,6 +65,13 @@ export type Database = {
             foreignKeyName: "agents_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "agents_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "conversion_metrics"
             referencedColumns: ["restaurant_id"]
           },
@@ -76,6 +83,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ai_insights_cache: {
+        Row: {
+          confidence_score: number | null
+          created_at: string | null
+          id: string
+          impact_score: number | null
+          insight_data: Json
+          insight_type: string
+          restaurant_id: string
+          status: string | null
+          updated_at: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          impact_score?: number | null
+          insight_data?: Json
+          insight_type: string
+          restaurant_id: string
+          status?: string | null
+          updated_at?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          impact_score?: number | null
+          insight_data?: Json
+          insight_type?: string
+          restaurant_id?: string
+          status?: string | null
+          updated_at?: string | null
+          valid_until?: string | null
+        }
+        Relationships: []
       }
       analytics_events: {
         Row: {
@@ -127,6 +173,13 @@ export type Database = {
             foreignKeyName: "analytics_events_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "analytics_events_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "conversion_metrics"
             referencedColumns: ["restaurant_id"]
           },
@@ -138,6 +191,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      bi_daily_snapshots: {
+        Row: {
+          ai_interactions: number | null
+          avg_order_value: number | null
+          conversion_rate: number | null
+          created_at: string | null
+          customer_count: number | null
+          human_interactions: number | null
+          id: string
+          new_customers: number | null
+          restaurant_id: string
+          returning_customers: number | null
+          snapshot_date: string
+          total_orders: number | null
+          total_revenue: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          ai_interactions?: number | null
+          avg_order_value?: number | null
+          conversion_rate?: number | null
+          created_at?: string | null
+          customer_count?: number | null
+          human_interactions?: number | null
+          id?: string
+          new_customers?: number | null
+          restaurant_id: string
+          returning_customers?: number | null
+          snapshot_date: string
+          total_orders?: number | null
+          total_revenue?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          ai_interactions?: number | null
+          avg_order_value?: number | null
+          conversion_rate?: number | null
+          created_at?: string | null
+          customer_count?: number | null
+          human_interactions?: number | null
+          id?: string
+          new_customers?: number | null
+          restaurant_id?: string
+          returning_customers?: number | null
+          snapshot_date?: string
+          total_orders?: number | null
+          total_revenue?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       cart_sessions: {
         Row: {
@@ -198,6 +302,13 @@ export type Database = {
             foreignKeyName: "cart_sessions_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "cart_sessions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "conversion_metrics"
             referencedColumns: ["restaurant_id"]
           },
@@ -239,6 +350,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "categories_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
           {
             foreignKeyName: "categories_restaurant_id_fkey"
             columns: ["restaurant_id"]
@@ -313,6 +431,13 @@ export type Database = {
             foreignKeyName: "conversation_insights_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "conversation_insights_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "conversion_metrics"
             referencedColumns: ["restaurant_id"]
           },
@@ -368,6 +493,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      customer_segments: {
+        Row: {
+          churn_probability: number | null
+          created_at: string | null
+          customer_id: string
+          frequency_score: number | null
+          id: string
+          ltv_score: number | null
+          monetary_score: number | null
+          next_order_prediction: string | null
+          recency_days: number | null
+          restaurant_id: string
+          segment_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          churn_probability?: number | null
+          created_at?: string | null
+          customer_id: string
+          frequency_score?: number | null
+          id?: string
+          ltv_score?: number | null
+          monetary_score?: number | null
+          next_order_prediction?: string | null
+          recency_days?: number | null
+          restaurant_id: string
+          segment_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          churn_probability?: number | null
+          created_at?: string | null
+          customer_id?: string
+          frequency_score?: number | null
+          id?: string
+          ltv_score?: number | null
+          monetary_score?: number | null
+          next_order_prediction?: string | null
+          recency_days?: number | null
+          restaurant_id?: string
+          segment_type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       customers: {
         Row: {
@@ -465,6 +635,13 @@ export type Database = {
             foreignKeyName: "delivery_integrations_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "delivery_integrations_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "conversion_metrics"
             referencedColumns: ["restaurant_id"]
           },
@@ -525,6 +702,13 @@ export type Database = {
             foreignKeyName: "delivery_zones_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "delivery_zones_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "conversion_metrics"
             referencedColumns: ["restaurant_id"]
           },
@@ -575,6 +759,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "kitchen_display_settings_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
           {
             foreignKeyName: "kitchen_display_settings_restaurant_id_fkey"
             columns: ["restaurant_id"]
@@ -667,6 +858,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "notification_templates_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
           {
             foreignKeyName: "notification_templates_restaurant_id_fkey"
             columns: ["restaurant_id"]
@@ -925,6 +1123,13 @@ export type Database = {
             foreignKeyName: "orders_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "orders_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "conversion_metrics"
             referencedColumns: ["restaurant_id"]
           },
@@ -976,6 +1181,13 @@ export type Database = {
             foreignKeyName: "payment_methods_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "payment_methods_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "conversion_metrics"
             referencedColumns: ["restaurant_id"]
           },
@@ -987,6 +1199,102 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      price_recommendations: {
+        Row: {
+          confidence_level: number | null
+          created_at: string | null
+          current_price: number
+          expected_impact: Json | null
+          id: string
+          market_data: Json | null
+          product_id: string
+          reason: string | null
+          recommended_price: number
+          restaurant_id: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          confidence_level?: number | null
+          created_at?: string | null
+          current_price: number
+          expected_impact?: Json | null
+          id?: string
+          market_data?: Json | null
+          product_id: string
+          reason?: string | null
+          recommended_price: number
+          restaurant_id: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          confidence_level?: number | null
+          created_at?: string | null
+          current_price?: number
+          expected_impact?: Json | null
+          id?: string
+          market_data?: Json | null
+          product_id?: string
+          reason?: string | null
+          recommended_price?: number
+          restaurant_id?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      product_performance: {
+        Row: {
+          created_at: string | null
+          customer_rating: number | null
+          id: string
+          order_frequency: number | null
+          period_end: string
+          period_start: string
+          product_id: string
+          profit_margin: number | null
+          restaurant_id: string
+          revenue: number | null
+          seasonality_score: number | null
+          trend_direction: string | null
+          units_sold: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_rating?: number | null
+          id?: string
+          order_frequency?: number | null
+          period_end: string
+          period_start: string
+          product_id: string
+          profit_margin?: number | null
+          restaurant_id: string
+          revenue?: number | null
+          seasonality_score?: number | null
+          trend_direction?: string | null
+          units_sold?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_rating?: number | null
+          id?: string
+          order_frequency?: number | null
+          period_end?: string
+          period_start?: string
+          product_id?: string
+          profit_margin?: number | null
+          restaurant_id?: string
+          revenue?: number | null
+          seasonality_score?: number | null
+          trend_direction?: string | null
+          units_sold?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       products: {
         Row: {
@@ -1231,6 +1539,20 @@ export type Database = {
       }
     }
     Views: {
+      business_metrics: {
+        Row: {
+          avg_order_value: number | null
+          avg_sentiment: number | null
+          period: string | null
+          restaurant_id: string | null
+          restaurant_name: string | null
+          total_conversations: number | null
+          total_orders: number | null
+          total_revenue: number | null
+          unique_customers: number | null
+        }
+        Relationships: []
+      }
       conversion_metrics: {
         Row: {
           avg_order_value: number | null
@@ -1252,6 +1574,13 @@ export type Database = {
           unique_users: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "analytics_events_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
           {
             foreignKeyName: "analytics_events_restaurant_id_fkey"
             columns: ["restaurant_id"]
@@ -1279,6 +1608,10 @@ export type Database = {
         Returns: string
       }
       refresh_analytics_views: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      refresh_business_metrics: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
