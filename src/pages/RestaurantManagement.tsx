@@ -18,6 +18,7 @@ import { ConversationAnalytics } from '@/components/analytics/ConversationAnalyt
 import { SalesReports } from '@/components/analytics/SalesReports';
 import { ExecutiveDashboard } from '@/components/analytics/ExecutiveDashboard';
 import { AgentConfiguration } from '@/components/agent/AgentConfiguration';
+import { EmbeddedChat } from '@/components/chat/EmbeddedChat';
 
 interface Restaurant {
   id: string;
@@ -170,6 +171,12 @@ export default function RestaurantManagement() {
           </Tabs>
         </div>
       </div>
+      
+      {/* Embedded Chat for testing */}
+      <EmbeddedChat 
+        restaurantId={restaurant.id}
+        restaurantName={restaurant.name}
+      />
     </div>
   );
 }
