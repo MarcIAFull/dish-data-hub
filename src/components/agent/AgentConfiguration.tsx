@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Bot, Save, Plus, Settings, MessageSquare } from 'lucide-react';
+import { Bot, Save, Plus, Settings, MessageSquare, Wifi, WifiOff, TestTube } from 'lucide-react';
 
 interface Agent {
   id?: string;
@@ -36,6 +36,8 @@ export const AgentConfiguration: React.FC<AgentConfigurationProps> = ({
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const { toast } = useToast();
 
   const defaultAgent: Omit<Agent, 'id'> = {
@@ -84,8 +86,91 @@ export const AgentConfiguration: React.FC<AgentConfigurationProps> = ({
     }
   };
 
+  const testConnection = async () => {
+    if (!selectedAgent?.evolution_api_instance || !selectedAgent?.evolution_api_token) {
+      toast({
+        title: "Erro",
+        description: "Por favor, preencha a instância e o token da Evolution API",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setTesting(true);
+      setConnectionStatus('idle');
+
+      // Test connection via edge function
+      const { data, error } = await supabase.functions.invoke('test-evolution-connection', {
+        body: {
+          instance: selectedAgent.evolution_api_instance,
+          token: selectedAgent.evolution_api_token
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setConnectionStatus('success');
+        toast({
+          title: "Conexão bem-sucedida",
+          description: "A conexão com a Evolution API foi estabelecida com sucesso",
+        });
+      } else {
+        setConnectionStatus('error');
+        toast({
+          title: "Falha na conexão",
+          description: data.message || "Não foi possível conectar com a Evolution API",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      setConnectionStatus('error');
+      toast({
+        title: "Erro",
+        description: "Erro ao testar a conexão",
+        variant: "destructive",
+      });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const validateAgent = (): boolean => {
+    if (!selectedAgent) return false;
+    
+    if (!selectedAgent.name.trim()) {
+      toast({
+        title: "Erro",
+        description: "Nome do agente é obrigatório",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (!selectedAgent.personality.trim()) {
+      toast({
+        title: "Erro", 
+        description: "Personalidade do agente é obrigatória",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (selectedAgent.whatsapp_number && !/^\d{10,15}$/.test(selectedAgent.whatsapp_number.replace(/\D/g, ''))) {
+      toast({
+        title: "Erro",
+        description: "Número do WhatsApp inválido (apenas números, 10-15 dígitos)",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return true;
+  };
+
   const saveAgent = async () => {
-    if (!selectedAgent) return;
+    if (!selectedAgent || !validateAgent()) return;
 
     try {
       setSaving(true);
@@ -322,6 +407,29 @@ export const AgentConfiguration: React.FC<AgentConfigurationProps> = ({
                     )}
                     placeholder="Token de acesso"
                   />
+                </div>
+
+                {/* Connection Test */}
+                <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    {connectionStatus === 'success' && <Wifi className="h-4 w-4 text-green-500" />}
+                    {connectionStatus === 'error' && <WifiOff className="h-4 w-4 text-red-500" />}
+                    {connectionStatus === 'idle' && <TestTube className="h-4 w-4 text-muted-foreground" />}
+                    <span className="text-sm font-medium">
+                      {connectionStatus === 'success' && 'Conectado'}
+                      {connectionStatus === 'error' && 'Erro de conexão'}
+                      {connectionStatus === 'idle' && 'Não testado'}
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={testConnection}
+                    disabled={testing || !selectedAgent.evolution_api_instance || !selectedAgent.evolution_api_token}
+                  >
+                    <TestTube className="h-4 w-4 mr-2" />
+                    {testing ? 'Testando...' : 'Testar Conexão'}
+                  </Button>
                 </div>
               </div>
 

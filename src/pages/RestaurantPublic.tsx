@@ -4,6 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Phone, MessageCircle } from 'lucide-react';
+import { CartProvider } from '@/components/cart/CartProvider';
+import { Cart } from '@/components/cart/Cart';
+import { ProductCard } from '@/components/cart/ProductCard';
 
 interface Restaurant {
   id: string;
@@ -148,117 +151,99 @@ export default function RestaurantPublic() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
       
-      <div className="min-h-screen bg-gradient-subtle">
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-4xl mx-auto">
-            {/* Restaurant Header */}
-            <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold mb-4" data-restaurant-name={restaurant.name}>
-                {restaurant.name}
-              </h1>
-              {restaurant.description && (
-                <p className="text-lg text-muted-foreground mb-6" data-restaurant-description>
-                  {restaurant.description}
-                </p>
-              )}
-              
-              <div className="flex flex-wrap justify-center gap-4">
-                {restaurant.address && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <MapPin className="w-4 h-4" />
-                    <span data-restaurant-address>{restaurant.address}</span>
-                  </div>
+      <CartProvider restaurantId={restaurant.id}>
+        <div className="min-h-screen bg-gradient-subtle">
+          <div className="container mx-auto px-4 py-8">
+            <div className="max-w-4xl mx-auto">
+              {/* Restaurant Header */}
+              <div className="text-center mb-8">
+                <h1 className="text-4xl font-bold mb-4" data-restaurant-name={restaurant.name}>
+                  {restaurant.name}
+                </h1>
+                {restaurant.description && (
+                  <p className="text-lg text-muted-foreground mb-6" data-restaurant-description>
+                    {restaurant.description}
+                  </p>
                 )}
-                {restaurant.phone && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Phone className="w-4 h-4" />
-                    <span data-restaurant-phone>{restaurant.phone}</span>
-                  </div>
-                )}
-                {restaurant.whatsapp && (
-                  <a
-                    href={`https://wa.me/${restaurant.whatsapp}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-green-600 hover:text-green-700"
-                    data-restaurant-whatsapp={restaurant.whatsapp}
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    <span>WhatsApp</span>
-                  </a>
+                
+                <div className="flex flex-wrap justify-center gap-4">
+                  {restaurant.address && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <MapPin className="w-4 h-4" />
+                      <span data-restaurant-address>{restaurant.address}</span>
+                    </div>
+                  )}
+                  {restaurant.phone && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Phone className="w-4 h-4" />
+                      <span data-restaurant-phone>{restaurant.phone}</span>
+                    </div>
+                  )}
+                  {restaurant.whatsapp && (
+                    <a
+                      href={`https://wa.me/${restaurant.whatsapp}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-green-600 hover:text-green-700"
+                      data-restaurant-whatsapp={restaurant.whatsapp}
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span>WhatsApp</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {/* Menu */}
+              <div className="space-y-8" data-menu-sections>
+                {categories.length === 0 ? (
+                  <Card>
+                    <CardContent className="text-center py-12">
+                      <h3 className="text-lg font-semibold mb-2">Menu em preparação</h3>
+                      <p className="text-muted-foreground">
+                        Este restaurante ainda está organizando seu menu. Volte em breve!
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  categories.map((category) => {
+                    const categoryProducts = getProductsByCategory(category.id);
+                    if (categoryProducts.length === 0) return null;
+
+                    return (
+                      <Card key={category.id} data-category-id={category.id}>
+                        <CardHeader>
+                          <CardTitle className="text-2xl" data-category-name>
+                            {category.name}
+                          </CardTitle>
+                          {category.description && (
+                            <p className="text-muted-foreground" data-category-description>
+                              {category.description}
+                            </p>
+                          )}
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid gap-4" data-category-products>
+                            {categoryProducts.map((product) => (
+                              <ProductCard
+                                key={product.id}
+                                product={product}
+                              />
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
                 )}
               </div>
             </div>
-
-            {/* Menu */}
-            <div className="space-y-8" data-menu-sections>
-              {categories.length === 0 ? (
-                <Card>
-                  <CardContent className="text-center py-12">
-                    <h3 className="text-lg font-semibold mb-2">Menu em preparação</h3>
-                    <p className="text-muted-foreground">
-                      Este restaurante ainda está organizando seu menu. Volte em breve!
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                categories.map((category) => {
-                  const categoryProducts = getProductsByCategory(category.id);
-                  if (categoryProducts.length === 0) return null;
-
-                  return (
-                    <Card key={category.id} data-category-id={category.id}>
-                      <CardHeader>
-                        <CardTitle className="text-2xl" data-category-name>
-                          {category.name}
-                        </CardTitle>
-                        {category.description && (
-                          <p className="text-muted-foreground" data-category-description>
-                            {category.description}
-                          </p>
-                        )}
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid gap-4" data-category-products>
-                          {categoryProducts.map((product) => (
-                            <div
-                              key={product.id}
-                              className="flex justify-between items-start p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                              data-product-id={product.id}
-                            >
-                              <div className="flex-1">
-                                <h4 className="font-semibold text-lg mb-2" data-product-name>
-                                  {product.name}
-                                </h4>
-                                {product.description && (
-                                  <p className="text-muted-foreground text-sm mb-3" data-product-description>
-                                    {product.description}
-                                  </p>
-                                )}
-                                <Badge variant="secondary" data-product-price>
-                                  {formatPrice(product.price)}
-                                </Badge>
-                              </div>
-                              {product.image_url && (
-                                <img
-                                  src={product.image_url}
-                                  alt={product.name}
-                                  className="w-20 h-20 object-cover rounded-lg ml-4"
-                                  data-product-image
-                                />
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })
-              )}
-            </div>
           </div>
         </div>
-      </div>
+        
+        {/* Shopping Cart */}
+        <Cart restaurantWhatsApp={restaurant.whatsapp} />
+      </CartProvider>
     </>
   );
 }

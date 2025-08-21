@@ -17,6 +17,7 @@ import { ConversionMetrics } from '@/components/analytics/ConversionMetrics';
 import { ConversationAnalytics } from '@/components/analytics/ConversationAnalytics';
 import { SalesReports } from '@/components/analytics/SalesReports';
 import { ExecutiveDashboard } from '@/components/analytics/ExecutiveDashboard';
+import { AgentConfiguration } from '@/components/agent/AgentConfiguration';
 
 interface Restaurant {
   id: string;
@@ -114,10 +115,11 @@ export default function RestaurantManagement() {
           </div>
 
           <Tabs defaultValue="info" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-9 text-xs">
+            <TabsList className="grid w-full grid-cols-10 text-xs">
               <TabsTrigger value="info">Info</TabsTrigger>
               <TabsTrigger value="categories">Categorias</TabsTrigger>
               <TabsTrigger value="products">Produtos</TabsTrigger>
+              <TabsTrigger value="agent">Agente IA</TabsTrigger>
               <TabsTrigger value="conversations">Conversas</TabsTrigger>
               <TabsTrigger value="orders">Pedidos</TabsTrigger>
               <TabsTrigger value="executive">Executivo</TabsTrigger>
@@ -136,6 +138,10 @@ export default function RestaurantManagement() {
 
             <TabsContent value="products">
               <ProductsManager restaurantId={restaurant.id} />
+            </TabsContent>
+
+            <TabsContent value="agent">
+              <AgentConfiguration restaurantId={restaurant.id} />
             </TabsContent>
 
             <TabsContent value="conversations">
