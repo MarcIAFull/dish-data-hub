@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, ChefHat, Settings, LogOut } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Plus, ChefHat, Settings, LogOut, Crown, Zap, Bot, AlertCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -20,6 +24,8 @@ interface Restaurant {
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
+  const { subscription, hasFeature, isWithinLimits } = useSubscription();
+  const { progress, isCompleted, currentStep } = useOnboarding();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -53,6 +59,13 @@ export default function Dashboard() {
     navigate('/');
   };
 
+  // Redirect to onboarding if not completed
+  useEffect(() => {
+    if (!loading && progress && !isCompleted && currentStep < 5) {
+      navigate('/onboarding');
+    }
+  }, [progress, isCompleted, currentStep, loading, navigate]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -72,12 +85,99 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex gap-2">
+            {subscription && (
+              <div className="flex items-center gap-2">
+                <Badge variant={subscription.plan.type === 'free' ? 'secondary' : 'default'}>
+                  {subscription.plan.type === 'free' && <Zap className="w-3 h-3 mr-1" />}
+                  {subscription.plan.type === 'premium' && <Crown className="w-3 h-3 mr-1" />}
+                  {subscription.plan.name}
+                </Badge>
+              </div>
+            )}
             <Button variant="outline" onClick={handleSignOut}>
               <LogOut className="w-4 h-4 mr-2" />
               Sair
             </Button>
           </div>
         </div>
+
+        {/* Subscription Status Card */}
+        {subscription && (
+          <Card className="mb-6">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bot className="w-5 h-5" />
+                    Status da Assinatura
+                  </CardTitle>
+                  <CardDescription>
+                    Plano {subscription.plan.name} - {subscription.plan.type}
+                  </CardDescription>
+                </div>
+                <Badge variant={subscription.status === 'active' ? 'default' : 'secondary'}>
+                  {subscription.status === 'active' ? 'Ativo' : subscription.status}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm font-medium">Restaurantes</p>
+                  <p className="text-2xl font-bold">
+                    {restaurants.length}/{subscription.plan.max_restaurants}
+                  </p>
+                  <Progress 
+                    value={(restaurants.length / subscription.plan.max_restaurants) * 100} 
+                    className="mt-2"
+                  />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Recursos Inclusos</p>
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {subscription.plan.ai_classification && (
+                      <Badge variant="outline" className="text-xs">IA</Badge>
+                    )}
+                    {subscription.plan.whatsapp_integration && (
+                      <Badge variant="outline" className="text-xs">WhatsApp</Badge>
+                    )}
+                    {subscription.plan.analytics && (
+                      <Badge variant="outline" className="text-xs">Analytics</Badge>
+                    )}
+                    {subscription.plan.api_access && (
+                      <Badge variant="outline" className="text-xs">API</Badge>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Preço</p>
+                  <p className="text-2xl font-bold">
+                    €{subscription.plan.price_monthly}{subscription.plan.price_monthly > 0 && '/mês'}
+                  </p>
+                  {subscription.plan.type === 'free' && (
+                    <Button variant="outline" size="sm" className="mt-2">
+                      Fazer Upgrade
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Limits Warning */}
+        {subscription && !isWithinLimits('restaurants', restaurants.length) && (
+          <Card className="mb-6 border-destructive">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2 text-destructive">
+                <AlertCircle className="w-5 h-5" />
+                <p className="font-medium">
+                  Limite de restaurantes atingido! Faça upgrade para adicionar mais restaurantes.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-6">
           {restaurants.length === 0 ? (
@@ -100,7 +200,10 @@ export default function Dashboard() {
             <>
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-semibold">Meus Restaurantes</h2>
-                <Button onClick={() => navigate('/restaurant/new')}>
+                <Button 
+                  onClick={() => navigate('/restaurant/new')}
+                  disabled={subscription && !isWithinLimits('restaurants', restaurants.length)}
+                >
                   <Plus className="w-4 h-4 mr-2" />
                   Novo Restaurante
                 </Button>
