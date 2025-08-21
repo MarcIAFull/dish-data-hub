@@ -33,7 +33,7 @@ serve(async (req) => {
       );
     }
     
-    const { instance, token } = parsedBody;
+    const { instance, token, baseUrl } = parsedBody;
 
     if (!instance || !token) {
       return new Response(
@@ -49,13 +49,29 @@ serve(async (req) => {
     }
 
     console.log(`Testando conexão para instância: ${instance}`);
+    console.log(`URL base fornecida: ${baseUrl || 'Não fornecida'}`);
     
     // Clean instance name for URL usage - remove spaces and special chars
     const cleanInstance = instance.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     console.log(`Instância limpa para URL: ${cleanInstance}`);
     
-    // Try different Evolution API URL patterns
-    const possibleUrls = [
+    // Build possible URLs
+    const possibleUrls = [];
+    
+    // If user provided a base URL, try it first
+    if (baseUrl) {
+      const cleanBaseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
+      possibleUrls.push(
+        `${cleanBaseUrl}/instance/connectionState/${encodeURIComponent(instance)}`,
+        `${cleanBaseUrl}/instance/connectionState/${cleanInstance}`,
+        `${cleanBaseUrl}/instance/connectionState`,
+        `${cleanBaseUrl}/${encodeURIComponent(instance)}/instance/connectionState`,
+        `${cleanBaseUrl}/${cleanInstance}/instance/connectionState`,
+      );
+    }
+    
+    // Common Evolution API patterns
+    possibleUrls.push(
       // Common Evolution API patterns with cleaned instance name
       `https://evolution.${cleanInstance}.com.br/instance/connectionState`,
       `https://${cleanInstance}.evolution-api.com/instance/connectionState`,  
@@ -66,7 +82,7 @@ serve(async (req) => {
       `https://evolution-api.com/instance/connectionState`,
       `https://api.evolutionapi.com/instance/connectionState/${encodeURIComponent(instance)}`,
       `https://api.evolutionapi.com/instance/connectionState/${cleanInstance}`,
-    ];
+    );
 
     let lastError = null;
     let allAttempts = [];
