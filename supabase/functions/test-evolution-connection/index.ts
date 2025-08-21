@@ -65,8 +65,12 @@ serve(async (req) => {
         `${cleanBaseUrl}/instance/connectionState/${encodeURIComponent(instance)}`,
         `${cleanBaseUrl}/instance/connectionState/${cleanInstance}`,
         `${cleanBaseUrl}/instance/connectionState`,
-        `${cleanBaseUrl}/${encodeURIComponent(instance)}/instance/connectionState`,
-        `${cleanBaseUrl}/${cleanInstance}/instance/connectionState`,
+        `${cleanBaseUrl}/manager/instance/connectionState/${encodeURIComponent(instance)}`,
+        `${cleanBaseUrl}/manager/instance/connectionState/${cleanInstance}`,
+        `${cleanBaseUrl}/manager/instance/connectionState`,
+        `${cleanBaseUrl}/api/instance/connectionState/${encodeURIComponent(instance)}`,
+        `${cleanBaseUrl}/api/instance/connectionState/${cleanInstance}`,
+        `${cleanBaseUrl}/api/instance/connectionState`,
       );
     }
     
