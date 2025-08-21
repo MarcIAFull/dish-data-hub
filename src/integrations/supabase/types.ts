@@ -65,6 +65,75 @@ export type Database = {
             foreignKeyName: "agents_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "conversion_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "agents_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analytics_events: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          event_data: Json
+          event_type: string
+          id: string
+          order_id: string | null
+          restaurant_id: string
+          user_phone: string | null
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          event_data?: Json
+          event_type: string
+          id?: string
+          order_id?: string | null
+          restaurant_id: string
+          user_phone?: string | null
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          event_data?: Json
+          event_type?: string
+          id?: string
+          order_id?: string | null
+          restaurant_id?: string
+          user_phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_events_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analytics_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analytics_events_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "conversion_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "analytics_events_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -101,6 +170,83 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "categories_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "conversion_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "categories_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_insights: {
+        Row: {
+          analysis_data: Json | null
+          conversation_id: string
+          converted_to_order: boolean | null
+          created_at: string
+          fallback_count: number | null
+          id: string
+          intent_detected: string | null
+          key_topics: string[] | null
+          resolution_time_minutes: number | null
+          restaurant_id: string
+          satisfaction_score: number | null
+          sentiment_score: number | null
+          updated_at: string
+        }
+        Insert: {
+          analysis_data?: Json | null
+          conversation_id: string
+          converted_to_order?: boolean | null
+          created_at?: string
+          fallback_count?: number | null
+          id?: string
+          intent_detected?: string | null
+          key_topics?: string[] | null
+          resolution_time_minutes?: number | null
+          restaurant_id: string
+          satisfaction_score?: number | null
+          sentiment_score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          analysis_data?: Json | null
+          conversation_id?: string
+          converted_to_order?: boolean | null
+          created_at?: string
+          fallback_count?: number | null
+          id?: string
+          intent_detected?: string | null
+          key_topics?: string[] | null
+          resolution_time_minutes?: number | null
+          restaurant_id?: string
+          satisfaction_score?: number | null
+          sentiment_score?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_insights_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_insights_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "conversion_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "conversation_insights_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
@@ -384,6 +530,13 @@ export type Database = {
             foreignKeyName: "orders_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "conversion_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "orders_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -617,12 +770,52 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      conversion_metrics: {
+        Row: {
+          avg_order_value: number | null
+          conversion_rate: number | null
+          restaurant_id: string | null
+          restaurant_name: string | null
+          total_conversations: number | null
+          total_orders: number | null
+          total_revenue: number | null
+        }
+        Relationships: []
+      }
+      daily_analytics: {
+        Row: {
+          date: string | null
+          event_count: number | null
+          event_type: string | null
+          restaurant_id: string | null
+          unique_users: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_events_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "conversion_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "analytics_events_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       generate_order_number: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      refresh_analytics_views: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
     }
     Enums: {

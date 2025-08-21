@@ -34,3 +34,9 @@ verify_jwt = true
 
 [functions.update-order-status]
 verify_jwt = true
+
+[functions.analytics-data]
+verify_jwt = true
+
+[functions.conversation-insights]
+verify_jwt = true

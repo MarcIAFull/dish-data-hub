@@ -10,6 +10,12 @@ import { toast } from '@/hooks/use-toast';
 import { RestaurantInfo } from '@/components/restaurant/RestaurantInfo';
 import { CategoriesManager } from '@/components/restaurant/CategoriesManager';
 import { ProductsManager } from '@/components/restaurant/ProductsManager';
+import { ConversationsDashboard } from '@/components/conversations/ConversationsDashboard';
+import { OrdersDashboard } from '@/components/orders/OrdersDashboard';
+import { BotPerformanceDashboard } from '@/components/analytics/BotPerformanceDashboard';
+import { ConversionMetrics } from '@/components/analytics/ConversionMetrics';
+import { ConversationAnalytics } from '@/components/analytics/ConversationAnalytics';
+import { SalesReports } from '@/components/analytics/SalesReports';
 
 interface Restaurant {
   id: string;
@@ -107,10 +113,15 @@ export default function RestaurantManagement() {
           </div>
 
           <Tabs defaultValue="info" className="space-y-6">
-            <TabsList>
-              <TabsTrigger value="info">Informações</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-8 text-xs">
+              <TabsTrigger value="info">Info</TabsTrigger>
               <TabsTrigger value="categories">Categorias</TabsTrigger>
               <TabsTrigger value="products">Produtos</TabsTrigger>
+              <TabsTrigger value="conversations">Conversas</TabsTrigger>
+              <TabsTrigger value="orders">Pedidos</TabsTrigger>
+              <TabsTrigger value="performance">Performance</TabsTrigger>
+              <TabsTrigger value="conversion">Conversão</TabsTrigger>
+              <TabsTrigger value="reports">Relatórios</TabsTrigger>
             </TabsList>
 
             <TabsContent value="info">
@@ -123,6 +134,26 @@ export default function RestaurantManagement() {
 
             <TabsContent value="products">
               <ProductsManager restaurantId={restaurant.id} />
+            </TabsContent>
+
+            <TabsContent value="conversations">
+              <ConversationsDashboard restaurantId={restaurant.id} />
+            </TabsContent>
+
+            <TabsContent value="orders">
+              <OrdersDashboard restaurantId={restaurant.id} />
+            </TabsContent>
+
+            <TabsContent value="performance">
+              <BotPerformanceDashboard restaurantId={restaurant.id} />
+            </TabsContent>
+
+            <TabsContent value="conversion">
+              <ConversionMetrics restaurantId={restaurant.id} />
+            </TabsContent>
+
+            <TabsContent value="reports">
+              <SalesReports restaurantId={restaurant.id} />
             </TabsContent>
           </Tabs>
         </div>
