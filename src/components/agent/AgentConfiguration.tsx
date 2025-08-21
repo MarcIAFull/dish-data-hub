@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Bot, Save, Plus, Settings, MessageSquare, Wifi, WifiOff, TestTube } from 'lucide-react';
+import { Bot, Save, Plus, Settings, MessageSquare } from 'lucide-react';
 
 interface Agent {
   id?: string;
@@ -20,9 +20,7 @@ interface Agent {
   is_active: boolean;
   fallback_enabled: boolean;
   fallback_timeout_minutes: number;
-  whatsapp_number: string;
-  evolution_api_instance: string;
-  evolution_api_token: string;
+  superagentes_iframe?: string;
 }
 
 interface AgentConfigurationProps {
@@ -48,9 +46,7 @@ export const AgentConfiguration: React.FC<AgentConfigurationProps> = ({
     is_active: true,
     fallback_enabled: true,
     fallback_timeout_minutes: 5,
-    whatsapp_number: '',
-    evolution_api_instance: '',
-    evolution_api_token: ''
+    superagentes_iframe: ''
   };
 
   const fetchAgents = async () => {
@@ -86,56 +82,6 @@ export const AgentConfiguration: React.FC<AgentConfigurationProps> = ({
     }
   };
 
-  const testConnection = async () => {
-    if (!selectedAgent?.evolution_api_instance || !selectedAgent?.evolution_api_token) {
-      toast({
-        title: "Erro",
-        description: "Por favor, preencha a instância e o token da Evolution API",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setTesting(true);
-      setConnectionStatus('idle');
-
-      // Test connection via edge function
-      const { data, error } = await supabase.functions.invoke('test-evolution-connection', {
-        body: {
-          instance: selectedAgent.evolution_api_instance,
-          token: selectedAgent.evolution_api_token
-        }
-      });
-
-      if (error) throw error;
-
-      if (data.success) {
-        setConnectionStatus('success');
-        toast({
-          title: "Conexão bem-sucedida",
-          description: "A conexão com a Evolution API foi estabelecida com sucesso",
-        });
-      } else {
-        setConnectionStatus('error');
-        toast({
-          title: "Falha na conexão",
-          description: data.message || "Não foi possível conectar com a Evolution API",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      setConnectionStatus('error');
-      toast({
-        title: "Erro",
-        description: "Erro ao testar a conexão",
-        variant: "destructive",
-      });
-    } finally {
-      setTesting(false);
-    }
-  };
-
   const validateAgent = (): boolean => {
     if (!selectedAgent) return false;
     
@@ -152,15 +98,6 @@ export const AgentConfiguration: React.FC<AgentConfigurationProps> = ({
       toast({
         title: "Erro", 
         description: "Personalidade do agente é obrigatória",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    if (selectedAgent.whatsapp_number && !/^\d{10,15}$/.test(selectedAgent.whatsapp_number.replace(/\D/g, ''))) {
-      toast({
-        title: "Erro",
-        description: "Número do WhatsApp inválido (apenas números, 10-15 dígitos)",
         variant: "destructive",
       });
       return false;
@@ -186,9 +123,7 @@ export const AgentConfiguration: React.FC<AgentConfigurationProps> = ({
             is_active: selectedAgent.is_active,
             fallback_enabled: selectedAgent.fallback_enabled,
             fallback_timeout_minutes: selectedAgent.fallback_timeout_minutes,
-            whatsapp_number: selectedAgent.whatsapp_number,
-            evolution_api_instance: selectedAgent.evolution_api_instance,
-            evolution_api_token: selectedAgent.evolution_api_token,
+            superagentes_iframe: selectedAgent.superagentes_iframe,
             updated_at: new Date().toISOString()
           })
           .eq('id', selectedAgent.id);
@@ -277,7 +212,7 @@ export const AgentConfiguration: React.FC<AgentConfigurationProps> = ({
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 truncate">
-                    {agent.whatsapp_number || 'Sem WhatsApp configurado'}
+                    {agent.superagentes_iframe ? 'Iframe configurado' : 'Sem iframe configurado'}
                   </p>
                 </div>
               ))}
@@ -368,74 +303,24 @@ export const AgentConfiguration: React.FC<AgentConfigurationProps> = ({
 
               <Separator />
 
-              {/* WhatsApp Configuration */}
+              {/* SuperAgentes Configuration */}
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">Configuração WhatsApp</h3>
+                <h3 className="text-lg font-medium">Configuração SuperAgentes</h3>
                 
                 <div>
-                  <Label htmlFor="whatsapp_number">Número WhatsApp</Label>
-                  <Input
-                    id="whatsapp_number"
-                    value={selectedAgent.whatsapp_number}
+                  <Label htmlFor="superagentes_iframe">Iframe do SuperAgentes</Label>
+                  <Textarea
+                    id="superagentes_iframe"
+                    value={selectedAgent.superagentes_iframe || ''}
                     onChange={(e) => setSelectedAgent(prev => 
-                      prev ? { ...prev, whatsapp_number: e.target.value } : null
+                      prev ? { ...prev, superagentes_iframe: e.target.value } : null
                     )}
-                    placeholder="Ex: 5511999999999"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="evolution_api_instance">Instância Evolution API</Label>
-                  <Input
-                    id="evolution_api_instance"
-                    value={selectedAgent.evolution_api_instance}
-                    onChange={(e) => setSelectedAgent(prev => 
-                      prev ? { ...prev, evolution_api_instance: e.target.value } : null
-                    )}
-                    placeholder="Ex: minha-instancia ou subdomínio"
+                    placeholder='Cole aqui o código iframe fornecido pelo SuperAgentes&#10;Exemplo: <iframe src="https://..." width="100%" height="400"></iframe>'
+                    className="min-h-[120px] font-mono text-sm"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Nome da sua instância Evolution API (ex: "minha-empresa" para minha-empresa.evolution-api.com)
+                    Cole o código iframe completo fornecido pelo SuperAgentes para integrar o chat do restaurante
                   </p>
-                </div>
-
-                <div>
-                  <Label htmlFor="evolution_api_token">Token Evolution API</Label>
-                  <Input
-                    id="evolution_api_token"
-                    type="password"
-                    value={selectedAgent.evolution_api_token}
-                    onChange={(e) => setSelectedAgent(prev => 
-                      prev ? { ...prev, evolution_api_token: e.target.value } : null
-                    )}
-                    placeholder="Token de acesso da Evolution API"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Token de autenticação fornecido pelo provedor da Evolution API
-                  </p>
-                </div>
-
-                {/* Connection Test */}
-                <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    {connectionStatus === 'success' && <Wifi className="h-4 w-4 text-green-500" />}
-                    {connectionStatus === 'error' && <WifiOff className="h-4 w-4 text-red-500" />}
-                    {connectionStatus === 'idle' && <TestTube className="h-4 w-4 text-muted-foreground" />}
-                    <span className="text-sm font-medium">
-                      {connectionStatus === 'success' && 'Conectado'}
-                      {connectionStatus === 'error' && 'Erro de conexão'}
-                      {connectionStatus === 'idle' && 'Não testado'}
-                    </span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={testConnection}
-                    disabled={testing || !selectedAgent.evolution_api_instance || !selectedAgent.evolution_api_token}
-                  >
-                    <TestTube className="h-4 w-4 mr-2" />
-                    {testing ? 'Testando...' : 'Testar Conexão'}
-                  </Button>
                 </div>
               </div>
 
