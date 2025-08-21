@@ -17,8 +17,6 @@ export type Database = {
       agents: {
         Row: {
           created_at: string
-          evolution_api_instance: string | null
-          evolution_api_token: string | null
           fallback_enabled: boolean
           fallback_timeout_minutes: number
           id: string
@@ -27,13 +25,11 @@ export type Database = {
           name: string
           personality: string
           restaurant_id: string
+          superagentes_iframe: string | null
           updated_at: string
-          whatsapp_number: string | null
         }
         Insert: {
           created_at?: string
-          evolution_api_instance?: string | null
-          evolution_api_token?: string | null
           fallback_enabled?: boolean
           fallback_timeout_minutes?: number
           id?: string
@@ -42,13 +38,11 @@ export type Database = {
           name: string
           personality?: string
           restaurant_id: string
+          superagentes_iframe?: string | null
           updated_at?: string
-          whatsapp_number?: string | null
         }
         Update: {
           created_at?: string
-          evolution_api_instance?: string | null
-          evolution_api_token?: string | null
           fallback_enabled?: boolean
           fallback_timeout_minutes?: number
           id?: string
@@ -57,8 +51,8 @@ export type Database = {
           name?: string
           personality?: string
           restaurant_id?: string
+          superagentes_iframe?: string | null
           updated_at?: string
-          whatsapp_number?: string | null
         }
         Relationships: [
           {

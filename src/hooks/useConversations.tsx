@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 
 interface Agent {
   id: string;
@@ -11,9 +11,7 @@ interface Agent {
   is_active: boolean;
   fallback_enabled: boolean;
   fallback_timeout_minutes: number;
-  whatsapp_number: string;
-  evolution_api_instance: string;
-  evolution_api_token: string;
+  superagentes_iframe?: string;
   created_at: string;
   updated_at: string;
 }
@@ -51,7 +49,6 @@ export const useConversations = (restaurantId?: string) => {
   const [conversations, setConversations] = useState<ConversationWithMessages[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
 
   const fetchConversations = async () => {
     if (!restaurantId) return;
