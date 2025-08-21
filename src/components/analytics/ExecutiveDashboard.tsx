@@ -21,6 +21,9 @@ import { BusinessMetrics as BusinessMetricsComponent } from './BusinessMetrics';
 import { ProductAnalytics } from './ProductAnalytics';
 import { CustomerBehavior } from './CustomerBehavior';
 import { AIInsights } from './AIInsights';
+import { FinancialReports } from './FinancialReports';
+import { PriceOptimizer } from './PriceOptimizer';
+import { DemandForecasting } from './DemandForecasting';
 
 interface ExecutiveDashboardProps {
   restaurantId: string;
@@ -191,7 +194,7 @@ export function ExecutiveDashboard({ restaurantId }: ExecutiveDashboardProps) {
       )}
 
       <Tabs defaultValue="metrics" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="metrics" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Métricas
@@ -207,6 +210,18 @@ export function ExecutiveDashboard({ restaurantId }: ExecutiveDashboardProps) {
           <TabsTrigger value="insights" className="flex items-center gap-2">
             <Brain className="h-4 w-4" />
             Insights IA
+          </TabsTrigger>
+          <TabsTrigger value="pricing" className="flex items-center gap-2">
+            <DollarSign className="h-4 w-4" />
+            Preços
+          </TabsTrigger>
+          <TabsTrigger value="forecast" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Previsão
+          </TabsTrigger>
+          <TabsTrigger value="financial" className="flex items-center gap-2">
+            <Target className="h-4 w-4" />
+            Financeiro
           </TabsTrigger>
         </TabsList>
 
@@ -233,6 +248,18 @@ export function ExecutiveDashboard({ restaurantId }: ExecutiveDashboardProps) {
             restaurantId={restaurantId} 
             insights={aiInsights}
           />
+        </TabsContent>
+
+        <TabsContent value="pricing" className="space-y-6">
+          <PriceOptimizer restaurantId={restaurantId} />
+        </TabsContent>
+
+        <TabsContent value="forecast" className="space-y-6">
+          <DemandForecasting restaurantId={restaurantId} />
+        </TabsContent>
+
+        <TabsContent value="financial" className="space-y-6">
+          <FinancialReports restaurantId={restaurantId} />
         </TabsContent>
       </Tabs>
     </div>
