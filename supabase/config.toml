@@ -13,3 +13,12 @@ verify_jwt = true
 
 [functions.generate-restaurant-content]
 verify_jwt = true
+
+[functions.restaurant-ai-data]
+verify_jwt = false
+
+[functions.restaurant-training-text]
+verify_jwt = false
+
+[functions.restaurant-faq]
+verify_jwt = false
