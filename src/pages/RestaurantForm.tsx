@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import { ProtectedRestaurantRoute } from '@/components/ProtectedRestaurantRoute';
 
 interface RestaurantFormData {
   name: string;
@@ -20,48 +21,23 @@ interface RestaurantFormData {
   instagram: string;
 }
 
-export default function RestaurantForm() {
-  const { id } = useParams();
+function RestaurantFormContent({ restaurant }: { restaurant?: any }) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isEditing = !!restaurant;
+  
+  const [formData, setFormData] = useState<RestaurantFormData>(
+    restaurant || {
+      name: '',
+      slug: '',
+      description: '',
+      address: '',
+      phone: '',
+      whatsapp: '',
+      instagram: '',
+    }
+  );
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<RestaurantFormData>({
-    name: '',
-    slug: '',
-    description: '',
-    address: '',
-    phone: '',
-    whatsapp: '',
-    instagram: '',
-  });
-
-  const isEditing = Boolean(id && id !== 'new');
-
-  useEffect(() => {
-    if (isEditing) {
-      fetchRestaurant();
-    }
-  }, [id, isEditing]);
-
-  const fetchRestaurant = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('restaurants')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) throw error;
-      setFormData(data);
-    } catch (error) {
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível carregar o restaurante',
-        variant: 'destructive',
-      });
-      navigate('/dashboard');
-    }
-  };
 
   const generateSlug = (name: string) => {
     return name
@@ -88,10 +64,13 @@ export default function RestaurantForm() {
 
     try {
       if (isEditing) {
+        if (!user) throw new Error('Usuário não autenticado');
+        
         const { error } = await supabase
           .from('restaurants')
           .update(formData)
-          .eq('id', id);
+          .eq('id', restaurant.id)
+          .eq('user_id', user.id);
 
         if (error) throw error;
         
@@ -130,30 +109,37 @@ export default function RestaurantForm() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
-          <div className="flex items-center gap-4 mb-6">
-            <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Voltar
-            </Button>
-            <h1 className="text-3xl font-bold">
-              {isEditing ? 'Editar Restaurante' : 'Novo Restaurante'}
-            </h1>
-          </div>
-
           <Card>
             <CardHeader>
-              <CardTitle>Informações do Restaurante</CardTitle>
-              <CardDescription>
-                Preencha os dados do seu restaurante para criar a página pública
-              </CardDescription>
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/dashboard')}
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Voltar
+                </Button>
+                <div>
+                  <CardTitle>
+                    {isEditing ? 'Editar Restaurante' : 'Novo Restaurante'}
+                  </CardTitle>
+                  <CardDescription>
+                    {isEditing 
+                      ? 'Atualize as informações do seu restaurante'
+                      : 'Adicione um novo restaurante à sua conta'
+                    }
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Nome do Restaurante *</Label>
+                  <Label htmlFor="name">Nome do Restaurante</Label>
                   <Input
                     id="name"
                     value={formData.name}
@@ -164,32 +150,27 @@ export default function RestaurantForm() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="slug">URL da Página *</Label>
-                  <div className="flex">
-                    <span className="flex items-center px-3 text-sm bg-muted border border-r-0 rounded-l-md">
-                      /r/
+                  <Label htmlFor="slug">URL do Restaurante</Label>
+                  <div className="flex rounded-md shadow-sm">
+                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-muted bg-muted text-muted-foreground text-sm">
+                      lovable.app/r/
                     </span>
                     <Input
                       id="slug"
                       value={formData.slug}
-                      onChange={(e) => setFormData(prev => ({ ...prev, slug: generateSlug(e.target.value) }))}
-                      placeholder="pizzaria-do-joao"
+                      onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
                       className="rounded-l-none"
                       required
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Esta será a URL pública do seu restaurante
-                  </p>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="description">Descrição</Label>
                   <Textarea
                     id="description"
-                    value={formData.description}
+                    value={formData.description || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Descreva seu restaurante..."
                     rows={3}
                   />
                 </div>
@@ -198,9 +179,8 @@ export default function RestaurantForm() {
                   <Label htmlFor="address">Endereço</Label>
                   <Input
                     id="address"
-                    value={formData.address}
+                    value={formData.address || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                    placeholder="Rua, número, bairro, cidade"
                   />
                 </div>
 
@@ -209,9 +189,9 @@ export default function RestaurantForm() {
                     <Label htmlFor="phone">Telefone</Label>
                     <Input
                       id="phone"
-                      value={formData.phone}
+                      value={formData.phone || ''}
                       onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                      placeholder="(11) 99999-9999"
+                      placeholder="+351 000 000 000"
                     />
                   </div>
 
@@ -219,9 +199,9 @@ export default function RestaurantForm() {
                     <Label htmlFor="whatsapp">WhatsApp</Label>
                     <Input
                       id="whatsapp"
-                      value={formData.whatsapp}
+                      value={formData.whatsapp || ''}
                       onChange={(e) => setFormData(prev => ({ ...prev, whatsapp: e.target.value }))}
-                      placeholder="5511999999999"
+                      placeholder="+351 000 000 000"
                     />
                   </div>
                 </div>
@@ -230,7 +210,7 @@ export default function RestaurantForm() {
                   <Label htmlFor="instagram">Instagram</Label>
                   <Input
                     id="instagram"
-                    value={formData.instagram}
+                    value={formData.instagram || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, instagram: e.target.value }))}
                     placeholder="@seu_restaurante"
                   />
@@ -251,4 +231,19 @@ export default function RestaurantForm() {
       </div>
     </div>
   );
+}
+
+export default function RestaurantForm() {
+  const { id } = useParams();
+  const isEditing = !!id;
+
+  if (isEditing) {
+    return (
+      <ProtectedRestaurantRoute>
+        {(restaurant) => <RestaurantFormContent restaurant={restaurant} />}
+      </ProtectedRestaurantRoute>
+    );
+  }
+
+  return <RestaurantFormContent />;
 }

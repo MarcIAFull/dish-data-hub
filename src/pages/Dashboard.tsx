@@ -31,19 +31,28 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchRestaurants();
-  }, []);
+    if (user) {
+      fetchRestaurants();
+    }
+  }, [user]);
 
   const fetchRestaurants = async () => {
     try {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('restaurants')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       setRestaurants(data || []);
     } catch (error) {
+      console.error('Error fetching restaurants:', error);
       toast({
         title: 'Erro',
         description: 'Não foi possível carregar os restaurantes',

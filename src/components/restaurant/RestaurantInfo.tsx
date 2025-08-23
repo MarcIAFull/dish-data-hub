@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,6 +27,7 @@ interface RestaurantInfoProps {
 }
 
 export function RestaurantInfo({ restaurant, onUpdate }: RestaurantInfoProps) {
+  const { user } = useAuth();
   const [formData, setFormData] = useState(restaurant);
   const [loading, setLoading] = useState(false);
 
@@ -34,10 +36,15 @@ export function RestaurantInfo({ restaurant, onUpdate }: RestaurantInfoProps) {
     setLoading(true);
 
     try {
+      if (!user) {
+        throw new Error('Usuário não autenticado');
+      }
+
       const { error } = await supabase
         .from('restaurants')
         .update(formData)
-        .eq('id', restaurant.id);
+        .eq('id', restaurant.id)
+        .eq('user_id', user.id);
 
       if (error) throw error;
 

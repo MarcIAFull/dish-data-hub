@@ -49,7 +49,7 @@ export function useRestaurantMenu(slug: string) {
 
   const fetchMenuData = async () => {
     try {
-      // Fetch restaurant
+      // Fetch restaurant (public access for sales page)
       const { data: restaurantData, error: restaurantError } = await supabase
         .from('restaurants')
         .select('*')
