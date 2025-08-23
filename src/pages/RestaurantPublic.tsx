@@ -1,6 +1,9 @@
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useRestaurantMenu } from '@/hooks/useRestaurantMenu';
+import { CartProvider } from '@/components/cart/CartProvider';
+import { Cart } from '@/components/cart/Cart';
+import { ProductCard } from '@/components/cart/ProductCard';
 
 export default function RestaurantPublic() {
   const { slug } = useParams();
@@ -62,19 +65,19 @@ export default function RestaurantPublic() {
   };
 
   return (
-    <>
+    <CartProvider restaurantId={restaurant?.id || ''}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
       
       <div className="min-h-screen bg-background text-foreground">
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-8 pb-24">
           <div className="max-w-4xl mx-auto">
             {/* Header */}
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold mb-4">
-                🍕 Cardápio Completo – {restaurant?.name || 'Restaurante'} (Quarteira)
+                🍕 {restaurant?.name || 'Restaurante'}
               </h1>
               
               {/* Contact Info */}
@@ -129,25 +132,9 @@ export default function RestaurantPublic() {
                         <p className="text-muted-foreground mb-4">{category.description}</p>
                       )}
                       
-                      <div className="space-y-4">
+                      <div className="grid gap-4 md:grid-cols-2">
                         {categoryProducts.map((product) => (
-                          <div key={product.id} className="border-l-4 border-primary pl-4">
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <h3 className="font-semibold text-lg">
-                                  {product.name}
-                                </h3>
-                                {product.description && (
-                                  <p className="text-muted-foreground mt-1">
-                                    {product.description}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="ml-4 text-xl font-bold text-primary">
-                                {formatPrice(product.price)}
-                              </div>
-                            </div>
-                          </div>
+                          <ProductCard key={product.id} product={product} />
                         ))}
                       </div>
                     </div>
@@ -157,7 +144,10 @@ export default function RestaurantPublic() {
             </div>
           </div>
         </div>
+        
+        {/* Shopping Cart */}
+        <Cart restaurantWhatsApp={restaurant?.whatsapp || restaurant?.phone} />
       </div>
-    </>
+    </CartProvider>
   );
 }
