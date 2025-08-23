@@ -2,71 +2,122 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { supabase } from '@/integrations/supabase/client';
+import { useRestaurantsManagement } from '@/hooks/useRestaurantsManagement';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Plus, ChefHat, Settings, LogOut, Crown, Zap, Bot, AlertCircle } from 'lucide-react';
+import { RestaurantCard } from '@/components/restaurant/RestaurantCard';
+import { RestaurantFilters } from '@/components/restaurant/RestaurantFilters';
+import { Plus, ChefHat, LogOut, Crown, Zap, Bot, AlertCircle, TrendingUp, Users, DollarSign, Package } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 
-console.log('Dashboard component loaded - icons:', { Plus, ChefHat, Settings, LogOut });
-
-interface Restaurant {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  is_active: boolean;
-  created_at: string;
-}
+console.log('Dashboard component loaded - icons:', { Plus, ChefHat, LogOut });
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
   const { subscription, hasFeature, isWithinLimits } = useSubscription();
   const { progress, isCompleted, currentStep } = useOnboarding();
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  
+  // Use advanced restaurant management hook
+  const {
+    restaurants,
+    loading,
+    error,
+    totalRestaurants,
+    activeRestaurants,
+    fetchRestaurants,
+    toggleRestaurantStatus,
+    deleteRestaurant,
+    duplicateRestaurant,
+    bulkToggleStatus,
+    searchTerm,
+    setSearchTerm,
+    statusFilter,
+    setStatusFilter,
+    sortBy,
+    setSortBy,
+    sortDirection,
+    setSortDirection,
+    filteredRestaurants,
+  } = useRestaurantsManagement();
 
-  useEffect(() => {
-    if (user) {
-      fetchRestaurants();
-    }
-  }, [user]);
-
-  const fetchRestaurants = async () => {
-    try {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('restaurants')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setRestaurants(data || []);
-    } catch (error) {
-      console.error('Error fetching restaurants:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível carregar os restaurantes',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Selection state for bulk operations
+  const [selectedRestaurants, setSelectedRestaurants] = useState<string[]>([]);
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
   };
+
+  // Selection handlers
+  const handleSelectRestaurant = (id: string, selected: boolean) => {
+    setSelectedRestaurants(prev => 
+      selected 
+        ? [...prev, id]
+        : prev.filter(resId => resId !== id)
+    );
+  };
+
+  const handleSelectAll = () => {
+    setSelectedRestaurants(filteredRestaurants.map(r => r.id));
+  };
+
+  const handleSelectNone = () => {
+    setSelectedRestaurants([]);
+  };
+
+  // Bulk operations
+  const handleBulkActivate = () => {
+    bulkToggleStatus(selectedRestaurants, true);
+    setSelectedRestaurants([]);
+  };
+
+  const handleBulkDeactivate = () => {
+    bulkToggleStatus(selectedRestaurants, false);
+    setSelectedRestaurants([]);
+  };
+
+  const handleBulkDelete = () => {
+    // Delete multiple restaurants
+    Promise.all(selectedRestaurants.map(id => deleteRestaurant(id)))
+      .then(() => {
+        setSelectedRestaurants([]);
+      });
+  };
+
+  const handleExport = () => {
+    // Export restaurants data as CSV
+    const csvData = filteredRestaurants.map(restaurant => ({
+      Nome: restaurant.name,
+      Slug: restaurant.slug,
+      Status: restaurant.is_active ? 'Ativo' : 'Inativo',
+      Pedidos: restaurant.stats.totalOrders,
+      Receita: restaurant.stats.totalRevenue,
+      Produtos: restaurant.stats.totalProducts,
+      Criado: new Date(restaurant.created_at).toLocaleDateString('pt-BR'),
+    }));
+
+    const csvContent = [
+      Object.keys(csvData[0]).join(','),
+      ...csvData.map(row => Object.values(row).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `restaurantes-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Computed stats
+  const totalRevenue = restaurants.reduce((sum, r) => sum + r.stats.totalRevenue, 0);
+  const totalOrders = restaurants.reduce((sum, r) => sum + r.stats.totalOrders, 0);
+  const totalProducts = restaurants.reduce((sum, r) => sum + r.stats.totalProducts, 0);
 
   // Redirect to onboarding if not completed
   useEffect(() => {
@@ -108,6 +159,61 @@ export default function Dashboard() {
               Sair
             </Button>
           </div>
+        </div>
+
+        {/* Overview Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Restaurantes</CardTitle>
+              <ChefHat className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalRestaurants}</div>
+              <p className="text-xs text-muted-foreground">
+                {activeRestaurants} ativos
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">€{totalRevenue.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">
+                Todos os restaurantes
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pedidos</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalOrders}</div>
+              <p className="text-xs text-muted-foreground">
+                Total de pedidos
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Produtos</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalProducts}</div>
+              <p className="text-xs text-muted-foreground">
+                Total no catálogo
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Subscription Status Card */}
@@ -188,8 +294,8 @@ export default function Dashboard() {
           </Card>
         )}
 
-        <div className="grid gap-6">
-          {restaurants.length === 0 ? (
+        <div className="space-y-6">
+          {totalRestaurants === 0 ? (
             <Card>
               <CardHeader className="text-center">
                 <ChefHat className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
@@ -207,62 +313,73 @@ export default function Dashboard() {
             </Card>
           ) : (
             <>
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-semibold">Meus Restaurantes</h2>
-                <Button 
-                  onClick={() => navigate('/restaurant/new')}
-                  disabled={subscription && !isWithinLimits('restaurants', restaurants.length)}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Novo Restaurante
-                </Button>
+              {/* Filters and Controls */}
+              <RestaurantFilters
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                statusFilter={statusFilter}
+                onStatusFilterChange={setStatusFilter}
+                sortBy={sortBy}
+                onSortByChange={setSortBy}
+                sortDirection={sortDirection}
+                onSortDirectionChange={setSortDirection}
+                selectedCount={selectedRestaurants.length}
+                totalCount={totalRestaurants}
+                onSelectAll={handleSelectAll}
+                onSelectNone={handleSelectNone}
+                onBulkActivate={handleBulkActivate}
+                onBulkDeactivate={handleBulkDeactivate}
+                onBulkDelete={handleBulkDelete}
+                onCreateNew={() => navigate('/restaurant/new')}
+                onExport={handleExport}
+                canCreateNew={!subscription || isWithinLimits('restaurants', restaurants.length)}
+              />
+
+              {/* Results count */}
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  {filteredRestaurants.length === totalRestaurants 
+                    ? `${totalRestaurants} restaurante(s)`
+                    : `${filteredRestaurants.length} de ${totalRestaurants} restaurante(s)`
+                  }
+                </p>
               </div>
-              
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {restaurants.map((restaurant) => (
-                  <Card key={restaurant.id} className="hover:shadow-lg transition-shadow">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-lg">{restaurant.name}</CardTitle>
-                          <CardDescription>/{restaurant.slug}</CardDescription>
-                        </div>
-                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          restaurant.is_active 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {restaurant.is_active ? 'Ativo' : 'Inativo'}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        {restaurant.description || 'Sem descrição'}
-                      </p>
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => navigate(`/restaurant/${restaurant.id}`)}
-                          className="flex-1"
-                        >
-                          <Settings className="w-4 h-4 mr-2" />
-                          Gerenciar
-                        </Button>
-                        <Button 
-                          variant="secondary" 
-                          size="sm"
-                          onClick={() => window.open(`/r/${restaurant.slug}`, '_blank')}
-                          className="flex-1"
-                        >
-                          Ver Página
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+
+              {/* Restaurant Grid */}
+              {filteredRestaurants.length === 0 ? (
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <ChefHat className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold mb-2">Nenhum restaurante encontrado</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Tente ajustar os filtros ou criar um novo restaurante.
+                    </p>
+                    <Button 
+                      onClick={() => {
+                        setSearchTerm('');
+                        setStatusFilter('all');
+                      }}
+                      variant="outline"
+                    >
+                      Limpar filtros
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredRestaurants.map((restaurant) => (
+                    <RestaurantCard
+                      key={restaurant.id}
+                      restaurant={restaurant}
+                      isSelected={selectedRestaurants.includes(restaurant.id)}
+                      onSelect={(selected) => handleSelectRestaurant(restaurant.id, selected)}
+                      onToggleStatus={toggleRestaurantStatus}
+                      onDelete={deleteRestaurant}
+                      onDuplicate={duplicateRestaurant}
+                    />
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>
