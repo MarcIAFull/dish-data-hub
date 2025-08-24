@@ -168,6 +168,163 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_learning_interactions: {
+        Row: {
+          agent_id: string
+          ai_response: string
+          context_data: Json | null
+          conversation_id: string
+          created_at: string | null
+          customer_phone: string
+          id: string
+          intent_detected: string | null
+          interaction_type: string
+          learning_tags: Json | null
+          restaurant_id: string
+          sentiment_score: number | null
+          successful_outcome: boolean | null
+          user_feedback_score: number | null
+          user_message: string
+        }
+        Insert: {
+          agent_id: string
+          ai_response: string
+          context_data?: Json | null
+          conversation_id: string
+          created_at?: string | null
+          customer_phone: string
+          id?: string
+          intent_detected?: string | null
+          interaction_type: string
+          learning_tags?: Json | null
+          restaurant_id: string
+          sentiment_score?: number | null
+          successful_outcome?: boolean | null
+          user_feedback_score?: number | null
+          user_message: string
+        }
+        Update: {
+          agent_id?: string
+          ai_response?: string
+          context_data?: Json | null
+          conversation_id?: string
+          created_at?: string | null
+          customer_phone?: string
+          id?: string
+          intent_detected?: string | null
+          interaction_type?: string
+          learning_tags?: Json | null
+          restaurant_id?: string
+          sentiment_score?: number | null
+          successful_outcome?: boolean | null
+          user_feedback_score?: number | null
+          user_message?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_learning_interactions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_learning_interactions_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_learning_interactions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "ai_learning_interactions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "conversion_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "ai_learning_interactions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_learning_patterns: {
+        Row: {
+          auto_response_enabled: boolean | null
+          confidence_level: number | null
+          created_at: string | null
+          frequency_count: number | null
+          id: string
+          last_occurrence: string | null
+          pattern_data: Json
+          pattern_type: string
+          restaurant_id: string
+          success_rate: number | null
+          suggested_improvement: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          auto_response_enabled?: boolean | null
+          confidence_level?: number | null
+          created_at?: string | null
+          frequency_count?: number | null
+          id?: string
+          last_occurrence?: string | null
+          pattern_data: Json
+          pattern_type: string
+          restaurant_id: string
+          success_rate?: number | null
+          suggested_improvement?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          auto_response_enabled?: boolean | null
+          confidence_level?: number | null
+          created_at?: string | null
+          frequency_count?: number | null
+          id?: string
+          last_occurrence?: string | null
+          pattern_data?: Json
+          pattern_type?: string
+          restaurant_id?: string
+          success_rate?: number | null
+          suggested_improvement?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_learning_patterns_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "ai_learning_patterns_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "conversion_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "ai_learning_patterns_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       analytics_events: {
         Row: {
           conversation_id: string | null
@@ -766,6 +923,159 @@ export type Database = {
           },
         ]
       }
+      dynamic_promotions: {
+        Row: {
+          applicable_categories: Json | null
+          applicable_products: Json | null
+          auto_announce: boolean | null
+          created_at: string | null
+          description: string | null
+          discount_type: string | null
+          discount_value: number
+          end_time: string | null
+          id: string
+          is_active: boolean | null
+          max_usage: number | null
+          restaurant_id: string
+          start_time: string | null
+          title: string
+          updated_at: string | null
+          usage_count: number | null
+        }
+        Insert: {
+          applicable_categories?: Json | null
+          applicable_products?: Json | null
+          auto_announce?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          discount_type?: string | null
+          discount_value: number
+          end_time?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_usage?: number | null
+          restaurant_id: string
+          start_time?: string | null
+          title: string
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Update: {
+          applicable_categories?: Json | null
+          applicable_products?: Json | null
+          auto_announce?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          discount_type?: string | null
+          discount_value?: number
+          end_time?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_usage?: number | null
+          restaurant_id?: string
+          start_time?: string | null
+          title?: string
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dynamic_promotions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "dynamic_promotions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "conversion_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "dynamic_promotions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fallback_scenarios: {
+        Row: {
+          agent_id: string
+          auto_trigger: boolean | null
+          created_at: string | null
+          custom_message: string | null
+          fallback_type: string
+          id: string
+          notification_channels: Json | null
+          priority_level: number | null
+          restaurant_id: string
+          scenario_name: string
+          trigger_conditions: Json
+          updated_at: string | null
+        }
+        Insert: {
+          agent_id: string
+          auto_trigger?: boolean | null
+          created_at?: string | null
+          custom_message?: string | null
+          fallback_type: string
+          id?: string
+          notification_channels?: Json | null
+          priority_level?: number | null
+          restaurant_id: string
+          scenario_name: string
+          trigger_conditions: Json
+          updated_at?: string | null
+        }
+        Update: {
+          agent_id?: string
+          auto_trigger?: boolean | null
+          created_at?: string | null
+          custom_message?: string | null
+          fallback_type?: string
+          id?: string
+          notification_channels?: Json | null
+          priority_level?: number | null
+          restaurant_id?: string
+          scenario_name?: string
+          trigger_conditions?: Json
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fallback_scenarios_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fallback_scenarios_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "fallback_scenarios_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "conversion_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "fallback_scenarios_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kitchen_display_settings: {
         Row: {
           auto_timer_minutes: number | null
@@ -1290,6 +1600,68 @@ export type Database = {
         }
         Relationships: []
       }
+      product_inventory: {
+        Row: {
+          auto_disable_when_empty: boolean | null
+          created_at: string | null
+          current_stock: number | null
+          id: string
+          last_updated: string | null
+          low_stock_threshold: number | null
+          product_id: string
+          restaurant_id: string
+        }
+        Insert: {
+          auto_disable_when_empty?: boolean | null
+          created_at?: string | null
+          current_stock?: number | null
+          id?: string
+          last_updated?: string | null
+          low_stock_threshold?: number | null
+          product_id: string
+          restaurant_id: string
+        }
+        Update: {
+          auto_disable_when_empty?: boolean | null
+          created_at?: string | null
+          current_stock?: number | null
+          id?: string
+          last_updated?: string | null
+          low_stock_threshold?: number | null
+          product_id?: string
+          restaurant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_inventory_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_inventory_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "product_inventory_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "conversion_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "product_inventory_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_performance: {
         Row: {
           created_at: string | null
@@ -1480,6 +1852,87 @@ export type Database = {
           whatsapp?: string | null
         }
         Relationships: []
+      }
+      sentiment_analytics: {
+        Row: {
+          confidence_score: number
+          conversation_id: string
+          created_at: string | null
+          customer_phone: string
+          emotional_indicators: Json | null
+          escalation_triggered: boolean | null
+          id: string
+          message_id: string
+          response_strategy: string | null
+          restaurant_id: string
+          sentiment_label: string
+          sentiment_score: number
+        }
+        Insert: {
+          confidence_score: number
+          conversation_id: string
+          created_at?: string | null
+          customer_phone: string
+          emotional_indicators?: Json | null
+          escalation_triggered?: boolean | null
+          id?: string
+          message_id: string
+          response_strategy?: string | null
+          restaurant_id: string
+          sentiment_label: string
+          sentiment_score: number
+        }
+        Update: {
+          confidence_score?: number
+          conversation_id?: string
+          created_at?: string | null
+          customer_phone?: string
+          emotional_indicators?: Json | null
+          escalation_triggered?: boolean | null
+          id?: string
+          message_id?: string
+          response_strategy?: string | null
+          restaurant_id?: string
+          sentiment_label?: string
+          sentiment_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sentiment_analytics_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sentiment_analytics_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sentiment_analytics_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "sentiment_analytics_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "conversion_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "sentiment_analytics_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       subscription_plans: {
         Row: {
