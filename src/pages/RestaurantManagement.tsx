@@ -59,17 +59,11 @@ export default function RestaurantManagement() {
 
               {/* Management Tabs */}
               <Tabs defaultValue="info" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10">
-                  <TabsTrigger value="info">Info</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="info">Informações</TabsTrigger>
                   <TabsTrigger value="categories">Categorias</TabsTrigger>
                   <TabsTrigger value="products">Produtos</TabsTrigger>
-                  <TabsTrigger value="agent">Agente</TabsTrigger>
-                  <TabsTrigger value="conversations">Conversas</TabsTrigger>
-                  <TabsTrigger value="orders">Pedidos</TabsTrigger>
-                  <TabsTrigger value="executive">Executivo</TabsTrigger>
-                  <TabsTrigger value="performance">Performance</TabsTrigger>
-                  <TabsTrigger value="conversion">Conversão</TabsTrigger>
-                  <TabsTrigger value="reports">Relatórios</TabsTrigger>
+                  <TabsTrigger value="agent">Configuração IA</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="info">
@@ -89,30 +83,6 @@ export default function RestaurantManagement() {
 
                 <TabsContent value="agent">
                   <AgentConfiguration restaurantId={restaurant.id} />
-                </TabsContent>
-
-                <TabsContent value="conversations">
-                  <ConversationsDashboard restaurantId={restaurant.id} />
-                </TabsContent>
-
-                <TabsContent value="orders">
-                  <OrdersDashboard restaurantId={restaurant.id} />
-                </TabsContent>
-
-                <TabsContent value="executive">
-                  <ExecutiveDashboard restaurantId={restaurant.id} />
-                </TabsContent>
-
-                <TabsContent value="performance">
-                  <BotPerformanceDashboard restaurantId={restaurant.id} />
-                </TabsContent>
-
-                <TabsContent value="conversion">
-                  <ConversionMetrics restaurantId={restaurant.id} />
-                </TabsContent>
-
-                <TabsContent value="reports">
-                  <SalesReports restaurantId={restaurant.id} />
                 </TabsContent>
               </Tabs>
             </div>

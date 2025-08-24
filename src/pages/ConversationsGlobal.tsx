@@ -6,11 +6,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { MessageCircle, User, Clock, Phone, Store } from 'lucide-react';
-import { useConversations } from '@/hooks/useConversations';
+import { MessageCircle, User, Clock, Phone, Store, Loader2, AlertTriangle } from 'lucide-react';
+import { useGlobalConversations } from '@/hooks/useGlobalConversations';
 import { useGlobalFilters } from '@/hooks/useGlobalFilters';
 import { ConversationDetail } from '@/components/conversations/ConversationDetail';
 import { GlobalFiltersComponent } from '@/components/filters/GlobalFilters';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const statusOptions = [
   { value: 'active', label: 'Ativo' },
@@ -23,15 +24,15 @@ export default function ConversationsGlobal() {
   const { filters, restaurants } = useGlobalFilters();
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   
-  // Get conversations for all selected restaurants
-  const allConversations = filters.selectedRestaurants.flatMap(restaurantId => {
-    const { conversations } = useConversations(restaurantId);
-    return conversations.map(conv => ({
-      ...conv,
-      restaurantId,
-      restaurantName: restaurants.find(r => r.id === restaurantId)?.name || 'Restaurante',
-    }));
-  });
+  // Use the new global conversations hook
+  const { 
+    conversations: allConversations, 
+    loading, 
+    error, 
+    sendMessage,
+    updateConversationStatus,
+    markMessagesAsRead 
+  } = useGlobalConversations(filters.selectedRestaurants);
 
   // Apply filters
   const filteredConversations = allConversations.filter(conversation => {
@@ -122,6 +123,26 @@ export default function ConversationsGlobal() {
 
             {/* Main Content */}
             <div className="lg:col-span-3">
+              {/* Loading State */}
+              {loading && (
+                <Card>
+                  <CardContent className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                    <span className="ml-2">Carregando conversas...</span>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Error State */}
+              {error && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Erro ao carregar conversas: {error}
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Conversations List */}
                 <div>
@@ -235,10 +256,7 @@ export default function ConversationsGlobal() {
                   {selectedConversation ? (
                     <ConversationDetail 
                       conversation={selectedConversation}
-                      onStatusUpdate={(id, status) => {
-                        // Update status logic here
-                        console.log('Update status', id, status);
-                      }}
+                      onStatusUpdate={updateConversationStatus}
                     />
                   ) : (
                     <Card>

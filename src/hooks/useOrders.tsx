@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-interface Customer {
+export interface Customer {
   id: string;
   name: string;
   phone: string;
@@ -13,7 +13,7 @@ interface Customer {
   updated_at: string;
 }
 
-interface OrderItem {
+export interface OrderItem {
   id: string;
   order_id: string;
   product_id: string;
@@ -29,7 +29,7 @@ interface OrderItem {
   };
 }
 
-interface Order {
+export interface Order {
   id: string;
   restaurant_id: string;
   customer_id: string;

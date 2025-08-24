@@ -18,12 +18,15 @@ import {
   XCircle,
   PlayCircle,
   Truck,
-  Store
+  Store,
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
-import { useOrders } from '@/hooks/useOrders';
+import { useGlobalOrders } from '@/hooks/useGlobalOrders';
 import { useGlobalFilters } from '@/hooks/useGlobalFilters';
 import { OrderDetail } from '@/components/orders/OrderDetail';
 import { GlobalFiltersComponent } from '@/components/filters/GlobalFilters';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const statusOptions = [
   { value: 'pending', label: 'Pendente' },
@@ -38,15 +41,16 @@ export default function OrdersGlobal() {
   const { filters, restaurants } = useGlobalFilters();
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   
-  // Get orders for all selected restaurants
-  const allOrders = filters.selectedRestaurants.flatMap(restaurantId => {
-    const { orders } = useOrders(restaurantId);
-    return orders.map(order => ({
-      ...order,
-      restaurantId,
-      restaurantName: restaurants.find(r => r.id === restaurantId)?.name || 'Restaurante',
-    }));
-  });
+  // Use the new global orders hook
+  const { 
+    orders: allOrders, 
+    loading, 
+    error, 
+    updateOrderStatus,
+    getStatusLabel,
+    getStatusColor,
+    formatCurrency 
+  } = useGlobalOrders(filters.selectedRestaurants);
 
   // Apply filters
   const filteredOrders = allOrders.filter(order => {
@@ -104,36 +108,6 @@ export default function OrdersGlobal() {
     }
   };
 
-  const getStatusLabel = (status: string) => {
-    const labels = {
-      pending: 'Pendente',
-      confirmed: 'Confirmado',
-      preparing: 'Preparando',
-      ready: 'Pronto',
-      delivered: 'Entregue',
-      cancelled: 'Cancelado'
-    };
-    return labels[status as keyof typeof labels] || status;
-  };
-
-  const getStatusColor = (status: string) => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      confirmed: 'bg-blue-100 text-blue-800',
-      preparing: 'bg-orange-100 text-orange-800',
-      ready: 'bg-green-100 text-green-800',
-      delivered: 'bg-gray-100 text-gray-800',
-      cancelled: 'bg-red-100 text-red-800'
-    };
-    return colors[status as keyof typeof colors] || '';
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
 
   const selectedOrder = sortedOrders.find(order => order.id === selectedOrderId);
 
@@ -160,6 +134,26 @@ export default function OrdersGlobal() {
 
             {/* Main Content */}
             <div className="lg:col-span-3">
+              {/* Loading State */}
+              {loading && (
+                <Card>
+                  <CardContent className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                    <span className="ml-2">Carregando pedidos...</span>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Error State */}
+              {error && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Erro ao carregar pedidos: {error}
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Orders List */}
                 <div>
@@ -270,10 +264,7 @@ export default function OrdersGlobal() {
                   {selectedOrder ? (
                     <OrderDetail 
                       order={selectedOrder}
-                      onStatusUpdate={(id, status) => {
-                        // Update status logic here
-                        console.log('Update status', id, status);
-                      }}
+                      onStatusUpdate={updateOrderStatus}
                     />
                   ) : (
                     <Card>

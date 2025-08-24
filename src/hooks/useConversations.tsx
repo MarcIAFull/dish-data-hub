@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
-interface Agent {
+export interface Agent {
   id: string;
   restaurant_id: string;
   name: string;
@@ -16,7 +16,7 @@ interface Agent {
   updated_at: string;
 }
 
-interface Conversation {
+export interface Conversation {
   id: string;
   agent_id: string;
   customer_phone: string;
@@ -28,7 +28,7 @@ interface Conversation {
   updated_at: string;
 }
 
-interface Message {
+export interface Message {
   id: string;
   conversation_id: string;
   sender_type: 'customer' | 'agent' | 'human';

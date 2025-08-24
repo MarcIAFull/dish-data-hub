@@ -1,56 +1,23 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, Users, ShoppingBag, DollarSign, MessageCircle, Bot } from 'lucide-react';
+import { TrendingUp, Users, ShoppingBag, DollarSign, MessageCircle, Bot, AlertTriangle, Loader2 } from 'lucide-react';
 import { useGlobalFilters } from '@/hooks/useGlobalFilters';
-import { useAnalytics } from '@/hooks/useAnalytics';
+import { useGlobalAnalytics } from '@/hooks/useGlobalAnalytics';
 import { GlobalFiltersComponent } from '@/components/filters/GlobalFilters';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function AnalyticsGlobal() {
   const { filters, restaurants } = useGlobalFilters();
   
-  // Get analytics for all selected restaurants
-  const allAnalytics = filters.selectedRestaurants.map(restaurantId => {
-    const restaurant = restaurants.find(r => r.id === restaurantId);
-    const { analyticsData } = useAnalytics(restaurantId);
-    return {
-      restaurantId,
-      restaurantName: restaurant?.name || 'Restaurante',
-      data: analyticsData,
-    };
-  });
+  // Use the new global analytics hook
+  const { metrics, loading, error, refetch } = useGlobalAnalytics(
+    filters.selectedRestaurants,
+    filters.dateRange
+  );
 
-  // Aggregate data - using mock data for demonstration
-  const totalMetrics = allAnalytics.reduce((acc, restaurant) => {
-    if (!restaurant.data) return acc;
-    
-    // Using available properties from AnalyticsData
-    const mockRevenue = Math.random() * 50000 + 10000;
-    const mockOrders = Math.floor(Math.random() * 100 + 20);
-    const mockConversions = Math.random() * 30 + 5;
-    
-    return {
-      totalRevenue: acc.totalRevenue + mockRevenue,
-      totalOrders: acc.totalOrders + mockOrders,
-      totalConversations: acc.totalConversations + mockConversions,
-      avgConversionRate: acc.avgConversionRate + (Math.random() * 20 + 10),
-      avgSatisfactionScore: acc.avgSatisfactionScore + (Math.random() * 2 + 3),
-      activeAgents: acc.activeAgents + 1,
-    };
-  }, {
-    totalRevenue: 0,
-    totalOrders: 0,
-    totalConversations: 0,
-    avgConversionRate: 0,
-    avgSatisfactionScore: 0,
-    activeAgents: 0,
-  });
-
-  const restaurantCount = filters.selectedRestaurants.length;
-  if (restaurantCount > 0) {
-    totalMetrics.avgConversionRate = totalMetrics.avgConversionRate / restaurantCount;
-    totalMetrics.avgSatisfactionScore = totalMetrics.avgSatisfactionScore / restaurantCount;
-  }
+  // Check for AI disabled restaurants
+  const aiDisabledRestaurants = metrics.restaurantPerformance.filter(r => !r.aiEnabled);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -63,11 +30,11 @@ export default function AnalyticsGlobal() {
     return `${value.toFixed(1)}%`;
   };
 
-  // Mock chart data for demonstration
-  const revenueData = allAnalytics.map(restaurant => ({
+  // Real chart data from metrics
+  const revenueData = metrics.restaurantPerformance.map(restaurant => ({
     name: restaurant.restaurantName,
-    revenue: Math.random() * 50000 + 10000,
-    orders: Math.floor(Math.random() * 100 + 20),
+    revenue: restaurant.revenue,
+    orders: restaurant.orders,
   }));
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
@@ -92,6 +59,37 @@ export default function AnalyticsGlobal() {
 
             {/* Main Content */}
             <div className="lg:col-span-3 space-y-6">
+              {/* Loading State */}
+              {loading && (
+                <Card>
+                  <CardContent className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                    <span className="ml-2">Carregando analytics...</span>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Error State */}
+              {error && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Erro ao carregar dados: {error}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* AI Disabled Warning */}
+              {aiDisabledRestaurants.length > 0 && (
+                <Alert>
+                  <Bot className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Atenção:</strong> {aiDisabledRestaurants.length} restaurante(s) com IA desabilitada: {' '}
+                    {aiDisabledRestaurants.map(r => r.restaurantName).join(', ')}
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* Key Metrics */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Card>
@@ -100,9 +98,9 @@ export default function AnalyticsGlobal() {
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{formatCurrency(totalMetrics.totalRevenue)}</div>
+                    <div className="text-2xl font-bold">{formatCurrency(metrics.totalRevenue)}</div>
                     <p className="text-xs text-muted-foreground">
-                      {restaurantCount} restaurante{restaurantCount !== 1 ? 's' : ''}
+                      {filters.selectedRestaurants.length} restaurante{filters.selectedRestaurants.length !== 1 ? 's' : ''}
                     </p>
                   </CardContent>
                 </Card>
@@ -113,9 +111,9 @@ export default function AnalyticsGlobal() {
                     <ShoppingBag className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{totalMetrics.totalOrders}</div>
+                    <div className="text-2xl font-bold">{metrics.totalOrders}</div>
                     <p className="text-xs text-muted-foreground">
-                      Média de {Math.round(totalMetrics.totalOrders / Math.max(restaurantCount, 1))} por restaurante
+                      Média de {Math.round(metrics.totalOrders / Math.max(filters.selectedRestaurants.length, 1))} por restaurante
                     </p>
                   </CardContent>
                 </Card>
@@ -126,9 +124,9 @@ export default function AnalyticsGlobal() {
                     <MessageCircle className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{totalMetrics.totalConversations}</div>
+                    <div className="text-2xl font-bold">{metrics.totalConversations}</div>
                     <p className="text-xs text-muted-foreground">
-                      {totalMetrics.activeAgents} agentes ativos
+                      {metrics.activeAgents} agentes ativos
                     </p>
                   </CardContent>
                 </Card>
@@ -139,7 +137,7 @@ export default function AnalyticsGlobal() {
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{formatPercentage(totalMetrics.avgConversionRate)}</div>
+                    <div className="text-2xl font-bold">{formatPercentage(metrics.avgConversionRate)}</div>
                     <p className="text-xs text-muted-foreground">
                       Média entre restaurantes
                     </p>
@@ -152,7 +150,7 @@ export default function AnalyticsGlobal() {
                     <Users className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{totalMetrics.avgSatisfactionScore.toFixed(1)}/5</div>
+                    <div className="text-2xl font-bold">{metrics.avgSatisfactionScore.toFixed(1)}/5</div>
                     <p className="text-xs text-muted-foreground">
                       Score médio de satisfação
                     </p>
@@ -166,7 +164,7 @@ export default function AnalyticsGlobal() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      {formatCurrency(totalMetrics.totalOrders > 0 ? totalMetrics.totalRevenue / totalMetrics.totalOrders : 0)}
+                      {formatCurrency(metrics.totalOrders > 0 ? metrics.totalRevenue / metrics.totalOrders : 0)}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Valor médio por pedido
@@ -258,33 +256,33 @@ export default function AnalyticsGlobal() {
                         </tr>
                       </thead>
                       <tbody>
-                        {allAnalytics.map((restaurant) => {
-                          const mockRevenue = Math.random() * 50000 + 10000;
-                          const mockOrders = Math.floor(Math.random() * 100 + 20);
-                          const mockConversion = Math.random() * 20 + 10;
-                          const mockSatisfaction = Math.random() * 2 + 3;
-                          
-                          return (
-                            <tr key={restaurant.restaurantId} className="border-b">
-                              <td className="py-2 font-medium">{restaurant.restaurantName}</td>
-                              <td className="text-right py-2">
-                                {formatCurrency(mockRevenue)}
-                              </td>
-                              <td className="text-right py-2">
-                                {mockOrders}
-                              </td>
-                              <td className="text-right py-2">
-                                {formatCurrency(mockRevenue / mockOrders)}
-                              </td>
-                              <td className="text-right py-2">
-                                {formatPercentage(mockConversion)}
-                              </td>
-                              <td className="text-right py-2">
-                                {mockSatisfaction.toFixed(1)}/5
-                              </td>
-                            </tr>
-                          );
-                        })}
+                        {metrics.restaurantPerformance.map((restaurant) => (
+                          <tr key={restaurant.restaurantId} className="border-b">
+                            <td className="py-2 font-medium">
+                              <div className="flex items-center gap-2">
+                                {restaurant.restaurantName}
+                                {!restaurant.aiEnabled && (
+                                  <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                                )}
+                              </div>
+                            </td>
+                            <td className="text-right py-2">
+                              {formatCurrency(restaurant.revenue)}
+                            </td>
+                            <td className="text-right py-2">
+                              {restaurant.orders}
+                            </td>
+                            <td className="text-right py-2">
+                              {formatCurrency(restaurant.orders > 0 ? restaurant.revenue / restaurant.orders : 0)}
+                            </td>
+                            <td className="text-right py-2">
+                              {formatPercentage(restaurant.conversionRate)}
+                            </td>
+                            <td className="text-right py-2">
+                              {restaurant.satisfactionScore.toFixed(1)}/5
+                            </td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>
