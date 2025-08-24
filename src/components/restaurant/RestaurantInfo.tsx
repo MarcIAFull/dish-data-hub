@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
+import { Bot } from 'lucide-react';
 
 interface Restaurant {
   id: string;
@@ -19,6 +23,14 @@ interface Restaurant {
   whatsapp: string;
   instagram: string;
   is_active: boolean;
+  ai_enabled: boolean;
+  ai_configuration_id: string | null;
+}
+
+interface AIConfiguration {
+  id: string;
+  name: string;
+  description: string;
 }
 
 interface RestaurantInfoProps {
@@ -30,6 +42,26 @@ export function RestaurantInfo({ restaurant, onUpdate }: RestaurantInfoProps) {
   const { user } = useAuth();
   const [formData, setFormData] = useState(restaurant);
   const [loading, setLoading] = useState(false);
+  const [aiConfigurations, setAiConfigurations] = useState<AIConfiguration[]>([]);
+
+  useEffect(() => {
+    fetchAIConfigurations();
+  }, []);
+
+  const fetchAIConfigurations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('ai_configurations')
+        .select('id, name, description')
+        .eq('is_active', true)
+        .order('is_default', { ascending: false });
+
+      if (error) throw error;
+      setAiConfigurations(data || []);
+    } catch (error) {
+      console.error('Error fetching AI configurations:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,6 +189,59 @@ export function RestaurantInfo({ restaurant, onUpdate }: RestaurantInfoProps) {
               onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
             />
             <Label htmlFor="is_active">Restaurante ativo (visível publicamente)</Label>
+          </div>
+
+          <Separator />
+
+          {/* AI Configuration Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Bot className="h-5 w-5" />
+              <h3 className="text-lg font-medium">Configuração de IA</h3>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="ai_enabled"
+                checked={formData.ai_enabled || false}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, ai_enabled: checked }))}
+              />
+              <Label htmlFor="ai_enabled">Habilitar Assistente Virtual com IA</Label>
+            </div>
+
+            {formData.ai_enabled && (
+              <div className="space-y-3 pl-6 border-l-2 border-primary/20">
+                <div>
+                  <Label htmlFor="ai_configuration">Configuração de IA</Label>
+                  <Select 
+                    value={formData.ai_configuration_id || ''} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, ai_configuration_id: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma configuração de IA" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {aiConfigurations.map((config) => (
+                        <SelectItem key={config.id} value={config.id}>
+                          <div>
+                            <div className="font-medium">{config.name}</div>
+                            <div className="text-xs text-muted-foreground">{config.description}</div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {formData.ai_configuration_id && (
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      ✅ IA configurada! Agora você pode personalizar seus agentes com essa configuração.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <Button type="submit" disabled={loading}>

@@ -50,7 +50,24 @@ serve(async (req) => {
             description,
             address,
             phone,
-            whatsapp
+            whatsapp,
+            ai_enabled,
+            ai_configuration_id,
+            ai_configurations (
+              id,
+              name,
+              ai_model,
+              temperature,
+              max_tokens,
+              context_memory_turns,
+              language,
+              response_style,
+              enable_sentiment_analysis,
+              enable_conversation_summary,
+              enable_order_intent_detection,
+              enable_proactive_suggestions,
+              enable_multilingual_support
+            )
           )
         `)
         .eq('is_active', true)
@@ -60,6 +77,23 @@ serve(async (req) => {
       if (agentError || !agent) {
         console.log('No enhanced agent found for this WhatsApp number/instance');
         return new Response(JSON.stringify({ status: 'no_agent' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Check if AI is enabled for this restaurant
+      if (!agent.restaurants.ai_enabled) {
+        console.log('AI is disabled for this restaurant');
+        return new Response(JSON.stringify({ status: 'ai_disabled' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Get AI configuration
+      const aiConfig = agent.restaurants.ai_configurations;
+      if (!aiConfig) {
+        console.log('No AI configuration found for this restaurant');
+        return new Response(JSON.stringify({ status: 'no_ai_config' }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
@@ -128,7 +162,7 @@ serve(async (req) => {
         .select('*')
         .eq('conversation_id', conversation.id)
         .order('created_at', { ascending: false })
-        .limit(agent.context_memory_turns || 10);
+        .limit(aiConfig.context_memory_turns || 10);
 
       // Save incoming message
       const messageContent = message.conversation || message.extendedTextMessage?.text || 'Mensagem não suportada';
@@ -151,7 +185,7 @@ serve(async (req) => {
 
       // 2. SENTIMENT ANALYSIS
       let sentimentData = null;
-      if (agent.enable_sentiment_analysis && openAIApiKey) {
+      if (aiConfig.enable_sentiment_analysis && openAIApiKey) {
         try {
           const sentimentResponse = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -313,16 +347,16 @@ ${sentimentData.sentiment_label === 'negative' ?
 }`;
           }
 
-          // Enhanced system prompt
-          const systemPrompt = `${agent.personality}
+           // Enhanced system prompt
+           const systemPrompt = `${agent.personality}
 
 CONFIGURAÇÃO DE IA AVANÇADA:
-- Modelo: ${agent.ai_model || 'gpt-5-2025-08-07'}
-- Estilo: ${agent.response_style || 'friendly'}
-- Idioma: ${agent.language || 'pt-BR'}
-- Análise de sentimento: ${agent.enable_sentiment_analysis ? 'ATIVADA' : 'DESATIVADA'}
-- Detecção de pedidos: ${agent.enable_order_intent_detection ? 'ATIVADA' : 'DESATIVADA'}
-- Sugestões proativas: ${agent.enable_proactive_suggestions ? 'ATIVADAS' : 'DESATIVADAS'}
+- Modelo: ${aiConfig.ai_model || 'gpt-5-2025-08-07'}
+- Estilo: ${aiConfig.response_style || 'friendly'}
+- Idioma: ${aiConfig.language || 'pt-BR'}
+- Análise de sentimento: ${aiConfig.enable_sentiment_analysis ? 'ATIVADA' : 'DESATIVADA'}
+- Detecção de pedidos: ${aiConfig.enable_order_intent_detection ? 'ATIVADA' : 'DESATIVADA'}
+- Sugestões proativas: ${aiConfig.enable_proactive_suggestions ? 'ATIVADAS' : 'DESATIVADAS'}
 
 ${dynamicContext}
 
@@ -349,16 +383,16 @@ Responda de forma natural, considerando todo o contexto acima.`;
               'Authorization': `Bearer ${openAIApiKey}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              model: agent.ai_model || 'gpt-5-2025-08-07',
-              messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: messageContent }
-              ],
-              max_completion_tokens: agent.max_tokens || 500,
-              ...(agent.ai_model === 'gpt-4o' || agent.ai_model === 'gpt-4o-mini' ? 
-                { temperature: agent.temperature || 0.7 } : {})
-            }),
+             body: JSON.stringify({
+               model: aiConfig.ai_model || 'gpt-5-2025-08-07',
+               messages: [
+                 { role: 'system', content: systemPrompt },
+                 { role: 'user', content: messageContent }
+               ],
+               max_completion_tokens: aiConfig.max_tokens || 500,
+               ...(aiConfig.ai_model === 'gpt-4o' || aiConfig.ai_model === 'gpt-4o-mini' ? 
+                 { temperature: aiConfig.temperature || 0.7 } : {})
+             }),
           });
           
           if (response.ok) {
@@ -394,8 +428,8 @@ Responda de forma natural, considerando todo o contexto acima.`;
                 learning_tags: [interactionType, sentimentData?.sentiment_label].filter(Boolean)
               });
 
-            // Update learning patterns
-            if (agent.enable_conversation_summary) {
+             // Update learning patterns
+             if (aiConfig.enable_conversation_summary) {
               const patternKey = `${interactionType}_${sentimentData?.sentiment_label || 'neutral'}`;
               await supabase.rpc('upsert_learning_pattern', {
                 p_restaurant_id: agent.restaurants.id,

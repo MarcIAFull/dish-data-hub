@@ -245,15 +245,7 @@ export type Database = {
       }
       agents: {
         Row: {
-          ai_model: string | null
-          context_memory_turns: number | null
           created_at: string
-          custom_tools: Json | null
-          enable_conversation_summary: boolean | null
-          enable_multilingual_support: boolean | null
-          enable_order_intent_detection: boolean | null
-          enable_proactive_suggestions: boolean | null
-          enable_sentiment_analysis: boolean | null
           evolution_api_instance: string | null
           evolution_api_token: string | null
           fallback_enabled: boolean
@@ -261,29 +253,15 @@ export type Database = {
           id: string
           instructions: string | null
           is_active: boolean
-          knowledge_cutoff: string | null
-          language: string | null
-          max_tokens: number | null
           name: string
-          performance_metrics: Json | null
           personality: string
-          response_style: string | null
           restaurant_id: string
-          temperature: number | null
           updated_at: string
           webhook_url: string | null
           whatsapp_number: string | null
         }
         Insert: {
-          ai_model?: string | null
-          context_memory_turns?: number | null
           created_at?: string
-          custom_tools?: Json | null
-          enable_conversation_summary?: boolean | null
-          enable_multilingual_support?: boolean | null
-          enable_order_intent_detection?: boolean | null
-          enable_proactive_suggestions?: boolean | null
-          enable_sentiment_analysis?: boolean | null
           evolution_api_instance?: string | null
           evolution_api_token?: string | null
           fallback_enabled?: boolean
@@ -291,29 +269,15 @@ export type Database = {
           id?: string
           instructions?: string | null
           is_active?: boolean
-          knowledge_cutoff?: string | null
-          language?: string | null
-          max_tokens?: number | null
           name: string
-          performance_metrics?: Json | null
           personality?: string
-          response_style?: string | null
           restaurant_id: string
-          temperature?: number | null
           updated_at?: string
           webhook_url?: string | null
           whatsapp_number?: string | null
         }
         Update: {
-          ai_model?: string | null
-          context_memory_turns?: number | null
           created_at?: string
-          custom_tools?: Json | null
-          enable_conversation_summary?: boolean | null
-          enable_multilingual_support?: boolean | null
-          enable_order_intent_detection?: boolean | null
-          enable_proactive_suggestions?: boolean | null
-          enable_sentiment_analysis?: boolean | null
           evolution_api_instance?: string | null
           evolution_api_token?: string | null
           fallback_enabled?: boolean
@@ -321,15 +285,9 @@ export type Database = {
           id?: string
           instructions?: string | null
           is_active?: boolean
-          knowledge_cutoff?: string | null
-          language?: string | null
-          max_tokens?: number | null
           name?: string
-          performance_metrics?: Json | null
           personality?: string
-          response_style?: string | null
           restaurant_id?: string
-          temperature?: number | null
           updated_at?: string
           webhook_url?: string | null
           whatsapp_number?: string | null
@@ -357,6 +315,78 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ai_configurations: {
+        Row: {
+          ai_model: string
+          context_memory_turns: number | null
+          created_at: string
+          custom_tools: Json | null
+          description: string | null
+          enable_conversation_summary: boolean | null
+          enable_multilingual_support: boolean | null
+          enable_order_intent_detection: boolean | null
+          enable_proactive_suggestions: boolean | null
+          enable_sentiment_analysis: boolean | null
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          knowledge_cutoff: string | null
+          language: string | null
+          max_tokens: number | null
+          name: string
+          performance_metrics: Json | null
+          response_style: string | null
+          temperature: number | null
+          updated_at: string
+        }
+        Insert: {
+          ai_model?: string
+          context_memory_turns?: number | null
+          created_at?: string
+          custom_tools?: Json | null
+          description?: string | null
+          enable_conversation_summary?: boolean | null
+          enable_multilingual_support?: boolean | null
+          enable_order_intent_detection?: boolean | null
+          enable_proactive_suggestions?: boolean | null
+          enable_sentiment_analysis?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          knowledge_cutoff?: string | null
+          language?: string | null
+          max_tokens?: number | null
+          name: string
+          performance_metrics?: Json | null
+          response_style?: string | null
+          temperature?: number | null
+          updated_at?: string
+        }
+        Update: {
+          ai_model?: string
+          context_memory_turns?: number | null
+          created_at?: string
+          custom_tools?: Json | null
+          description?: string | null
+          enable_conversation_summary?: boolean | null
+          enable_multilingual_support?: boolean | null
+          enable_order_intent_detection?: boolean | null
+          enable_proactive_suggestions?: boolean | null
+          enable_sentiment_analysis?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          knowledge_cutoff?: string | null
+          language?: string | null
+          max_tokens?: number | null
+          name?: string
+          performance_metrics?: Json | null
+          response_style?: string | null
+          temperature?: number | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       ai_insights_cache: {
         Row: {
@@ -2108,6 +2138,8 @@ export type Database = {
       restaurants: {
         Row: {
           address: string | null
+          ai_configuration_id: string | null
+          ai_enabled: boolean | null
           cover_url: string | null
           created_at: string
           description: string | null
@@ -2124,6 +2156,8 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          ai_configuration_id?: string | null
+          ai_enabled?: boolean | null
           cover_url?: string | null
           created_at?: string
           description?: string | null
@@ -2140,6 +2174,8 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          ai_configuration_id?: string | null
+          ai_enabled?: boolean | null
           cover_url?: string | null
           created_at?: string
           description?: string | null
@@ -2154,7 +2190,15 @@ export type Database = {
           user_id?: string
           whatsapp?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "restaurants_ai_configuration_id_fkey"
+            columns: ["ai_configuration_id"]
+            isOneToOne: false
+            referencedRelation: "ai_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sentiment_analytics: {
         Row: {

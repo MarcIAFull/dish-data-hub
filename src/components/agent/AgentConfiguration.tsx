@@ -20,27 +20,11 @@ interface Agent {
   is_active: boolean;
   fallback_enabled: boolean;
   fallback_timeout_minutes: number;
-  // New AI Configuration Fields
-  ai_model: string;
-  temperature: number;
-  max_tokens: number;
-  context_memory_turns: number;
-  language: string;
-  response_style: string;
-  knowledge_cutoff: string;
-  custom_tools: any;
-  performance_metrics: any;
   // WhatsApp Integration Fields
   whatsapp_number?: string;
   evolution_api_token?: string;
   evolution_api_instance?: string;
   webhook_url?: string;
-  // Advanced AI Behavior Settings
-  enable_sentiment_analysis: boolean;
-  enable_conversation_summary: boolean;
-  enable_order_intent_detection: boolean;
-  enable_proactive_suggestions: boolean;
-  enable_multilingual_support: boolean;
 }
 
 interface AgentConfigurationProps {
@@ -63,27 +47,11 @@ export const AgentConfiguration: React.FC<AgentConfigurationProps> = ({
     is_active: true,
     fallback_enabled: true,
     fallback_timeout_minutes: 5,
-    // AI Configuration
-    ai_model: 'gpt-5-2025-08-07',
-    temperature: 0.7,
-    max_tokens: 500,
-    context_memory_turns: 10,
-    language: 'pt-BR',
-    response_style: 'friendly',
-    knowledge_cutoff: '2024-12-01',
-    custom_tools: {},
-    performance_metrics: {},
     // WhatsApp Integration
     whatsapp_number: '',
     evolution_api_token: '',
     evolution_api_instance: '',
-    webhook_url: '',
-    // Advanced AI Features
-    enable_sentiment_analysis: true,
-    enable_conversation_summary: true,
-    enable_order_intent_detection: true,
-    enable_proactive_suggestions: false,
-    enable_multilingual_support: false
+    webhook_url: ''
   };
 
   const fetchAgents = async () => {
@@ -160,21 +128,10 @@ export const AgentConfiguration: React.FC<AgentConfigurationProps> = ({
             is_active: selectedAgent.is_active,
             fallback_enabled: selectedAgent.fallback_enabled,
             fallback_timeout_minutes: selectedAgent.fallback_timeout_minutes,
-            ai_model: selectedAgent.ai_model,
-            temperature: selectedAgent.temperature,
-            max_tokens: selectedAgent.max_tokens,
-            context_memory_turns: selectedAgent.context_memory_turns,
-            language: selectedAgent.language,
-            response_style: selectedAgent.response_style,
             whatsapp_number: selectedAgent.whatsapp_number,
             evolution_api_token: selectedAgent.evolution_api_token,
             evolution_api_instance: selectedAgent.evolution_api_instance,
             webhook_url: selectedAgent.webhook_url,
-            enable_sentiment_analysis: selectedAgent.enable_sentiment_analysis,
-            enable_conversation_summary: selectedAgent.enable_conversation_summary,
-            enable_order_intent_detection: selectedAgent.enable_order_intent_detection,
-            enable_proactive_suggestions: selectedAgent.enable_proactive_suggestions,
-            enable_multilingual_support: selectedAgent.enable_multilingual_support,
             updated_at: new Date().toISOString()
           })
           .eq('id', selectedAgent.id);
@@ -263,7 +220,7 @@ export const AgentConfiguration: React.FC<AgentConfigurationProps> = ({
                     </Badge>
                   </div>
                    <p className="text-xs text-muted-foreground mt-1 truncate">
-                     {agent.ai_model} • {agent.language}
+                     Configuração de IA do restaurante
                    </p>
                 </div>
               ))}
@@ -354,18 +311,18 @@ export const AgentConfiguration: React.FC<AgentConfigurationProps> = ({
 
               <Separator />
 
-              {/* IA Nativa Configuration */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">🚀 IA Nativa Implementada</h3>
-                <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                  <p className="text-sm text-green-700 dark:text-green-300">
-                    ✅ Sua IA própria está ativa! Não precisa mais do SuperAgentes.
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Configure os recursos avançados nas abas acima para personalizar ainda mais seu assistente.
-                  </p>
-                </div>
-              </div>
+               {/* AI Configuration Info */}
+               <div className="space-y-4">
+                 <h3 className="text-lg font-medium">🤖 Configuração de IA</h3>
+                 <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                   <p className="text-sm text-blue-700 dark:text-blue-300">
+                     ℹ️ A configuração técnica da IA é gerenciada nas configurações do restaurante.
+                   </p>
+                   <p className="text-xs text-muted-foreground mt-1">
+                     Este agente herda as configurações de IA escolhidas pelo restaurante e adiciona personalidade única.
+                   </p>
+                 </div>
+               </div>
 
               <Separator />
 
