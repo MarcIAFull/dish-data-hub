@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { RestaurantCard } from '@/components/restaurant/RestaurantCard';
 import { RestaurantFilters } from '@/components/restaurant/RestaurantFilters';
+import { OnboardingDashboard } from '@/components/onboarding/OnboardingDashboard';
 import { Plus, ChefHat, LogOut, Crown, Zap, Bot, AlertCircle, TrendingUp, Users, DollarSign, Package } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
@@ -293,6 +294,9 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         )}
+
+        {/* Onboarding Dashboard */}
+        <OnboardingDashboard />
 
         <div className="space-y-6">
           {totalRestaurants === 0 ? (
