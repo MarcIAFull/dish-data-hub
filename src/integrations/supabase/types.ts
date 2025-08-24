@@ -16,43 +16,94 @@ export type Database = {
     Tables: {
       agents: {
         Row: {
+          ai_model: string | null
+          context_memory_turns: number | null
           created_at: string
+          custom_tools: Json | null
+          enable_conversation_summary: boolean | null
+          enable_multilingual_support: boolean | null
+          enable_order_intent_detection: boolean | null
+          enable_proactive_suggestions: boolean | null
+          enable_sentiment_analysis: boolean | null
+          evolution_api_instance: string | null
+          evolution_api_token: string | null
           fallback_enabled: boolean
           fallback_timeout_minutes: number
           id: string
           instructions: string | null
           is_active: boolean
+          knowledge_cutoff: string | null
+          language: string | null
+          max_tokens: number | null
           name: string
+          performance_metrics: Json | null
           personality: string
+          response_style: string | null
           restaurant_id: string
-          superagentes_iframe: string | null
+          temperature: number | null
           updated_at: string
+          webhook_url: string | null
+          whatsapp_number: string | null
         }
         Insert: {
+          ai_model?: string | null
+          context_memory_turns?: number | null
           created_at?: string
+          custom_tools?: Json | null
+          enable_conversation_summary?: boolean | null
+          enable_multilingual_support?: boolean | null
+          enable_order_intent_detection?: boolean | null
+          enable_proactive_suggestions?: boolean | null
+          enable_sentiment_analysis?: boolean | null
+          evolution_api_instance?: string | null
+          evolution_api_token?: string | null
           fallback_enabled?: boolean
           fallback_timeout_minutes?: number
           id?: string
           instructions?: string | null
           is_active?: boolean
+          knowledge_cutoff?: string | null
+          language?: string | null
+          max_tokens?: number | null
           name: string
+          performance_metrics?: Json | null
           personality?: string
+          response_style?: string | null
           restaurant_id: string
-          superagentes_iframe?: string | null
+          temperature?: number | null
           updated_at?: string
+          webhook_url?: string | null
+          whatsapp_number?: string | null
         }
         Update: {
+          ai_model?: string | null
+          context_memory_turns?: number | null
           created_at?: string
+          custom_tools?: Json | null
+          enable_conversation_summary?: boolean | null
+          enable_multilingual_support?: boolean | null
+          enable_order_intent_detection?: boolean | null
+          enable_proactive_suggestions?: boolean | null
+          enable_sentiment_analysis?: boolean | null
+          evolution_api_instance?: string | null
+          evolution_api_token?: string | null
           fallback_enabled?: boolean
           fallback_timeout_minutes?: number
           id?: string
           instructions?: string | null
           is_active?: boolean
+          knowledge_cutoff?: string | null
+          language?: string | null
+          max_tokens?: number | null
           name?: string
+          performance_metrics?: Json | null
           personality?: string
+          response_style?: string | null
           restaurant_id?: string
-          superagentes_iframe?: string | null
+          temperature?: number | null
           updated_at?: string
+          webhook_url?: string | null
+          whatsapp_number?: string | null
         }
         Relationships: [
           {

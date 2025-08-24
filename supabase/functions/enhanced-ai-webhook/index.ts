@@ -12,18 +12,16 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('WhatsApp webhook received:', req.method, req.url);
+    console.log('Enhanced AI Webhook received:', req.method, req.url);
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
     if (req.method === 'GET') {
-      // Webhook verification for Evolution API
       const url = new URL(req.url);
       const token = url.searchParams.get('token');
       const challenge = url.searchParams.get('challenge');
@@ -44,9 +42,8 @@ serve(async (req) => {
     
     if (req.method === 'POST') {
       const body = await req.json();
-      console.log('WhatsApp message received:', JSON.stringify(body, null, 2));
+      console.log('Enhanced WhatsApp message received:', JSON.stringify(body, null, 2));
       
-      // Process incoming WhatsApp message
       const { data, instance, key, event } = body;
       
       if (!data || !data.message) {
@@ -60,7 +57,7 @@ serve(async (req) => {
       const remoteJid = data.key.remoteJid;
       const customerPhone = remoteJid.replace('@s.whatsapp.net', '');
       
-      // Find agent by WhatsApp number or instance
+      // Find agent with enhanced AI configuration
       const { data: agent, error: agentError } = await supabase
         .from('agents')
         .select(`
@@ -68,7 +65,11 @@ serve(async (req) => {
           restaurants (
             id,
             name,
-            slug
+            slug,
+            description,
+            address,
+            phone,
+            whatsapp
           )
         `)
         .eq('is_active', true)
@@ -76,13 +77,13 @@ serve(async (req) => {
         .single();
       
       if (agentError || !agent) {
-        console.log('No agent found for this WhatsApp number/instance');
+        console.log('No enhanced agent found for this WhatsApp number/instance');
         return new Response(JSON.stringify({ status: 'no_agent' }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      
-      // Find or create conversation
+
+      // Find or create conversation with enhanced tracking
       let { data: conversation, error: convError } = await supabase
         .from('conversations')
         .select('*')
@@ -113,7 +114,15 @@ serve(async (req) => {
         
         conversation = newConv;
       }
-      
+
+      // Get conversation history for context memory
+      const { data: messageHistory } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversation.id)
+        .order('created_at', { ascending: false })
+        .limit(agent.context_memory_turns || 10);
+
       // Save incoming message
       const messageContent = message.conversation || message.extendedTextMessage?.text || 'Mensagem não suportada';
       
@@ -130,40 +139,57 @@ serve(async (req) => {
       if (msgError) {
         console.error('Error saving message:', msgError);
       }
-      
-      // Generate AI response if OpenAI is available
+
+      // Enhanced AI response generation
       if (openAIApiKey && conversation.status === 'active') {
         try {
-          // Get restaurant menu data for context
-          const trainingResponse = await fetch(`${supabaseUrl.replace('://','s://')}/functions/v1/restaurant-training-text/${agent.restaurants.slug}/training.txt`);
-          const trainingText = await trainingResponse.text();
+          // Get enhanced restaurant data
+          const trainingResponse = await fetch(`${supabaseUrl.replace('://','s://')}/functions/v1/enhanced-restaurant-data/${agent.restaurants.slug}`);
+          const restaurantData = await trainingResponse.json();
           
-          // Advanced AI context with dynamic settings
+          // Build conversation context
+          let conversationContext = '';
+          if (messageHistory && messageHistory.length > 0) {
+            conversationContext = '\n\nHISTÓRICO DA CONVERSA (últimas mensagens):\n';
+            messageHistory.reverse().forEach((msg, index) => {
+              const sender = msg.sender_type === 'customer' ? 'Cliente' : 'Assistente';
+              conversationContext += `${sender}: ${msg.content}\n`;
+            });
+          }
+
+          // Enhanced system prompt with AI configuration
           const systemPrompt = `${agent.personality}
 
-CONFIGURAÇÃO DE IA:
+CONFIGURAÇÃO DE IA AVANÇADA:
 - Modelo: ${agent.ai_model || 'gpt-5-2025-08-07'}
 - Estilo: ${agent.response_style || 'friendly'}
 - Idioma: ${agent.language || 'pt-BR'}
 - Análise de sentimento: ${agent.enable_sentiment_analysis ? 'ATIVADA' : 'DESATIVADA'}
 - Detecção de pedidos: ${agent.enable_order_intent_detection ? 'ATIVADA' : 'DESATIVADA'}
 - Sugestões proativas: ${agent.enable_proactive_suggestions ? 'ATIVADAS' : 'DESATIVADAS'}
+- Suporte multilíngue: ${agent.enable_multilingual_support ? 'ATIVADO' : 'DESATIVADO'}
 
-INFORMAÇÕES DO RESTAURANTE:
-${trainingText}
+DADOS DO RESTAURANTE:
+${JSON.stringify(restaurantData, null, 2)}
 
 INSTRUÇÕES ESPECIAIS:
 ${agent.instructions || ''}
 
-COMPORTAMENTO AVANÇADO:
+COMPORTAMENTO INTELIGENTE:
 - Mantenha memória dos últimos ${agent.context_memory_turns || 10} turnos da conversa
-- ${agent.enable_sentiment_analysis ? 'Analise o sentimento do cliente e adapte sua resposta' : ''}
-- ${agent.enable_order_intent_detection ? 'Detecte intenções de pedido e guie o cliente naturalmente' : ''}
-- ${agent.enable_proactive_suggestions ? 'Faça sugestões proativas baseadas no contexto' : ''}
-- Sempre seja natural, direto e útil via WhatsApp
+${agent.enable_sentiment_analysis ? '- Analise o sentimento do cliente e adapte sua resposta (positivo, neutro, negativo)' : ''}
+${agent.enable_order_intent_detection ? '- Detecte intenções de pedido e guie o cliente naturalmente para finalizar' : ''}
+${agent.enable_proactive_suggestions ? '- Faça sugestões proativas baseadas no histórico e contexto' : ''}
+${agent.enable_multilingual_support ? '- Detecte o idioma do cliente e responda no mesmo idioma' : ''}
+- Seja natural, direto e útil via WhatsApp
+- Mantenha respostas concisas mas completas
+- Use emojis apropriados para o contexto
 
-Você está conversando via WhatsApp. Mantenha respostas concisas mas completas.`;
+${conversationContext}
 
+MENSAGEM ATUAL DO CLIENTE: ${messageContent}`;
+
+          // Call OpenAI with enhanced configuration
           const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -184,9 +210,29 @@ Você está conversando via WhatsApp. Mantenha respostas concisas mas completas.
           
           if (response.ok) {
             const aiResponse = await response.json();
-            const aiMessage = aiResponse.choices[0].message.content;
+            let aiMessage = aiResponse.choices[0].message.content;
+
+            // Enhanced AI post-processing
+            if (agent.enable_sentiment_analysis) {
+              // Simple sentiment analysis
+              const negativeWords = ['problema', 'ruim', 'péssimo', 'horrível', 'demora'];
+              const isNegative = negativeWords.some(word => messageContent.toLowerCase().includes(word));
+              
+              if (isNegative) {
+                aiMessage = `Percebo que você pode estar insatisfeito. ${aiMessage} Como posso melhorar sua experiência? 🤝`;
+              }
+            }
+
+            if (agent.enable_order_intent_detection) {
+              const orderWords = ['quero', 'gostaria', 'pedido', 'comprar', 'pedir'];
+              const hasOrderIntent = orderWords.some(word => messageContent.toLowerCase().includes(word));
+              
+              if (hasOrderIntent && !aiMessage.includes('pedido')) {
+                aiMessage += '\n\n🛒 Vejo que você tem interesse em fazer um pedido! Posso ajudar você a finalizar?';
+              }
+            }
             
-            // Save AI response
+            // Save enhanced AI response
             const { error: aiMsgError } = await supabase
               .from('messages')
               .insert({
@@ -199,8 +245,8 @@ Você está conversando via WhatsApp. Mantenha respostas concisas mas completas.
             if (aiMsgError) {
               console.error('Error saving AI message:', aiMsgError);
             }
-            
-            // Send response back to WhatsApp via Evolution API
+
+            // Send response via Evolution API
             if (agent.evolution_api_token && agent.evolution_api_instance) {
               try {
                 const sendResponse = await fetch(`https://api.evolutionapi.com/message/sendText/${agent.evolution_api_instance}`, {
@@ -224,19 +270,45 @@ Você está conversando via WhatsApp. Mantenha respostas concisas mas completas.
                 console.error('Error sending WhatsApp message:', sendError);
               }
             }
-            
-            // Update conversation last_message_at
+
+            // Update conversation analytics
             await supabase
               .from('conversations')
-              .update({ last_message_at: new Date().toISOString() })
+              .update({ 
+                last_message_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
               .eq('id', conversation.id);
+
+            // Save conversation insights if enabled
+            if (agent.enable_conversation_summary) {
+              const { error: insightError } = await supabase
+                .from('conversation_insights')
+                .upsert({
+                  conversation_id: conversation.id,
+                  restaurant_id: agent.restaurants.id,
+                  sentiment_score: agent.enable_sentiment_analysis ? 
+                    (messageContent.toLowerCase().includes('bom') || messageContent.toLowerCase().includes('ótimo') ? 0.8 : 
+                     messageContent.toLowerCase().includes('ruim') || messageContent.toLowerCase().includes('péssimo') ? 0.2 : 0.5) : null,
+                  intent_detected: agent.enable_order_intent_detection && messageContent.toLowerCase().includes('quero') ? 'order' : 'inquiry',
+                  analysis_data: {
+                    ai_model_used: agent.ai_model,
+                    response_length: aiMessage.length,
+                    context_turns: messageHistory?.length || 0
+                  }
+                });
+
+              if (insightError) {
+                console.error('Error saving conversation insights:', insightError);
+              }
+            }
           }
         } catch (aiError) {
-          console.error('Error generating AI response:', aiError);
+          console.error('Error generating enhanced AI response:', aiError);
         }
       }
       
-      return new Response(JSON.stringify({ status: 'processed' }), {
+      return new Response(JSON.stringify({ status: 'processed', enhanced: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -247,7 +319,7 @@ Você está conversando via WhatsApp. Mantenha respostas concisas mas completas.
     });
     
   } catch (error) {
-    console.error('Error in whatsapp-webhook function:', error);
+    console.error('Error in enhanced AI webhook function:', error);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
