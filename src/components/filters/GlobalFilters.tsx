@@ -193,14 +193,14 @@ export const GlobalFiltersComponent: React.FC<GlobalFiltersProps> = ({
           <div className="space-y-3">
             <Label className="text-sm font-medium">Status</Label>
             <Select
-              value={filters.status || ""}
-              onValueChange={(value) => updateFilters({ status: value || undefined })}
+              value={filters.status || "all"}
+              onValueChange={(value) => updateFilters({ status: value === "all" ? undefined : value })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Todos os status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os status</SelectItem>
+                <SelectItem value="all">Todos os status</SelectItem>
                 {statusOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
