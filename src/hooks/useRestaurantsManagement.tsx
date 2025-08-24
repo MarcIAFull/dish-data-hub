@@ -80,85 +80,171 @@ export function useRestaurantsManagement(): UseRestaurantsManagement {
     try {
       setLoading(true);
       setError(null);
+      console.log('🔄 Iniciando carregamento de restaurantes para usuário:', user.id);
 
-      // Fetch restaurants with basic stats
+      // Step 1: Fetch basic restaurant data
       const { data: restaurantsData, error: restaurantsError } = await supabase
         .from('restaurants')
-        .select(`
-          *,
-          orders!restaurants_orders_restaurant_id_fkey (
-            id,
-            total,
-            created_at,
-            status
-          ),
-          categories!restaurants_categories_restaurant_id_fkey (
-            id,
-            products!categories_products_category_id_fkey (id)
-          )
-        `)
+        .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (restaurantsError) throw restaurantsError;
-
-      // Get conversation stats for all restaurants
-      const restaurantIds = restaurantsData?.map(r => r.id) || [];
-      let conversationsData: any[] = [];
-      
-      if (restaurantIds.length > 0) {
-        const { data: convData, error: conversationsError } = await supabase
-          .from('conversations')
-          .select(`
-            id,
-            status,
-            agents!conversations_agent_id_fkey (
-              restaurant_id
-            )
-          `)
-          .eq('status', 'active');
-
-        if (!conversationsError) {
-          conversationsData = convData || [];
-        }
+      if (restaurantsError) {
+        console.error('❌ Erro ao buscar restaurantes:', restaurantsError);
+        throw restaurantsError;
       }
 
-      const restaurantsWithStats: RestaurantWithStats[] = (restaurantsData || []).map(restaurant => {
-        const orders = restaurant.orders || [];
-        const categories = restaurant.categories || [];
-        const products = Array.isArray(categories) ? categories.flatMap(cat => cat.products || []) : [];
-        const activeConversations = conversationsData.filter(
-          conv => conv.agents?.restaurant_id === restaurant.id
-        ).length || 0;
+      console.log('✅ Restaurantes carregados:', restaurantsData?.length || 0);
 
-        const completedOrders = orders.filter(order => order.status === 'completed');
-        const totalRevenue = completedOrders.reduce((sum, order) => sum + (order.total || 0), 0);
-        const lastOrder = orders.length > 0 ? orders.sort((a, b) => 
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )[0] : null;
+      if (!restaurantsData || restaurantsData.length === 0) {
+        setRestaurants([]);
+        return;
+      }
 
-        return {
-          ...restaurant,
-          stats: {
-            totalOrders: orders.length,
-            totalRevenue,
-            totalProducts: products.length,
-            totalCategories: categories.length,
-            activeConversations,
-            lastOrderDate: lastOrder?.created_at || null,
+      // Step 2: Fetch stats for each restaurant separately
+      const restaurantsWithStats: RestaurantWithStats[] = await Promise.all(
+        restaurantsData.map(async (restaurant) => {
+          try {
+            // Fetch orders
+            const { data: ordersData, error: ordersError } = await supabase
+              .from('orders')
+              .select('id, total, created_at, status')
+              .eq('restaurant_id', restaurant.id);
+
+            if (ordersError) {
+              console.error(`❌ Erro ao buscar pedidos para restaurante ${restaurant.id}:`, ordersError);
+            }
+
+            // Fetch categories
+            const { data: categoriesData, error: categoriesError } = await supabase
+              .from('categories')
+              .select('id')
+              .eq('restaurant_id', restaurant.id);
+
+            if (categoriesError) {
+              console.error(`❌ Erro ao buscar categorias para restaurante ${restaurant.id}:`, categoriesError);
+            }
+
+            // Fetch products
+            const { data: productsData, error: productsError } = await supabase
+              .from('products')
+              .select('id')
+              .in('category_id', (categoriesData || []).map(c => c.id));
+
+            if (productsError) {
+              console.error(`❌ Erro ao buscar produtos para restaurante ${restaurant.id}:`, productsError);
+            }
+
+            // Fetch active conversations through agents
+            const { data: agentsData, error: agentsError } = await supabase
+              .from('agents')
+              .select('id')
+              .eq('restaurant_id', restaurant.id);
+
+            let activeConversations = 0;
+            if (!agentsError && agentsData && agentsData.length > 0) {
+              const { data: conversationsData, error: conversationsError } = await supabase
+                .from('conversations')
+                .select('id')
+                .in('agent_id', agentsData.map(a => a.id))
+                .eq('status', 'active');
+
+              if (!conversationsError) {
+                activeConversations = conversationsData?.length || 0;
+              } else {
+                console.error(`❌ Erro ao buscar conversações para restaurante ${restaurant.id}:`, conversationsError);
+              }
+            }
+
+            // Calculate stats
+            const orders = ordersData || [];
+            const categories = categoriesData || [];
+            const products = productsData || [];
+
+            const completedOrders = orders.filter(order => order.status === 'completed');
+            const totalRevenue = completedOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+            const lastOrder = orders.length > 0 ? orders.sort((a, b) => 
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            )[0] : null;
+
+            console.log(`📊 Stats para ${restaurant.name}:`, {
+              totalOrders: orders.length,
+              totalRevenue,
+              totalProducts: products.length,
+              totalCategories: categories.length,
+              activeConversations,
+            });
+
+            return {
+              ...restaurant,
+              stats: {
+                totalOrders: orders.length,
+                totalRevenue,
+                totalProducts: products.length,
+                totalCategories: categories.length,
+                activeConversations,
+                lastOrderDate: lastOrder?.created_at || null,
+              }
+            };
+          } catch (error) {
+            console.error(`❌ Erro ao calcular stats para restaurante ${restaurant.id}:`, error);
+            // Return restaurant with empty stats as fallback
+            return {
+              ...restaurant,
+              stats: {
+                totalOrders: 0,
+                totalRevenue: 0,
+                totalProducts: 0,
+                totalCategories: 0,
+                activeConversations: 0,
+                lastOrderDate: null,
+              }
+            };
           }
-        };
-      });
+        })
+      );
 
+      console.log('✅ Todos os restaurantes processados com sucesso');
       setRestaurants(restaurantsWithStats);
+
     } catch (error: any) {
-      console.error('Error fetching restaurants:', error);
+      console.error('❌ Erro crítico ao carregar restaurantes:', error);
       setError(error.message);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível carregar os restaurantes',
-        variant: 'destructive',
-      });
+      
+      // Fallback: try to load just basic restaurant data
+      try {
+        console.log('🔄 Tentando carregamento básico como fallback...');
+        const { data: basicRestaurants, error: basicError } = await supabase
+          .from('restaurants')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (!basicError && basicRestaurants) {
+          const restaurantsWithEmptyStats = basicRestaurants.map(restaurant => ({
+            ...restaurant,
+            stats: {
+              totalOrders: 0,
+              totalRevenue: 0,
+              totalProducts: 0,
+              totalCategories: 0,
+              activeConversations: 0,
+              lastOrderDate: null,
+            }
+          }));
+          setRestaurants(restaurantsWithEmptyStats);
+          console.log('✅ Carregamento básico realizado com sucesso');
+        } else {
+          throw basicError;
+        }
+      } catch (fallbackError) {
+        console.error('❌ Falha no carregamento básico:', fallbackError);
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível carregar os restaurantes',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }
