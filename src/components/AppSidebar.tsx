@@ -41,10 +41,9 @@ const restaurantItems = [
 ];
 
 const businessItems = [
-  { title: "Pedidos", url: "/orders", icon: ShoppingBag },
-  { title: "Conversas", url: "/conversations", icon: MessageSquare },
-  { title: "Analytics", url: "/analytics", icon: BarChart3 },
-  { title: "Clientes", url: "/customers", icon: Users },
+  { title: "Central Conversas", url: "/conversations", icon: MessageSquare },
+  { title: "Central Pedidos", url: "/orders", icon: ShoppingBag },
+  { title: "Dashboard Executivo", url: "/analytics", icon: BarChart3 },
 ];
 
 const configItems = [

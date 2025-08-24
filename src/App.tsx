@@ -17,6 +17,9 @@ import RestaurantForm from "./pages/RestaurantForm";
 import RestaurantManagement from "./pages/RestaurantManagement";
 import RestaurantPublic from "./pages/RestaurantPublic";
 import RestaurantJSON from "./pages/RestaurantJSON";
+import ConversationsGlobal from "./pages/ConversationsGlobal";
+import OrdersGlobal from "./pages/OrdersGlobal";
+import AnalyticsGlobal from "./pages/AnalyticsGlobal";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -62,6 +65,21 @@ const App = () => (
                         <Route path="/restaurant/:id" element={
                           <ProtectedRoute>
                             <RestaurantManagement />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/conversations" element={
+                          <ProtectedRoute>
+                            <ConversationsGlobal />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/orders" element={
+                          <ProtectedRoute>
+                            <OrdersGlobal />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/analytics" element={
+                          <ProtectedRoute>
+                            <AnalyticsGlobal />
                           </ProtectedRoute>
                         } />
                         <Route path="/r/:slug" element={<RestaurantPublic />} />
