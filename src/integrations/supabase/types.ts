@@ -14,6 +14,235 @@ export type Database = {
   }
   public: {
     Tables: {
+      ab_test_results: {
+        Row: {
+          conversation_id: string
+          conversion_achieved: boolean | null
+          created_at: string | null
+          customer_phone: string
+          id: string
+          interaction_duration_seconds: number | null
+          response_used: string
+          restaurant_id: string
+          user_satisfaction: number | null
+          variant_id: string
+        }
+        Insert: {
+          conversation_id: string
+          conversion_achieved?: boolean | null
+          created_at?: string | null
+          customer_phone: string
+          id?: string
+          interaction_duration_seconds?: number | null
+          response_used: string
+          restaurant_id: string
+          user_satisfaction?: number | null
+          variant_id: string
+        }
+        Update: {
+          conversation_id?: string
+          conversion_achieved?: boolean | null
+          created_at?: string | null
+          customer_phone?: string
+          id?: string
+          interaction_duration_seconds?: number | null
+          response_used?: string
+          restaurant_id?: string
+          user_satisfaction?: number | null
+          variant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ab_test_results_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ab_test_results_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "ab_test_results_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "conversion_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "ab_test_results_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ab_test_results_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "ab_test_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ab_test_variants: {
+        Row: {
+          agent_id: string
+          created_at: string | null
+          end_date: string | null
+          id: string
+          is_active: boolean | null
+          response_template: string
+          restaurant_id: string
+          start_date: string | null
+          test_name: string
+          traffic_percentage: number | null
+          updated_at: string | null
+          variant_name: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          response_template: string
+          restaurant_id: string
+          start_date?: string | null
+          test_name: string
+          traffic_percentage?: number | null
+          updated_at?: string | null
+          variant_name: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          response_template?: string
+          restaurant_id?: string
+          start_date?: string | null
+          test_name?: string
+          traffic_percentage?: number | null
+          updated_at?: string | null
+          variant_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ab_test_variants_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ab_test_variants_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "ab_test_variants_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "conversion_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "ab_test_variants_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_performance_metrics: {
+        Row: {
+          agent_id: string
+          avg_response_time_seconds: number | null
+          avg_satisfaction_score: number | null
+          conversion_rate: number | null
+          created_at: string | null
+          date: string
+          escalation_rate: number | null
+          id: string
+          restaurant_id: string
+          successful_conversations: number | null
+          total_conversations: number | null
+          total_orders_generated: number | null
+          total_revenue_generated: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          agent_id: string
+          avg_response_time_seconds?: number | null
+          avg_satisfaction_score?: number | null
+          conversion_rate?: number | null
+          created_at?: string | null
+          date: string
+          escalation_rate?: number | null
+          id?: string
+          restaurant_id: string
+          successful_conversations?: number | null
+          total_conversations?: number | null
+          total_orders_generated?: number | null
+          total_revenue_generated?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          agent_id?: string
+          avg_response_time_seconds?: number | null
+          avg_satisfaction_score?: number | null
+          conversion_rate?: number | null
+          created_at?: string | null
+          date?: string
+          escalation_rate?: number | null
+          id?: string
+          restaurant_id?: string
+          successful_conversations?: number | null
+          total_conversations?: number | null
+          total_orders_generated?: number | null
+          total_revenue_generated?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_performance_metrics_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_performance_metrics_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "agent_performance_metrics_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "conversion_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "agent_performance_metrics_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agents: {
         Row: {
           ai_model: string | null
@@ -1801,6 +2030,80 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      response_effectiveness: {
+        Row: {
+          agent_id: string
+          avg_user_satisfaction: number | null
+          created_at: string | null
+          effectiveness_score: number | null
+          id: string
+          last_used: string | null
+          response_text: string
+          response_type: string
+          restaurant_id: string
+          success_rate: number | null
+          updated_at: string | null
+          usage_count: number | null
+        }
+        Insert: {
+          agent_id: string
+          avg_user_satisfaction?: number | null
+          created_at?: string | null
+          effectiveness_score?: number | null
+          id?: string
+          last_used?: string | null
+          response_text: string
+          response_type: string
+          restaurant_id: string
+          success_rate?: number | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Update: {
+          agent_id?: string
+          avg_user_satisfaction?: number | null
+          created_at?: string | null
+          effectiveness_score?: number | null
+          id?: string
+          last_used?: string | null
+          response_text?: string
+          response_type?: string
+          restaurant_id?: string
+          success_rate?: number | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "response_effectiveness_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "response_effectiveness_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "business_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "response_effectiveness_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "conversion_metrics"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "response_effectiveness_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       restaurants: {
         Row: {
