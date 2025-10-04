@@ -7,9 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { ProtectedRestaurantRoute } from '@/components/ProtectedRestaurantRoute';
+import { CategoriesManager } from '@/components/restaurant/CategoriesManager';
+import { ProductsManager } from '@/components/restaurant/ProductsManager';
 
 interface RestaurantFormData {
   name: string;
@@ -111,122 +114,153 @@ function RestaurantFormContent({ restaurant }: { restaurant?: any }) {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate('/dashboard')}
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Voltar
-                </Button>
-                <div>
-                  <CardTitle>
-                    {isEditing ? 'Editar Restaurante' : 'Novo Restaurante'}
-                  </CardTitle>
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center gap-4 mb-6">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/dashboard')}
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Voltar
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold">
+                {isEditing ? 'Editar Restaurante' : 'Novo Restaurante'}
+              </h1>
+              <p className="text-muted-foreground">
+                {isEditing 
+                  ? 'Gerencie seu restaurante, categorias e produtos'
+                  : 'Crie seu restaurante e configure o menu'
+                }
+              </p>
+            </div>
+          </div>
+
+          <Tabs defaultValue="basic" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
+              <TabsTrigger value="categories" disabled={!isEditing}>
+                Categorias
+              </TabsTrigger>
+              <TabsTrigger value="products" disabled={!isEditing}>
+                Produtos
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="basic">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Informações do Restaurante</CardTitle>
                   <CardDescription>
-                    {isEditing 
-                      ? 'Atualize as informações do seu restaurante'
-                      : 'Adicione um novo restaurante à sua conta'
-                    }
+                    Configure as informações básicas do seu restaurante
                   </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome do Restaurante</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleNameChange(e.target.value)}
-                    placeholder="Ex: Pizzaria do João"
-                    required
-                  />
-                </div>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Nome do Restaurante</Label>
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => handleNameChange(e.target.value)}
+                        placeholder="Ex: Pizzaria do João"
+                        required
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="slug">URL do Restaurante</Label>
-                  <div className="flex rounded-md shadow-sm">
-                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-muted bg-muted text-muted-foreground text-sm">
-                      lovable.app/r/
-                    </span>
-                    <Input
-                      id="slug"
-                      value={formData.slug}
-                      onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
-                      className="rounded-l-none"
-                      required
-                    />
-                  </div>
-                </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="slug">URL do Restaurante</Label>
+                      <div className="flex rounded-md shadow-sm">
+                        <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-muted bg-muted text-muted-foreground text-sm">
+                          lovable.app/r/
+                        </span>
+                        <Input
+                          id="slug"
+                          value={formData.slug}
+                          onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
+                          className="rounded-l-none"
+                          required
+                        />
+                      </div>
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="description">Descrição</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    rows={3}
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="description">Descrição</Label>
+                      <Textarea
+                        id="description"
+                        value={formData.description || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                        rows={3}
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="address">Endereço</Label>
-                  <Input
-                    id="address"
-                    value={formData.address || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="address">Endereço</Label>
+                      <Input
+                        id="address"
+                        value={formData.address || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                      />
+                    </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Telefone</Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                      placeholder="+351 000 000 000"
-                    />
-                  </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="phone">Telefone</Label>
+                        <Input
+                          id="phone"
+                          value={formData.phone || ''}
+                          onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                          placeholder="+351 000 000 000"
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="whatsapp">WhatsApp</Label>
-                    <Input
-                      id="whatsapp"
-                      value={formData.whatsapp || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, whatsapp: e.target.value }))}
-                      placeholder="+351 000 000 000"
-                    />
-                  </div>
-                </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="whatsapp">WhatsApp</Label>
+                        <Input
+                          id="whatsapp"
+                          value={formData.whatsapp || ''}
+                          onChange={(e) => setFormData(prev => ({ ...prev, whatsapp: e.target.value }))}
+                          placeholder="+351 000 000 000"
+                        />
+                      </div>
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="instagram">Instagram</Label>
-                  <Input
-                    id="instagram"
-                    value={formData.instagram || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, instagram: e.target.value }))}
-                    placeholder="@seu_restaurante"
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="instagram">Instagram</Label>
+                      <Input
+                        id="instagram"
+                        value={formData.instagram || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, instagram: e.target.value }))}
+                        placeholder="@seu_restaurante"
+                      />
+                    </div>
 
-                <div className="flex gap-4">
-                  <Button type="submit" disabled={loading} className="flex-1">
-                    {loading ? 'Salvando...' : (isEditing ? 'Atualizar' : 'Criar Restaurante')}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => navigate('/dashboard')}>
-                    Cancelar
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
+                    <div className="flex gap-4">
+                      <Button type="submit" disabled={loading} className="flex-1">
+                        {loading ? 'Salvando...' : (isEditing ? 'Atualizar' : 'Criar Restaurante')}
+                      </Button>
+                      <Button type="button" variant="outline" onClick={() => navigate('/dashboard')}>
+                        Cancelar
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="categories">
+              {isEditing && restaurant?.id && (
+                <CategoriesManager restaurantId={restaurant.id} />
+              )}
+            </TabsContent>
+
+            <TabsContent value="products">
+              {isEditing && restaurant?.id && (
+                <ProductsManager restaurantId={restaurant.id} />
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>
