@@ -75,7 +75,7 @@ export function useRestaurantMenu(slug: string) {
           .from('products')
           .select('*')
           .in('category_id', categoriesData.map(c => c.id))
-          .eq('is_available', true)
+          .eq('is_active', true)
           .order('display_order');
 
         if (productsError) throw productsError;
