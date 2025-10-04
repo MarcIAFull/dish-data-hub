@@ -13,6 +13,12 @@ import Dashboard from "./pages/Dashboard";
 import RestaurantForm from "./pages/RestaurantForm";
 import RestaurantPublic from "./pages/RestaurantPublic";
 import RestaurantJSON from "./pages/RestaurantJSON";
+import RestaurantManagement from "./pages/RestaurantManagement";
+import Conversations from "./pages/Conversations";
+import Orders from "./pages/Orders";
+import Analytics from "./pages/Analytics";
+import Agent from "./pages/Agent";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +52,41 @@ const App = () => (
                     <Route path="/restaurant/new" element={
                       <ProtectedRoute>
                         <RestaurantForm />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/restaurant/:id" element={
+                      <ProtectedRoute>
+                        <RestaurantForm />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/restaurant/manage" element={
+                      <ProtectedRoute>
+                        <RestaurantManagement />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/conversations" element={
+                      <ProtectedRoute>
+                        <Conversations />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/orders" element={
+                      <ProtectedRoute>
+                        <Orders />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/analytics" element={
+                      <ProtectedRoute>
+                        <Analytics />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/agent" element={
+                      <ProtectedRoute>
+                        <Agent />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/settings" element={
+                      <ProtectedRoute>
+                        <Settings />
                       </ProtectedRoute>
                     } />
                     <Route path="/r/:slug" element={<RestaurantPublic />} />

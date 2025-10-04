@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       options: {
         emailRedirectTo: redirectUrl,
         data: {
-          display_name: displayName,
+          full_name: displayName,
         }
       }
     });
