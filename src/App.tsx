@@ -9,6 +9,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Dashboard from "./pages/Dashboard";
 import RestaurantForm from "./pages/RestaurantForm";
 import RestaurantPublic from "./pages/RestaurantPublic";
 import RestaurantJSON from "./pages/RestaurantJSON";
@@ -37,6 +38,11 @@ const App = () => (
                   <Routes>
                     <Route path="/" element={<Index />} />
                     <Route path="/auth" element={<Auth />} />
+                    <Route path="/dashboard" element={
+                      <ProtectedRoute>
+                        <Dashboard />
+                      </ProtectedRoute>
+                    } />
                     <Route path="/restaurant/new" element={
                       <ProtectedRoute>
                         <RestaurantForm />
