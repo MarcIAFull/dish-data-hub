@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ProtectedAdminRoute } from "@/components/ProtectedAdminRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -18,6 +19,7 @@ import Conversations from "./pages/Conversations";
 import Orders from "./pages/Orders";
 import Analytics from "./pages/Analytics";
 import Agent from "./pages/Agent";
+import Admin from "./pages/Admin";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -88,6 +90,11 @@ const App = () => (
                       <ProtectedRoute>
                         <Settings />
                       </ProtectedRoute>
+                    } />
+                    <Route path="/admin" element={
+                      <ProtectedAdminRoute>
+                        <Admin />
+                      </ProtectedAdminRoute>
                     } />
                     <Route path="/r/:slug" element={<RestaurantPublic />} />
                     <Route path="/r/:slug.json" element={<RestaurantJSON />} />
