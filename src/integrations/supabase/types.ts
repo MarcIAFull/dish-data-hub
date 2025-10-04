@@ -158,33 +158,54 @@ export type Database = {
       }
       chats: {
         Row: {
+          agent_id: string | null
           app: string | null
           conversation_id: string | null
           created_at: string
+          customer_id: number | null
           id: number
           phone: string | null
           status: string
           updated_at: string | null
         }
         Insert: {
+          agent_id?: string | null
           app?: string | null
           conversation_id?: string | null
           created_at?: string
+          customer_id?: number | null
           id?: number
           phone?: string | null
           status?: string
           updated_at?: string | null
         }
         Update: {
+          agent_id?: string | null
           app?: string | null
           conversation_id?: string | null
           created_at?: string
+          customer_id?: number | null
           id?: number
           phone?: string | null
           status?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chats_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chats_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customers: {
         Row: {
