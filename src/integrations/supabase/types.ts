@@ -14,6 +14,106 @@ export type Database = {
   }
   public: {
     Tables: {
+      agents: {
+        Row: {
+          created_at: string | null
+          evolution_api_instance: string | null
+          evolution_api_token: string | null
+          fallback_enabled: boolean | null
+          fallback_timeout_minutes: number | null
+          id: string
+          instructions: string | null
+          is_active: boolean | null
+          name: string
+          personality: string
+          restaurant_id: string
+          updated_at: string | null
+          webhook_url: string | null
+          whatsapp_number: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          evolution_api_instance?: string | null
+          evolution_api_token?: string | null
+          fallback_enabled?: boolean | null
+          fallback_timeout_minutes?: number | null
+          id?: string
+          instructions?: string | null
+          is_active?: boolean | null
+          name: string
+          personality: string
+          restaurant_id: string
+          updated_at?: string | null
+          webhook_url?: string | null
+          whatsapp_number?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          evolution_api_instance?: string | null
+          evolution_api_token?: string | null
+          fallback_enabled?: boolean | null
+          fallback_timeout_minutes?: number | null
+          id?: string
+          instructions?: string | null
+          is_active?: boolean | null
+          name?: string
+          personality?: string
+          restaurant_id?: string
+          updated_at?: string | null
+          webhook_url?: string | null
+          whatsapp_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agents_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      categories: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          display_order: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+          restaurant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          restaurant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          restaurant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_messages: {
         Row: {
           active: boolean | null
@@ -260,6 +360,101 @@ export type Database = {
           payload?: Json | null
           status_from?: string | null
           status_to?: string | null
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          category_id: string
+          created_at: string | null
+          description: string | null
+          display_order: number | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          name: string
+          price: number
+          updated_at: string | null
+        }
+        Insert: {
+          category_id: string
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name: string
+          price: number
+          updated_at?: string | null
+        }
+        Update: {
+          category_id?: string
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name?: string
+          price?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurants: {
+        Row: {
+          address: string | null
+          ai_enabled: boolean | null
+          created_at: string | null
+          description: string | null
+          id: string
+          instagram: string | null
+          is_active: boolean | null
+          name: string
+          phone: string | null
+          slug: string
+          updated_at: string | null
+          user_id: string
+          whatsapp: string | null
+        }
+        Insert: {
+          address?: string | null
+          ai_enabled?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          instagram?: string | null
+          is_active?: boolean | null
+          name: string
+          phone?: string | null
+          slug: string
+          updated_at?: string | null
+          user_id: string
+          whatsapp?: string | null
+        }
+        Update: {
+          address?: string | null
+          ai_enabled?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          instagram?: string | null
+          is_active?: boolean | null
+          name?: string
+          phone?: string | null
+          slug?: string
+          updated_at?: string | null
+          user_id?: string
+          whatsapp?: string | null
         }
         Relationships: []
       }
