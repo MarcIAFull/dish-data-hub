@@ -200,6 +200,7 @@ export type Database = {
           long: number | null
           pagamento: string | null
           phone: number | null
+          restaurant_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -215,6 +216,7 @@ export type Database = {
           long?: number | null
           pagamento?: string | null
           phone?: number | null
+          restaurant_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -230,9 +232,18 @@ export type Database = {
           long?: number | null
           pagamento?: string | null
           phone?: number | null
+          restaurant_id?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "customers_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       dados_cliente: {
         Row: {
@@ -460,7 +471,72 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      conversations: {
+        Row: {
+          agent_id: string | null
+          app: string | null
+          created_at: string | null
+          customer_id: string | null
+          id: string | null
+          phone: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          agent_id?: never
+          app?: string | null
+          created_at?: string | null
+          customer_id?: never
+          id?: never
+          phone?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          agent_id?: never
+          app?: string | null
+          created_at?: string | null
+          customer_id?: never
+          id?: never
+          phone?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      orders: {
+        Row: {
+          chat_id: string | null
+          created_at: string | null
+          customer_id: string | null
+          id: string | null
+          restaurant_id: string | null
+          status: string | null
+          total: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          chat_id?: string | null
+          created_at?: string | null
+          customer_id?: never
+          id?: never
+          restaurant_id?: never
+          status?: string | null
+          total?: never
+          updated_at?: string | null
+        }
+        Update: {
+          chat_id?: string | null
+          created_at?: string | null
+          customer_id?: never
+          id?: never
+          restaurant_id?: never
+          status?: string | null
+          total?: never
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       binary_quantize: {
