@@ -39,7 +39,7 @@ const mainItems = [
 
 const restaurantItems = [
   { title: "Novo Restaurante", url: "/restaurant/new", icon: PlusCircle },
-  { title: "Gerenciar", url: "/restaurant/manage", icon: ChefHat },
+  { title: "Meus Restaurantes", url: "/restaurant/manage", icon: ChefHat },
 ];
 
 const businessItems = [
