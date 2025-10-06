@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AppSidebar } from "@/components/AppSidebar";
+import { BreadcrumbNav } from "@/components/ui/breadcrumb-nav";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ProtectedAdminRoute } from "@/components/ProtectedAdminRoute";
 import Index from "./pages/Index";
@@ -42,7 +43,9 @@ const App = () => (
                     <h1 className="text-lg font-semibold">Convergy AI</h1>
                   </div>
                 </header>
+                <BreadcrumbNav />
                 <main className="flex-1">
+
                   <Routes>
                     <Route path="/" element={<Index />} />
                     <Route path="/auth" element={<Auth />} />
