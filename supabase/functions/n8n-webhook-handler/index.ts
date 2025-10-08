@@ -76,8 +76,28 @@ Deno.serve(async (req) => {
   }
 });
 
+async function getRestaurantIdFromAgent(supabase: any, agent_id: string): Promise<string | null> {
+  if (!agent_id) return null;
+  
+  const { data, error } = await supabase
+    .from('agents')
+    .select('restaurant_id')
+    .eq('id', agent_id)
+    .single();
+  
+  if (error) {
+    console.error('Error fetching restaurant_id from agent:', error);
+    return null;
+  }
+  
+  return data?.restaurant_id || null;
+}
+
 async function handleChatEvent(supabase: any, payload: WebhookPayload) {
   const { conversation_id, phone, status, agent_id } = payload.data;
+
+  // Get restaurant_id from agent
+  const restaurant_id = agent_id ? await getRestaurantIdFromAgent(supabase, agent_id) : null;
 
   // Upsert chat record
   const { data, error } = await supabase
@@ -87,6 +107,7 @@ async function handleChatEvent(supabase: any, payload: WebhookPayload) {
       phone,
       status: status || 'indefinido',
       agent_id: agent_id || null,
+      restaurant_id,
       updated_at: new Date().toISOString(),
     }, {
       onConflict: 'conversation_id'
@@ -101,6 +122,18 @@ async function handleChatEvent(supabase: any, payload: WebhookPayload) {
 async function handleMessageEvent(supabase: any, payload: WebhookPayload) {
   const { conversation_id, message, user_name, phone } = payload.data;
 
+  // Get restaurant_id from conversation's agent
+  let restaurant_id = null;
+  const { data: chatData } = await supabase
+    .from('chats')
+    .select('agent_id')
+    .eq('conversation_id', conversation_id)
+    .single();
+  
+  if (chatData?.agent_id) {
+    restaurant_id = await getRestaurantIdFromAgent(supabase, chatData.agent_id);
+  }
+
   // Insert message record
   const { data, error } = await supabase
     .from('chat_messages')
@@ -111,6 +144,7 @@ async function handleMessageEvent(supabase: any, payload: WebhookPayload) {
       phone,
       message_type: 'incoming',
       active: true,
+      restaurant_id,
     })
     .select()
     .single();
