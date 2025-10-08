@@ -20,7 +20,8 @@ export interface Conversation {
   created_at: string;
   updated_at?: string;
   agent_id?: string;
-  customer_id?: string;
+  customer_id?: string | number;
+  restaurant_id?: string;
   messages?: Message[];
   restaurant_name?: string;
 }
@@ -34,23 +35,15 @@ export function useConversationsCompat(restaurantId?: string) {
     try {
       setLoading(true);
       
-      // Buscar chats usando a view de compatibilidade
+      // Buscar conversas diretamente com filtro por restaurant_id
       let query = supabase
         .from('conversations')
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Se tiver restaurantId, filtrar por agent_id relacionado
+      // Filtro direto por restaurant_id (RLS já garante isolamento)
       if (restaurantId) {
-        const { data: agents } = await supabase
-          .from('agents')
-          .select('id')
-          .eq('restaurant_id', restaurantId);
-        
-        if (agents && agents.length > 0) {
-          const agentIds = agents.map(a => a.id);
-          query = query.in('agent_id', agentIds);
-        }
+        query = query.eq('restaurant_id', restaurantId);
       }
 
       const { data, error } = await query;
