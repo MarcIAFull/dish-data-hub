@@ -124,6 +124,7 @@ export type Database = {
           id: number
           message_type: string | null
           phone: string | null
+          restaurant_id: string | null
           user_id: string | null
           user_message: string | null
           user_name: string | null
@@ -137,6 +138,7 @@ export type Database = {
           id?: number
           message_type?: string | null
           phone?: string | null
+          restaurant_id?: string | null
           user_id?: string | null
           user_message?: string | null
           user_name?: string | null
@@ -150,11 +152,20 @@ export type Database = {
           id?: number
           message_type?: string | null
           phone?: string | null
+          restaurant_id?: string | null
           user_id?: string | null
           user_message?: string | null
           user_name?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chats: {
         Row: {
@@ -165,6 +176,7 @@ export type Database = {
           customer_id: number | null
           id: number
           phone: string | null
+          restaurant_id: string | null
           status: string
           updated_at: string | null
         }
@@ -176,6 +188,7 @@ export type Database = {
           customer_id?: number | null
           id?: number
           phone?: string | null
+          restaurant_id?: string | null
           status?: string
           updated_at?: string | null
         }
@@ -187,6 +200,7 @@ export type Database = {
           customer_id?: number | null
           id?: number
           phone?: string | null
+          restaurant_id?: string | null
           status?: string
           updated_at?: string | null
         }
@@ -203,6 +217,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chats_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
         ]
@@ -336,6 +357,7 @@ export type Database = {
           created_by: string | null
           id: number
           payload: Json | null
+          restaurant_id: string | null
           status: string
           status_from: string | null
           status_to: string | null
@@ -347,6 +369,7 @@ export type Database = {
           created_by?: string | null
           id?: number
           payload?: Json | null
+          restaurant_id?: string | null
           status: string
           status_from?: string | null
           status_to?: string | null
@@ -358,12 +381,21 @@ export type Database = {
           created_by?: string | null
           id?: number
           payload?: Json | null
+          restaurant_id?: string | null
           status?: string
           status_from?: string | null
           status_to?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pedidos_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pedidos_history: {
         Row: {
@@ -545,33 +577,58 @@ export type Database = {
           agent_id: string | null
           app: string | null
           created_at: string | null
-          customer_id: string | null
+          customer_id: number | null
           id: string | null
           phone: string | null
+          restaurant_id: string | null
           status: string | null
           updated_at: string | null
         }
         Insert: {
-          agent_id?: never
+          agent_id?: string | null
           app?: string | null
           created_at?: string | null
-          customer_id?: never
+          customer_id?: number | null
           id?: never
           phone?: string | null
+          restaurant_id?: string | null
           status?: string | null
           updated_at?: string | null
         }
         Update: {
-          agent_id?: never
+          agent_id?: string | null
           app?: string | null
           created_at?: string | null
-          customer_id?: never
+          customer_id?: number | null
           id?: never
           phone?: string | null
+          restaurant_id?: string | null
           status?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chats_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chats_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chats_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       orders: {
         Row: {
@@ -673,7 +730,7 @@ export type Database = {
       }
       l2_normalize: {
         Args: { "": string } | { "": unknown } | { "": unknown }
-        Returns: string
+        Returns: unknown
       }
       match_documents: {
         Args:
