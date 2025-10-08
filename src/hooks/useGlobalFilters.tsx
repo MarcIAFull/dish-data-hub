@@ -53,6 +53,25 @@ export const useGlobalFilters = () => {
     }
   }, [restaurants, filters.selectedRestaurants.length]);
 
+  // Validate and sync selected restaurants with available restaurants
+  useEffect(() => {
+    if (restaurants.length > 0 && filters.selectedRestaurants.length > 0) {
+      const validIds = filters.selectedRestaurants.filter(id => 
+        restaurants.some(r => r.id === id)
+      );
+      
+      if (validIds.length !== filters.selectedRestaurants.length) {
+        const invalidIds = filters.selectedRestaurants.filter(id => !validIds.includes(id));
+        console.warn('🔄 Removendo restaurant_ids inválidos do filtro:', invalidIds);
+        
+        setFilters(prev => ({
+          ...prev,
+          selectedRestaurants: validIds.length > 0 ? validIds : restaurants.map(r => r.id),
+        }));
+      }
+    }
+  }, [restaurants]);
+
   // Save to localStorage whenever filters change
   useEffect(() => {
     localStorage.setItem('globalFilters', JSON.stringify(filters));
