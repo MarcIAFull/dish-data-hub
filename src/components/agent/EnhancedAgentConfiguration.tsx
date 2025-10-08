@@ -67,6 +67,8 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
   const fetchAgents = async () => {
     try {
       setLoading(true);
+      console.log('🔍 Fetching agents for restaurant_id:', restaurantId);
+      
       const { data, error } = await supabase
         .from('agents')
         .select('*')
@@ -74,6 +76,8 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      
+      console.log('✅ Agents fetched:', data?.length || 0);
 
       setAgents(data || []);
       
@@ -99,6 +103,11 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
 
     try {
       setSaving(true);
+      console.log('💾 Saving agent:', { 
+        id: selectedAgent.id, 
+        restaurant_id: selectedAgent.restaurant_id,
+        name: selectedAgent.name 
+      });
       
       if (selectedAgent.id) {
         const { error } = await supabase
