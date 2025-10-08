@@ -16,7 +16,12 @@ import {
   Settings, 
   MessageSquare, 
   Brain, 
-  Info
+  Info,
+  Link2,
+  CheckCircle2,
+  XCircle,
+  Calendar,
+  Clock
 } from 'lucide-react';
 
 interface Agent {
@@ -181,25 +186,101 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
     );
   }
 
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   return (
     <div className="space-y-6">
-      {/* Badge do Restaurante */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <Badge variant="outline" className="text-base px-4 py-2">
-          <Brain className="w-4 h-4 mr-2" />
-          Agente do Restaurante: {restaurantName}
-        </Badge>
-        {agent.is_active && (
-          <Badge className="bg-green-500 hover:bg-green-600">
-            Ativo
-          </Badge>
-        )}
-        {agent.whatsapp_number && (
-          <Badge variant="secondary">
-            <MessageSquare className="w-3 h-3 mr-1" />
-            WhatsApp Conectado
-          </Badge>
-        )}
+      {/* Card de Contexto 1:1 */}
+      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
+        <CardHeader>
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-lg bg-primary/10">
+              <Link2 className="h-6 w-6 text-primary" />
+            </div>
+            <div className="flex-1">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Bot className="h-5 w-5" />
+                Relação 1:1: Agente ↔ Restaurante
+              </CardTitle>
+              <CardDescription className="mt-2">
+                Este agente IA é único e exclusivo para <strong>{restaurantName}</strong>. 
+                Cada restaurante possui seu próprio agente com configurações e personalidade independentes.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Status e Informações */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${agent.is_active ? 'bg-green-100 dark:bg-green-900/20' : 'bg-muted'}`}>
+                {agent.is_active ? (
+                  <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                ) : (
+                  <XCircle className="h-5 w-5 text-muted-foreground" />
+                )}
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Status</p>
+                <p className="font-semibold">{agent.is_active ? 'Ativo' : 'Inativo'}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${agent.whatsapp_number ? 'bg-green-100 dark:bg-green-900/20' : 'bg-muted'}`}>
+                <MessageSquare className={`h-5 w-5 ${agent.whatsapp_number ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`} />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">WhatsApp</p>
+                <p className="font-semibold text-sm">{agent.whatsapp_number || 'Não configurado'}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-muted">
+                <Calendar className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Criado em</p>
+                <p className="font-semibold text-xs">{formatDate(agent.created_at)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-muted">
+                <Clock className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Atualizado</p>
+                <p className="font-semibold text-xs">{formatDate(agent.updated_at)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Configuração do Agente */}
