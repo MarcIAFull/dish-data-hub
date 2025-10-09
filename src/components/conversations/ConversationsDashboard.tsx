@@ -1,16 +1,26 @@
-import { useConversationsCompat } from '@/hooks/useConversationsCompat';
+import { useState } from 'react';
+import { useConversationsCompat, Conversation } from '@/hooks/useConversationsCompat';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, MessageSquare } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Loader2, MessageSquare, Eye } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { ConversationDetail } from './ConversationDetail';
 
 interface ConversationsDashboardProps {
   restaurantId?: string;
 }
 
 export function ConversationsDashboard({ restaurantId }: ConversationsDashboardProps) {
-  const { conversations, loading } = useConversationsCompat(restaurantId);
+  const { conversations, loading, updateStatus } = useConversationsCompat(restaurantId);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  const handleViewConversation = (conversation: Conversation) => {
+    setSelectedConversation(conversation);
+    setDetailOpen(true);
+  };
 
   if (loading) {
     return (
@@ -75,18 +85,36 @@ export function ConversationsDashboard({ restaurantId }: ConversationsDashboardP
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-sm text-muted-foreground">
-                  {conversation.messages && conversation.messages.length > 0 ? (
-                    <p>{conversation.messages.length} mensagens</p>
-                  ) : (
-                    <p>Sem mensagens</p>
-                  )}
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    {conversation.messages && conversation.messages.length > 0 ? (
+                      <p>{conversation.messages.length} mensagens</p>
+                    ) : (
+                      <p>Sem mensagens</p>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleViewConversation(conversation)}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    Ver conversa
+                  </Button>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      {/* Sheet de Detalhes */}
+      <ConversationDetail
+        conversation={selectedConversation}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        onStatusChange={updateStatus}
+      />
     </div>
   );
 }

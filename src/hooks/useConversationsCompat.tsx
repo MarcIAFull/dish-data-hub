@@ -82,9 +82,12 @@ export function useConversationsCompat(restaurantId?: string) {
   const updateConversationStatus = async (conversationId: string, newStatus: string) => {
     try {
       const { error } = await supabase
-        .from('chats')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq('conversation_id', conversationId);
+        .from('conversations')
+        .update({ 
+          status: newStatus, 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', conversationId);
 
       if (error) throw error;
 
@@ -106,6 +109,28 @@ export function useConversationsCompat(restaurantId?: string) {
 
   useEffect(() => {
     fetchConversations();
+
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel('conversations-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversations',
+          filter: restaurantId ? `restaurant_id=eq.${restaurantId}` : undefined
+        },
+        () => {
+          console.log('Conversation changed, refetching...');
+          fetchConversations();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [restaurantId]);
 
   return {
