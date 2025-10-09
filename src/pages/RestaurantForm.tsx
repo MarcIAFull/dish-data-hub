@@ -13,6 +13,8 @@ import { toast } from '@/hooks/use-toast';
 import { ProtectedRestaurantRoute } from '@/components/ProtectedRestaurantRoute';
 import { CategoriesManager } from '@/components/restaurant/CategoriesManager';
 import { ProductsManager } from '@/components/restaurant/ProductsManager';
+import { EnhancedAgentConfiguration } from '@/components/agent/EnhancedAgentConfiguration';
+import { Bot } from 'lucide-react';
 
 interface RestaurantFormData {
   name: string;
@@ -138,15 +140,18 @@ function RestaurantFormContent({ restaurant }: { restaurant?: any }) {
           </div>
 
           <Tabs defaultValue="basic" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
-              <TabsTrigger value="categories" disabled={!isEditing}>
-                Categorias
-              </TabsTrigger>
-              <TabsTrigger value="products" disabled={!isEditing}>
-                Produtos
-              </TabsTrigger>
-            </TabsList>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
+            <TabsTrigger value="categories" disabled={!isEditing}>
+              Categorias
+            </TabsTrigger>
+            <TabsTrigger value="products" disabled={!isEditing}>
+              Produtos
+            </TabsTrigger>
+            <TabsTrigger value="agent" disabled={!isEditing}>
+              Agente IA
+            </TabsTrigger>
+          </TabsList>
 
             <TabsContent value="basic">
               <Card>
@@ -258,6 +263,21 @@ function RestaurantFormContent({ restaurant }: { restaurant?: any }) {
             <TabsContent value="products">
               {isEditing && restaurant?.id && (
                 <ProductsManager restaurantId={restaurant.id} />
+              )}
+            </TabsContent>
+
+            <TabsContent value="agent">
+              {isEditing && restaurant?.id ? (
+                <EnhancedAgentConfiguration restaurantId={restaurant.id} />
+              ) : (
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <Bot className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-muted-foreground">
+                      O agente IA será criado automaticamente após salvar o restaurante
+                    </p>
+                  </CardContent>
+                </Card>
               )}
             </TabsContent>
           </Tabs>

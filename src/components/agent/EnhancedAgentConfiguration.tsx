@@ -199,27 +199,6 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
 
   return (
     <div className="space-y-6">
-      {/* Card de Contexto 1:1 */}
-      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
-        <CardHeader>
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-lg bg-primary/10">
-              <Link2 className="h-6 w-6 text-primary" />
-            </div>
-            <div className="flex-1">
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <Bot className="h-5 w-5" />
-                Relação 1:1: Agente ↔ Restaurante
-              </CardTitle>
-              <CardDescription className="mt-2">
-                Este agente IA é único e exclusivo para <strong>{restaurantName}</strong>. 
-                Cada restaurante possui seu próprio agente com configurações e personalidade independentes.
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
-
       {/* Status e Informações */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>

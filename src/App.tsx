@@ -19,7 +19,7 @@ import RestaurantManagement from "./pages/RestaurantManagement";
 import Conversations from "./pages/Conversations";
 import Orders from "./pages/Orders";
 import Analytics from "./pages/Analytics";
-import Agent from "./pages/Agent";
+
 import Admin from "./pages/Admin";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -82,11 +82,6 @@ const App = () => (
                     <Route path="/analytics" element={
                       <ProtectedRoute>
                         <Analytics />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/agent" element={
-                      <ProtectedRoute>
-                        <Agent />
                       </ProtectedRoute>
                     } />
                     <Route path="/settings" element={

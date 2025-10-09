@@ -49,7 +49,6 @@ const businessItems = [
 ];
 
 const configItems = [
-  { title: "Agente IA", url: "/agent", icon: Bot },
   { title: "Configurações", url: "/settings", icon: Settings },
 ];
 
