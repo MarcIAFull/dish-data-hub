@@ -88,7 +88,7 @@ serve(async (req) => {
         .from('conversations')
         .select('*')
         .eq('agent_id', agent.id)
-        .eq('customer_phone', customerPhone)
+        .eq('phone', customerPhone)
         .eq('status', 'active')
         .maybeSingle();
       
@@ -97,9 +97,10 @@ serve(async (req) => {
           .from('conversations')
           .insert({
             agent_id: agent.id,
-            customer_phone: customerPhone,
-            customer_name: data.pushName || 'Cliente',
-            status: 'active'
+            restaurant_id: agent.restaurants.id,
+            phone: customerPhone,
+            status: 'active',
+            app: 'whatsapp'
           })
           .select()
           .single();

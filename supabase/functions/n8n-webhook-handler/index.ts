@@ -94,10 +94,15 @@ async function getRestaurantIdFromAgent(supabase: any, agent_id: string): Promis
 }
 
 async function handleChatEvent(supabase: any, payload: WebhookPayload) {
-  const { conversation_id, phone, status, agent_id } = payload.data;
+  const { conversation_id, phone, status, agent_id, restaurant_id: payload_restaurant_id } = payload.data;
 
-  // Get restaurant_id from agent
-  const restaurant_id = agent_id ? await getRestaurantIdFromAgent(supabase, agent_id) : null;
+  // Priorizar restaurant_id do payload, senão buscar via agent
+  let restaurant_id = payload_restaurant_id;
+  if (!restaurant_id && agent_id) {
+    restaurant_id = await getRestaurantIdFromAgent(supabase, agent_id);
+  }
+
+  console.log('Creating/Updating chat with restaurant_id:', restaurant_id);
 
   // Upsert chat record
   const { data, error } = await supabase
