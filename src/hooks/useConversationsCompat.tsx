@@ -19,11 +19,39 @@ export interface Conversation {
   app?: string;
   created_at: string;
   updated_at?: string;
+  last_read_at?: string;
   agent_id?: string;
   customer_id?: string | number;
   restaurant_id?: string;
   messages?: Message[];
   restaurant_name?: string;
+}
+
+// Helper para calcular mensagens não lidas
+export function getUnreadCount(conversation: Conversation): number {
+  if (!conversation.messages || conversation.messages.length === 0) {
+    return 0;
+  }
+
+  const lastReadTime = conversation.last_read_at 
+    ? new Date(conversation.last_read_at) 
+    : new Date(0);
+
+  return conversation.messages.filter(msg => 
+    new Date(msg.created_at) > lastReadTime && !!msg.user_message
+  ).length;
+}
+
+// Função para marcar conversa como lida
+export async function markAsRead(conversationId: string) {
+  const { error } = await supabase
+    .from('chats')
+    .update({ last_read_at: new Date().toISOString() })
+    .eq('conversation_id', conversationId);
+
+  if (error) {
+    console.error('Error marking as read:', error);
+  }
 }
 
 export function useConversationsCompat(restaurantId?: string) {

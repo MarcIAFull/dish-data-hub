@@ -42,6 +42,41 @@ export function ConversationDetail({
     }
   }, [conversation?.id, open]);
 
+  // Real-time subscription para novas mensagens
+  useEffect(() => {
+    if (!conversation?.id || !open) return;
+
+    const channel = supabase
+      .channel(`conversation-${conversation.id}-messages`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `conversation_id=eq.${conversation.id}`
+        },
+        (payload) => {
+          console.log('New message in open conversation:', payload);
+          const newMessage = payload.new as Message;
+          
+          setMessages(prev => [...prev, newMessage]);
+          
+          // Auto-scroll imediato
+          setTimeout(() => {
+            if (scrollRef.current) {
+              scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+            }
+          }, 100);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversation?.id, open]);
+
   useEffect(() => {
     // Auto-scroll para última mensagem
     if (scrollRef.current) {

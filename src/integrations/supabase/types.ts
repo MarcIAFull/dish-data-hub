@@ -175,6 +175,7 @@ export type Database = {
           created_at: string
           customer_id: number | null
           id: number
+          last_read_at: string | null
           phone: string | null
           restaurant_id: string | null
           status: string
@@ -187,6 +188,7 @@ export type Database = {
           created_at?: string
           customer_id?: number | null
           id?: number
+          last_read_at?: string | null
           phone?: string | null
           restaurant_id?: string | null
           status?: string
@@ -199,6 +201,7 @@ export type Database = {
           created_at?: string
           customer_id?: number | null
           id?: number
+          last_read_at?: string | null
           phone?: string | null
           restaurant_id?: string | null
           status?: string

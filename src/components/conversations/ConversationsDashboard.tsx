@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useConversationsCompat, Conversation } from '@/hooks/useConversationsCompat';
+import { useInfiniteConversations } from '@/hooks/useInfiniteConversations';
+import { Conversation, getUnreadCount, markAsRead } from '@/hooks/useConversationsCompat';
 import { useConversationFilters } from '@/hooks/useConversationFilters';
 import { useConversationStats } from '@/hooks/useConversationStats';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,13 +12,31 @@ import { ptBR } from 'date-fns/locale';
 import { ConversationDetail } from './ConversationDetail';
 import { ConversationFilters } from './ConversationFilters';
 import { ConversationStats } from './ConversationStats';
+import { InfiniteScrollTrigger } from './InfiniteScrollTrigger';
 
 interface ConversationsDashboardProps {
   restaurantId?: string;
 }
 
 export function ConversationsDashboard({ restaurantId }: ConversationsDashboardProps) {
-  const { conversations, loading, updateStatus } = useConversationsCompat(restaurantId);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  const handleViewConversation = async (conversation: Conversation) => {
+    setSelectedConversation(conversation);
+    setDetailOpen(true);
+    
+    // Marcar como lida ao abrir
+    await markAsRead(conversation.id);
+  };
+
+  const { 
+    conversations, 
+    loading, 
+    hasMore, 
+    loadMore,
+    updateStatus 
+  } = useInfiniteConversations(restaurantId, handleViewConversation);
   
   // Hook de estatísticas
   const stats = useConversationStats(conversations);
@@ -34,14 +53,6 @@ export function ConversationsDashboard({ restaurantId }: ConversationsDashboardP
     clearFilters,
     hasActiveFilters
   } = useConversationFilters(conversations);
-
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-
-  const handleViewConversation = (conversation: Conversation) => {
-    setSelectedConversation(conversation);
-    setDetailOpen(true);
-  };
 
   if (loading) {
     return (
@@ -110,48 +121,67 @@ export function ConversationsDashboard({ restaurantId }: ConversationsDashboardP
         </Card>
       ) : (
         <div className="grid gap-4">
-          {filteredConversations.map((conversation) => (
-            <Card key={conversation.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4" />
-                      {conversation.phone || 'Sem telefone'}
-                    </CardTitle>
-                    <CardDescription>
-                      {formatDistanceToNow(new Date(conversation.created_at), {
-                        addSuffix: true,
-                        locale: ptBR
-                      })}
-                    </CardDescription>
+          {filteredConversations.map((conversation) => {
+            const unreadCount = getUnreadCount(conversation);
+            
+            return (
+              <Card 
+                key={conversation.id}
+                className={unreadCount > 0 ? 'border-primary' : ''}
+              >
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4" />
+                        {conversation.phone || 'Sem telefone'}
+                        
+                        {unreadCount > 0 && (
+                          <Badge variant="destructive" className="ml-2">
+                            {unreadCount}
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      <CardDescription>
+                        {formatDistanceToNow(new Date(conversation.created_at), {
+                          addSuffix: true,
+                          locale: ptBR
+                        })}
+                      </CardDescription>
+                    </div>
+                    <Badge className={getStatusColor(conversation.status)}>
+                      {conversation.status}
+                    </Badge>
                   </div>
-                  <Badge className={getStatusColor(conversation.status)}>
-                    {conversation.status}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-muted-foreground">
-                    {conversation.messages && conversation.messages.length > 0 ? (
-                      <p>{conversation.messages.length} mensagens</p>
-                    ) : (
-                      <p>Sem mensagens</p>
-                    )}
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-muted-foreground">
+                      {conversation.messages && conversation.messages.length > 0 ? (
+                        <p>{conversation.messages.length} mensagens</p>
+                      ) : (
+                        <p>Sem mensagens</p>
+                      )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewConversation(conversation)}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Ver conversa
+                    </Button>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleViewConversation(conversation)}
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    Ver conversa
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
+          
+          <InfiniteScrollTrigger
+            onLoadMore={loadMore}
+            hasMore={hasMore}
+            loading={loading}
+          />
         </div>
       )}
 
