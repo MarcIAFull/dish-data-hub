@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useConversationsCompat, Conversation } from '@/hooks/useConversationsCompat';
+import { useConversationFilters } from '@/hooks/useConversationFilters';
+import { useConversationStats } from '@/hooks/useConversationStats';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,6 +9,8 @@ import { Loader2, MessageSquare, Eye } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ConversationDetail } from './ConversationDetail';
+import { ConversationFilters } from './ConversationFilters';
+import { ConversationStats } from './ConversationStats';
 
 interface ConversationsDashboardProps {
   restaurantId?: string;
@@ -14,6 +18,23 @@ interface ConversationsDashboardProps {
 
 export function ConversationsDashboard({ restaurantId }: ConversationsDashboardProps) {
   const { conversations, loading, updateStatus } = useConversationsCompat(restaurantId);
+  
+  // Hook de estatísticas
+  const stats = useConversationStats(conversations);
+  
+  // Hook de filtros
+  const {
+    searchTerm,
+    setSearchTerm,
+    selectedStatuses,
+    setSelectedStatuses,
+    dateRange,
+    setDateRange,
+    filteredConversations,
+    clearFilters,
+    hasActiveFilters
+  } = useConversationFilters(conversations);
+
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -46,24 +67,50 @@ export function ConversationsDashboard({ restaurantId }: ConversationsDashboardP
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Conversas</h2>
-          <p className="text-muted-foreground">{conversations.length} conversas encontradas</p>
+          <p className="text-muted-foreground">
+            Gerencie todas as conversas do seu restaurante
+          </p>
         </div>
       </div>
 
-      {conversations.length === 0 ? (
+      {/* Cards de Estatísticas */}
+      <ConversationStats stats={stats} loading={loading} />
+
+      {/* Filtros */}
+      <ConversationFilters
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        selectedStatuses={selectedStatuses}
+        onStatusChange={setSelectedStatuses}
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+        onClearFilters={clearFilters}
+        hasActiveFilters={hasActiveFilters}
+        totalCount={conversations.length}
+        filteredCount={filteredConversations.length}
+      />
+
+      {/* Lista de conversas */}
+      {filteredConversations.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-8">
             <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Nenhuma conversa encontrada</p>
+            <p className="text-muted-foreground">
+              {hasActiveFilters 
+                ? 'Nenhuma conversa encontrada com os filtros aplicados'
+                : 'Nenhuma conversa encontrada'
+              }
+            </p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4">
-          {conversations.map((conversation) => (
+          {filteredConversations.map((conversation) => (
             <Card key={conversation.id}>
               <CardHeader>
                 <div className="flex items-start justify-between">
