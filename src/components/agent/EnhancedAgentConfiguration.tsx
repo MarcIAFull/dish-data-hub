@@ -64,7 +64,7 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
     whatsapp_number: '',
     evolution_api_token: '',
     evolution_api_instance: '',
-    webhook_url: ''
+    webhook_url: 'https://wsyddfdfzfkhkkxmrmxf.supabase.co/functions/v1/enhanced-ai-webhook'
   };
 
   const fetchAgentAndRestaurant = async () => {
@@ -375,8 +375,12 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
                     id="webhook_url"
                     value={agent.webhook_url || ''}
                     onChange={(e) => setAgent({ ...agent, webhook_url: e.target.value })}
-                    placeholder="https://seu-webhook.com/whatsapp"
+                    placeholder="https://wsyddfdfzfkhkkxmrmxf.supabase.co/functions/v1/enhanced-ai-webhook"
+                    className="font-mono text-sm"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Esta é a URL do webhook do sistema. Copie e configure no painel da Evolution API.
+                  </p>
                 </div>
               </div>
             </TabsContent>
