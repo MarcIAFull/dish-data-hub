@@ -40,17 +40,17 @@ export function ConversationsList({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#f0f2f5] border-r border-gray-300">
+    <div className="flex flex-col h-full bg-background border-r">
       {/* Header */}
-      <div className="bg-[#008069] p-4 text-white">
+      <div className="bg-primary p-4 text-primary-foreground">
         <h2 className="text-xl font-semibold mb-3">Conversas</h2>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar conversa..."
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-9 bg-white"
+            className="pl-9"
           />
         </div>
       </div>
@@ -58,12 +58,12 @@ export function ConversationsList({
       {/* Lista de conversas */}
       <ScrollArea className="flex-1">
         {conversations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-8 text-center text-gray-500">
+          <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
             <MessageSquare className="h-12 w-12 mb-2 opacity-50" />
             <p className="text-sm">Nenhuma conversa ainda</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y">
             {conversations.map((conv) => {
               const unreadCount = getUnreadCount(conv);
               const isSelected = conv.id === selectedId;
@@ -72,24 +72,24 @@ export function ConversationsList({
                 <div
                   key={conv.id}
                   onClick={() => onSelect(conv)}
-                  className={`p-4 cursor-pointer transition-colors hover:bg-gray-200 ${
-                    isSelected ? 'bg-white' : 'bg-[#f0f2f5]'
+                  className={`p-4 cursor-pointer transition-colors hover:bg-accent ${
+                    isSelected ? 'bg-accent' : ''
                   }`}
                 >
                   <div className="flex items-start justify-between mb-1">
-                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <h3 className="font-semibold flex items-center gap-2">
                       📱 {conv.phone || 'Sem telefone'}
                       {unreadCount > 0 && (
-                        <Badge className="bg-[#25d366] text-white ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
+                        <Badge variant="destructive" className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
                           {unreadCount}
                         </Badge>
                       )}
                     </h3>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-muted-foreground">
                       {getLastMessageTime(conv)}
                     </span>
                   </div>
-                  <p className={`text-sm ${unreadCount > 0 ? 'font-medium text-gray-900' : 'text-gray-600'}`}>
+                  <p className={`text-sm ${unreadCount > 0 ? 'font-medium' : 'text-muted-foreground'}`}>
                     {getLastMessage(conv)}
                   </p>
                 </div>

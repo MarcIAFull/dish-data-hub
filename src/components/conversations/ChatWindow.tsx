@@ -187,12 +187,12 @@ export function ChatWindow({ conversation, onStatusChange }: ChatWindowProps) {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#e5ddd5]">
+    <div className="flex-1 flex flex-col h-full bg-muted/30">
       {/* Header */}
-      <div className="bg-[#008069] text-white p-4 flex items-center justify-between shadow-md">
+      <div className="bg-primary text-primary-foreground p-4 flex items-center justify-between border-b">
         <div>
           <h3 className="font-semibold text-lg">📱 {conversation.phone || 'Sem telefone'}</h3>
-          <p className="text-xs text-white/80">
+          <p className="text-xs opacity-80">
             Iniciada {formatDistanceToNow(new Date(conversation.created_at), {
               addSuffix: true,
               locale: ptBR
@@ -208,7 +208,7 @@ export function ChatWindow({ conversation, onStatusChange }: ChatWindowProps) {
             size="sm"
             onClick={handleTransferToHuman}
             disabled={conversation.status !== 'active'}
-            className="text-white hover:bg-white/20"
+            className="hover:bg-primary-foreground/20"
           >
             <PhoneCall className="h-4 w-4" />
           </Button>
@@ -217,7 +217,7 @@ export function ChatWindow({ conversation, onStatusChange }: ChatWindowProps) {
             size="sm"
             onClick={handleEndConversation}
             disabled={conversation.status === 'ended'}
-            className="text-white hover:bg-white/20"
+            className="hover:bg-primary-foreground/20"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -228,10 +228,10 @@ export function ChatWindow({ conversation, onStatusChange }: ChatWindowProps) {
       <ScrollArea ref={scrollRef} className="flex-1 p-4">
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-500">
+          <div className="flex items-center justify-center h-full text-muted-foreground">
             <div className="text-center">
               <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-30" />
               <p>Nenhuma mensagem ainda</p>
@@ -257,7 +257,7 @@ export function ChatWindow({ conversation, onStatusChange }: ChatWindowProps) {
       </ScrollArea>
 
       {/* Input Area */}
-      <div className="bg-[#f0f2f5] p-4 border-t border-gray-300">
+      <div className="bg-background p-4 border-t">
         <div className="flex gap-2">
           <Textarea
             placeholder="Digite uma mensagem..."
@@ -270,12 +270,11 @@ export function ChatWindow({ conversation, onStatusChange }: ChatWindowProps) {
               }
             }}
             disabled={sending || conversation.status === 'ended'}
-            className="min-h-[44px] max-h-[120px] resize-none bg-white"
+            className="min-h-[44px] max-h-[120px] resize-none"
           />
           <Button
             onClick={handleSendMessage}
             disabled={!messageText.trim() || sending || conversation.status === 'ended'}
-            className="bg-[#25d366] hover:bg-[#20bd5a] text-white"
           >
             {sending ? (
               <Loader2 className="h-4 w-4 animate-spin" />

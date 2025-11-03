@@ -47,8 +47,8 @@ serve(async (req) => {
     }
 
     // Verify conversation belongs to user's restaurant
-    const { data: conversation, error: convError } = await supabase
-      .from('conversations')
+    const { data: chat, error: chatError } = await supabase
+      .from('chats')
       .select(`
         *,
         agents (
@@ -59,10 +59,11 @@ serve(async (req) => {
           )
         )
       `)
-      .eq('id', conversationId)
+      .eq('id', parseInt(conversationId))
       .single();
 
-    if (convError || !conversation || conversation.agents.restaurants.user_id !== user.id) {
+    if (chatError || !chat || chat.agents?.restaurants?.user_id !== user.id) {
+      console.error('Chat not found or access denied:', chatError, chat);
       return new Response(JSON.stringify({ error: 'Conversation not found or access denied' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -73,7 +74,7 @@ serve(async (req) => {
     const { data: savedMessage, error: msgError } = await supabase
       .from('messages')
       .insert({
-        conversation_id: conversationId,
+        chat_id: parseInt(conversationId),
         sender_type: 'human',
         content: message,
         message_type: messageType
@@ -90,8 +91,8 @@ serve(async (req) => {
     }
 
     // Send message via Evolution API
-    const agent = conversation.agents;
-    if (agent.evolution_api_token && agent.evolution_api_instance) {
+    const agent = chat.agents;
+    if (agent?.evolution_api_token && agent?.evolution_api_instance) {
       try {
         const sendResponse = await fetch(`https://api.evolutionapi.com/message/sendText/${agent.evolution_api_instance}`, {
           method: 'POST',
@@ -100,7 +101,7 @@ serve(async (req) => {
             'apikey': agent.evolution_api_token
           },
           body: JSON.stringify({
-            number: conversation.customer_phone,
+            number: chat.phone,
             textMessage: {
               text: message
             }
@@ -117,12 +118,12 @@ serve(async (req) => {
 
     // Update conversation status and timestamp
     await supabase
-      .from('conversations')
+      .from('chats')
       .update({ 
         status: 'human_handoff',
-        last_message_at: new Date().toISOString()
+        updated_at: new Date().toISOString()
       })
-      .eq('id', conversationId);
+      .eq('id', parseInt(conversationId));
 
     return new Response(JSON.stringify({ 
       success: true, 
