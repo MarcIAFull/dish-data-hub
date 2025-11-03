@@ -58,6 +58,14 @@ serve(async (req) => {
       
       const { data, instance, key, event } = body;
       
+      // CRITICAL: Ignore messages sent by the bot itself to prevent infinite loops
+      if (data?.key?.fromMe === true) {
+        console.log(`[${requestId}] ⚠️ Ignoring message from bot (fromMe: true)`);
+        return new Response(JSON.stringify({ status: 'ignored', reason: 'bot_message', requestId }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
       if (!data || !data.message) {
         console.warn(`[${requestId}] ⚠️ No message data found - ignoring webhook`);
         return new Response(JSON.stringify({ status: 'ignored', requestId }), {
