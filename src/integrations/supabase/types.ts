@@ -175,6 +175,7 @@ export type Database = {
           created_at: string
           customer_id: number | null
           id: number
+          last_message_at: string | null
           last_read_at: string | null
           phone: string | null
           restaurant_id: string | null
@@ -188,6 +189,7 @@ export type Database = {
           created_at?: string
           customer_id?: number | null
           id?: number
+          last_message_at?: string | null
           last_read_at?: string | null
           phone?: string | null
           restaurant_id?: string | null
@@ -201,6 +203,7 @@ export type Database = {
           created_at?: string
           customer_id?: number | null
           id?: number
+          last_message_at?: string | null
           last_read_at?: string | null
           phone?: string | null
           restaurant_id?: string | null
@@ -335,23 +338,46 @@ export type Database = {
         }
         Relationships: []
       }
-      n8n_chat_histories: {
+      messages: {
         Row: {
-          id: number
-          message: Json
-          session_id: string
+          chat_id: number | null
+          content: string
+          created_at: string | null
+          id: string
+          message_type: string | null
+          metadata: Json | null
+          sender_type: string
+          whatsapp_message_id: string | null
         }
         Insert: {
-          id?: number
-          message: Json
-          session_id: string
+          chat_id?: number | null
+          content: string
+          created_at?: string | null
+          id?: string
+          message_type?: string | null
+          metadata?: Json | null
+          sender_type: string
+          whatsapp_message_id?: string | null
         }
         Update: {
-          id?: number
-          message?: Json
-          session_id?: string
+          chat_id?: number | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          message_type?: string | null
+          metadata?: Json | null
+          sender_type?: string
+          whatsapp_message_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "messages_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pedidos: {
         Row: {
@@ -668,26 +694,6 @@ export type Database = {
       }
     }
     Functions: {
-      binary_quantize: {
-        Args: { "": string } | { "": unknown }
-        Returns: unknown
-      }
-      halfvec_avg: {
-        Args: { "": number[] }
-        Returns: unknown
-      }
-      halfvec_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      halfvec_send: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      halfvec_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
-      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -695,97 +701,30 @@ export type Database = {
         }
         Returns: boolean
       }
-      hnsw_bit_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnsw_halfvec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnsw_sparsevec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnswhandler: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      is_admin: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
-      ivfflat_bit_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflat_halfvec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflathandler: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      l2_norm: {
-        Args: { "": unknown } | { "": unknown }
-        Returns: number
-      }
-      l2_normalize: {
-        Args: { "": string } | { "": unknown } | { "": unknown }
-        Returns: unknown
-      }
-      match_documents: {
-        Args:
-          | { filter: Json; match_count: number; query_embedding: string }
-          | {
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
+      match_documents:
+        | {
+            Args: { filter: Json; match_count: number; query_embedding: string }
+            Returns: {
+              content: string
+              id: number
+              metadata: Json
+              similarity: number
+            }[]
+          }
+        | {
+            Args: {
               match_count?: number
               match_threshold?: number
               query_embedding: string
             }
-        Returns: {
-          content: string
-          id: number
-          metadata: Json
-          similarity: number
-        }[]
-      }
-      sparsevec_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      sparsevec_send: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      sparsevec_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
-      }
-      vector_avg: {
-        Args: { "": number[] }
-        Returns: string
-      }
-      vector_dims: {
-        Args: { "": string } | { "": unknown }
-        Returns: number
-      }
-      vector_norm: {
-        Args: { "": string }
-        Returns: number
-      }
-      vector_out: {
-        Args: { "": string }
-        Returns: unknown
-      }
-      vector_send: {
-        Args: { "": string }
-        Returns: string
-      }
-      vector_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
-      }
+            Returns: {
+              content: string
+              id: number
+              metadata: Json
+              similarity: number
+            }[]
+          }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"

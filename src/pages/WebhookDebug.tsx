@@ -29,10 +29,10 @@ interface Conversation {
 }
 
 interface Message {
-  id: number;
-  conversation_id?: string;
-  user_message?: string;
-  bot_message?: string;
+  id: string;
+  chat_id?: number;
+  sender_type: string;
+  content: string;
   message_type?: string;
   created_at: string;
 }
@@ -56,18 +56,18 @@ export default function WebhookDebug() {
       
       setAgents(agentsData || []);
 
-      // Load recent conversations
-      const { data: conversationsData } = await supabase
-        .from('conversations')
+      // Load recent chats
+      const { data: chatsData } = await supabase
+        .from('chats')
         .select('*')
         .order('updated_at', { ascending: false })
         .limit(10);
       
-      setConversations(conversationsData || []);
+      setConversations(chatsData as any || []);
 
-      // Load recent messages from chat_messages
+      // Load recent messages
       const { data: messagesData } = await supabase
-        .from('chat_messages')
+        .from('messages')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(20);
@@ -280,14 +280,14 @@ export default function WebhookDebug() {
                 {messages.map((msg) => (
                   <div key={msg.id} className="border rounded p-3 text-sm space-y-1">
                     <div className="flex items-center justify-between">
-                      <Badge variant={msg.user_message ? 'secondary' : 'default'}>
-                        {msg.user_message ? 'Cliente' : 'Assistente'}
+                      <Badge variant={msg.sender_type === 'customer' ? 'secondary' : 'default'}>
+                        {msg.sender_type === 'customer' ? 'Cliente' : 'Assistente'}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         {new Date(msg.created_at).toLocaleTimeString('pt-BR')}
                       </span>
                     </div>
-                    <div className="text-xs line-clamp-2">{msg.user_message || msg.bot_message}</div>
+                    <div className="text-xs line-clamp-2">{msg.content}</div>
                   </div>
                 ))}
               </div>

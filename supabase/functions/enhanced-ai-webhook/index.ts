@@ -111,19 +111,19 @@ serve(async (req) => {
       // Find or create conversation with enhanced tracking
       console.log(`[${requestId}] 🔍 Looking for conversation - Phone: ${customerPhone}, Agent: ${agent.id}`);
       
-      let { data: conversation, error: convError } = await supabase
-        .from('conversations')
+      let { data: chat, error: chatError } = await supabase
+        .from('chats')
         .select('*')
         .eq('agent_id', agent.id)
         .eq('phone', customerPhone)
         .eq('status', 'active')
         .maybeSingle();
       
-      if (!conversation) {
-        console.log(`[${requestId}] 🆕 Creating new conversation`);
+      if (!chat) {
+        console.log(`[${requestId}] 🆕 Creating new chat`);
         
-        const { data: newConv, error: createError } = await supabase
-          .from('conversations')
+        const { data: newChat, error: createError } = await supabase
+          .from('chats')
           .insert({
             agent_id: agent.id,
             restaurant_id: agent.restaurants.id,
@@ -135,26 +135,26 @@ serve(async (req) => {
           .single();
         
         if (createError) {
-          console.error(`[${requestId}] ❌ Error creating conversation:`, createError);
-          return new Response(JSON.stringify({ error: 'Failed to create conversation', requestId }), {
+          console.error(`[${requestId}] ❌ Error creating chat:`, createError);
+          return new Response(JSON.stringify({ error: 'Failed to create chat', requestId }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
         
-        conversation = newConv;
-        console.log(`[${requestId}] ✅ Conversation created - ID: ${conversation.id}`);
+        chat = newChat;
+        console.log(`[${requestId}] ✅ Chat created - ID: ${chat.id}`);
       } else {
-        console.log(`[${requestId}] ♻️ Using existing conversation - ID: ${conversation.id}`);
+        console.log(`[${requestId}] ♻️ Using existing chat - ID: ${chat.id}`);
       }
 
-      // Get conversation history for context memory
-      console.log(`[${requestId}] 📚 Fetching conversation history`);
+      // Get chat history for context memory
+      console.log(`[${requestId}] 📚 Fetching chat history`);
       
       const { data: messageHistory } = await supabase
         .from('messages')
         .select('*')
-        .eq('conversation_id', conversation.id)
+        .eq('chat_id', chat.id)
         .order('created_at', { ascending: false })
         .limit(agent.context_memory_turns || 10);
 
@@ -169,7 +169,7 @@ serve(async (req) => {
       const { error: msgError } = await supabase
         .from('messages')
         .insert({
-          conversation_id: conversation.id,
+          chat_id: chat.id,
           sender_type: 'customer',
           content: messageContent,
           message_type: 'text',
@@ -184,9 +184,9 @@ serve(async (req) => {
 
       // Enhanced AI response generation
       console.log(`[${requestId}] 🤖 Checking AI configuration`);
-      console.log(`[${requestId}] OpenAI Key: ${openAIApiKey ? 'PRESENT' : 'MISSING'}, Conversation Status: ${conversation.status}`);
+      console.log(`[${requestId}] OpenAI Key: ${openAIApiKey ? 'PRESENT' : 'MISSING'}, Chat Status: ${chat.status}`);
       
-      if (openAIApiKey && conversation.status === 'active') {
+      if (openAIApiKey && chat.status === 'active') {
         console.log(`[${requestId}] ✅ Starting AI response generation`);
         
         try {
@@ -294,7 +294,7 @@ MENSAGEM ATUAL DO CLIENTE: ${messageContent}`;
             const { error: aiMsgError } = await supabase
               .from('messages')
               .insert({
-                conversation_id: conversation.id,
+                chat_id: chat.id,
                 sender_type: 'agent',
                 content: aiMessage,
                 message_type: 'text'
@@ -336,25 +336,25 @@ MENSAGEM ATUAL DO CLIENTE: ${messageContent}`;
               console.warn(`[${requestId}] ⚠️ Evolution API credentials missing - Token: ${!!agent.evolution_api_token}, Instance: ${!!agent.evolution_api_instance}`);
             }
 
-            // Update conversation analytics
-            console.log(`[${requestId}] 🔄 Updating conversation timestamp`);
+            // Update chat analytics
+            console.log(`[${requestId}] 🔄 Updating chat timestamp`);
             
             await supabase
-              .from('conversations')
+              .from('chats')
               .update({ 
                 last_message_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
               })
-              .eq('id', conversation.id);
+              .eq('id', chat.id);
 
-            // Save conversation insights if enabled
+            // Save chat insights if enabled
             if (agent.enable_conversation_summary) {
-              console.log(`[${requestId}] 📊 Saving conversation insights`);
+              console.log(`[${requestId}] 📊 Saving chat insights`);
               
               const { error: insightError } = await supabase
                 .from('conversation_insights')
                 .upsert({
-                  conversation_id: conversation.id,
+                  conversation_id: chat.conversation_id || `chat_${chat.id}`,
                   restaurant_id: agent.restaurants.id,
                   sentiment_score: agent.enable_sentiment_analysis ? 
                     (messageContent.toLowerCase().includes('bom') || messageContent.toLowerCase().includes('ótimo') ? 0.8 : 
@@ -368,7 +368,7 @@ MENSAGEM ATUAL DO CLIENTE: ${messageContent}`;
                 });
 
               if (insightError) {
-                console.error(`[${requestId}] ❌ Error saving conversation insights:`, insightError);
+                console.error(`[${requestId}] ❌ Error saving chat insights:`, insightError);
               }
             }
           } else {
@@ -378,7 +378,7 @@ MENSAGEM ATUAL DO CLIENTE: ${messageContent}`;
           console.error(`[${requestId}] ❌ Error generating enhanced AI response:`, aiError);
         }
       } else {
-        console.warn(`[${requestId}] ⚠️ AI response skipped - OpenAI Key: ${!!openAIApiKey}, Status: ${conversation.status}`);
+        console.warn(`[${requestId}] ⚠️ AI response skipped - OpenAI Key: ${!!openAIApiKey}, Status: ${chat.status}`);
       }
       
       console.log(`[${requestId}] ============ REQUEST COMPLETE ============`);

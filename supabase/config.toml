@@ -1,4 +1,4 @@
 project_id = "wsyddfdfzfkhkkxmrmxf"
 
-[functions.n8n-webhook-handler]
+[functions.enhanced-ai-webhook]
 verify_jwt = false
