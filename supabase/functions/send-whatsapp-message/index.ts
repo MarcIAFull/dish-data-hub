@@ -112,14 +112,16 @@ serve(async (req) => {
     if (chat.agent_id) {
       const { data: agent, error: agentError } = await supabase
         .from('agents')
-        .select('evolution_api_token, evolution_api_instance')
+        .select('evolution_api_token, evolution_api_instance, evolution_api_base_url')
         .eq('id', chat.agent_id)
         .single();
 
       console.log('Agent query result:', { agent, agentError });
 
       if (agent?.evolution_api_token && agent?.evolution_api_instance) {
-        const evolutionUrl = `https://api.evolutionapi.com/message/sendText/${agent.evolution_api_instance}`;
+        // Use configured base URL or fallback to default
+        const baseUrl = agent.evolution_api_base_url || 'https://evolution.fullbpo.com';
+        const evolutionUrl = `${baseUrl}/message/sendText/${agent.evolution_api_instance}`;
         console.log('Evolution API URL:', evolutionUrl);
         console.log('Phone number:', chat.phone);
         

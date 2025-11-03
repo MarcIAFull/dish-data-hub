@@ -38,6 +38,7 @@ interface Agent {
   whatsapp_number?: string;
   evolution_api_token?: string;
   evolution_api_instance?: string;
+  evolution_api_base_url?: string;
   webhook_url?: string;
   created_at?: string;
   updated_at?: string;
@@ -68,6 +69,7 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
     whatsapp_number: '',
     evolution_api_token: '',
     evolution_api_instance: '',
+    evolution_api_base_url: 'https://evolution.fullbpo.com',
     webhook_url: 'https://wsyddfdfzfkhkkxmrmxf.supabase.co/functions/v1/enhanced-ai-webhook'
   };
 
@@ -142,6 +144,7 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
           whatsapp_number: agent.whatsapp_number,
           evolution_api_token: agent.evolution_api_token,
           evolution_api_instance: agent.evolution_api_instance,
+          evolution_api_base_url: agent.evolution_api_base_url,
           webhook_url: agent.webhook_url,
         })
         .eq('id', agent.id);
@@ -228,7 +231,7 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
         body: {
           instance: agent.evolution_api_instance,
           token: agent.evolution_api_token,
-          baseUrl: 'https://evolution.fullbpo.com'
+          baseUrl: agent.evolution_api_base_url || 'https://evolution.fullbpo.com'
         }
       });
 
@@ -430,6 +433,19 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
                     onChange={(e) => setAgent({ ...agent, evolution_api_instance: e.target.value })}
                     placeholder="Nome da sua instância"
                   />
+                </div>
+
+                <div>
+                  <Label htmlFor="evolution_api_base_url">URL Base da Evolution API</Label>
+                  <Input
+                    id="evolution_api_base_url"
+                    value={agent.evolution_api_base_url || ''}
+                    onChange={(e) => setAgent({ ...agent, evolution_api_base_url: e.target.value })}
+                    placeholder="https://evolution.fullbpo.com"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    URL do servidor Evolution API (padrão: https://evolution.fullbpo.com)
+                  </p>
                 </div>
 
                 <div>
