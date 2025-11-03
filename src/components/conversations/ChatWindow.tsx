@@ -1,0 +1,290 @@
+import { useState, useEffect, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Send, Loader2, PhoneCall, X, MessageSquare } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { MessageBubble } from './MessageBubble';
+import type { Conversation, Message } from '@/hooks/useConversationsCompat';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
+interface ChatWindowProps {
+  conversation: Conversation | null;
+  onStatusChange: (conversationId: string, status: string) => void;
+}
+
+export function ChatWindow({ conversation, onStatusChange }: ChatWindowProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [messageText, setMessageText] = useState('');
+  const [sending, setSending] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (conversation?.id) {
+      fetchMessages();
+    } else {
+      setMessages([]);
+    }
+  }, [conversation?.id]);
+
+  // Real-time subscription
+  useEffect(() => {
+    if (!conversation?.id) return;
+
+    const channel = supabase
+      .channel(`chat-${conversation.id}-messages`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `chat_id=eq.${conversation.id}`
+        },
+        (payload) => {
+          console.log('New message:', payload);
+          const newMessage = payload.new as any;
+          
+          setMessages(prev => [...prev, {
+            id: newMessage.id,
+            user_message: newMessage.sender_type === 'user' ? newMessage.content : undefined,
+            bot_message: newMessage.sender_type === 'bot' ? newMessage.content : undefined,
+            created_at: newMessage.created_at,
+            phone: conversation.phone
+          }]);
+          
+          setTimeout(() => scrollToBottom(), 100);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversation?.id]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    if (scrollRef.current) {
+      const scrollElement = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollElement) {
+        scrollElement.scrollTop = scrollElement.scrollHeight;
+      }
+    }
+  };
+
+  const fetchMessages = async () => {
+    if (!conversation?.id) return;
+    
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('chat_id', Number(conversation.id))
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      
+      // Transformar para o formato esperado
+      const transformedMessages = (data || []).map((msg: any) => ({
+        id: msg.id,
+        user_message: msg.sender_type === 'user' ? msg.content : undefined,
+        bot_message: msg.sender_type === 'bot' ? msg.content : undefined,
+        created_at: msg.created_at,
+        phone: conversation.phone
+      }));
+      
+      setMessages(transformedMessages);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      toast({
+        title: 'Erro ao carregar mensagens',
+        description: 'Não foi possível carregar as mensagens',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!messageText.trim() || !conversation?.id || sending) return;
+
+    setSending(true);
+    try {
+      const { error } = await supabase.functions.invoke('send-whatsapp-message', {
+        body: {
+          conversationId: conversation.id,
+          message: messageText.trim(),
+          messageType: 'text'
+        }
+      });
+
+      if (error) throw error;
+
+      setMessageText('');
+      toast({
+        title: 'Mensagem enviada',
+        description: 'Mensagem enviada com sucesso'
+      });
+    } catch (error: any) {
+      console.error('Error sending message:', error);
+      toast({
+        title: 'Erro ao enviar mensagem',
+        description: error.message || 'Não foi possível enviar a mensagem',
+        variant: 'destructive'
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleEndConversation = () => {
+    if (conversation?.id) {
+      onStatusChange(conversation.id, 'ended');
+    }
+  };
+
+  const handleTransferToHuman = () => {
+    if (conversation?.id) {
+      onStatusChange(conversation.id, 'human_handoff');
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active':
+      case 'ativo':
+        return 'bg-green-500';
+      case 'ended':
+      case 'encerrado':
+        return 'bg-gray-500';
+      case 'human_handoff':
+        return 'bg-yellow-500';
+      default:
+        return 'bg-blue-500';
+    }
+  };
+
+  if (!conversation) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-[#e5ddd5]">
+        <div className="text-center text-gray-500">
+          <MessageSquare className="h-20 w-20 mx-auto mb-4 opacity-30" />
+          <p className="text-lg">Selecione uma conversa para começar</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 flex flex-col h-full bg-[#e5ddd5]">
+      {/* Header */}
+      <div className="bg-[#008069] text-white p-4 flex items-center justify-between shadow-md">
+        <div>
+          <h3 className="font-semibold text-lg">📱 {conversation.phone || 'Sem telefone'}</h3>
+          <p className="text-xs text-white/80">
+            Iniciada {formatDistanceToNow(new Date(conversation.created_at), {
+              addSuffix: true,
+              locale: ptBR
+            })}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge className={getStatusColor(conversation.status)}>
+            {conversation.status}
+          </Badge>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleTransferToHuman}
+            disabled={conversation.status !== 'active'}
+            className="text-white hover:bg-white/20"
+          >
+            <PhoneCall className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleEndConversation}
+            disabled={conversation.status === 'ended'}
+            className="text-white hover:bg-white/20"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Messages Area */}
+      <ScrollArea ref={scrollRef} className="flex-1 p-4">
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="text-center">
+              <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-30" />
+              <p>Nenhuma mensagem ainda</p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {messages.map((message) => {
+              const isUser = !!message.user_message;
+              const content = message.user_message || message.bot_message || '';
+              
+              return (
+                <MessageBubble
+                  key={message.id}
+                  content={content}
+                  isUser={isUser}
+                  timestamp={message.created_at}
+                />
+              );
+            })}
+          </div>
+        )}
+      </ScrollArea>
+
+      {/* Input Area */}
+      <div className="bg-[#f0f2f5] p-4 border-t border-gray-300">
+        <div className="flex gap-2">
+          <Textarea
+            placeholder="Digite uma mensagem..."
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
+            disabled={sending || conversation.status === 'ended'}
+            className="min-h-[44px] max-h-[120px] resize-none bg-white"
+          />
+          <Button
+            onClick={handleSendMessage}
+            disabled={!messageText.trim() || sending || conversation.status === 'ended'}
+            className="bg-[#25d366] hover:bg-[#20bd5a] text-white"
+          >
+            {sending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}

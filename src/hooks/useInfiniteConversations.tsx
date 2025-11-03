@@ -22,7 +22,7 @@ export function useInfiniteConversations(
       const to = from + PAGE_SIZE - 1;
 
       let query = supabase
-        .from('conversations')
+        .from('chats')
         .select('*', { count: 'exact' })
         .order('updated_at', { ascending: false })
         .range(from, to);
@@ -39,19 +39,29 @@ export function useInfiniteConversations(
       const conversationsWithMessages = await Promise.all(
         (data || []).map(async (conv) => {
           const { data: messages, error: msgError } = await supabase
-            .from('chat_messages')
+            .from('messages')
             .select('*')
-            .eq('conversation_id', conv.id)
+            .eq('chat_id', conv.id)
             .order('created_at', { ascending: true });
 
           if (msgError) {
             console.error('Error fetching messages:', msgError);
-            return { ...conv, messages: [] };
+            return { ...conv, id: String(conv.conversation_id || conv.id), messages: [] };
           }
+
+          // Transformar mensagens para o formato esperado
+          const transformedMessages = (messages || []).map((msg: any) => ({
+            id: msg.id,
+            user_message: msg.sender_type === 'user' ? msg.content : undefined,
+            bot_message: msg.sender_type === 'bot' ? msg.content : undefined,
+            created_at: msg.created_at,
+            phone: conv.phone
+          }));
 
           return {
             ...conv,
-            messages: messages || []
+            id: String(conv.conversation_id || conv.id),
+            messages: transformedMessages
           };
         })
       );
@@ -156,30 +166,39 @@ export function useInfiniteConversations(
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'chat_messages',
+          table: 'messages',
           filter: restaurantId ? `restaurant_id=eq.${restaurantId}` : undefined
         },
         (payload) => {
           console.log('New message:', payload);
-          const newMessage = payload.new as Message;
+          const newMessage = payload.new as any;
           
           setConversations(prev => 
             prev.map(conv => {
-              if (conv.id === newMessage.conversation_id) {
+              if (conv.id === newMessage.chat_id) {
                 const existingConv = conv;
                 
+                // Transformar mensagem
+                const transformedMessage = {
+                  id: newMessage.id,
+                  user_message: newMessage.sender_type === 'user' ? newMessage.content : undefined,
+                  bot_message: newMessage.sender_type === 'bot' ? newMessage.content : undefined,
+                  created_at: newMessage.created_at,
+                  phone: conv.phone
+                };
+                
                 // Notificar apenas se for mensagem do usuário
-                if (newMessage.user_message && onConversationClick) {
+                if (newMessage.sender_type === 'user' && onConversationClick) {
                   notifyNewMessage(
-                    newMessage.phone || 'Cliente',
-                    newMessage.user_message,
+                    conv.phone || 'Cliente',
+                    newMessage.content,
                     () => onConversationClick(existingConv)
                   );
                 }
                 
                 return {
                   ...conv,
-                  messages: [...(conv.messages || []), newMessage],
+                  messages: [...(conv.messages || []), transformedMessage],
                   updated_at: new Date().toISOString()
                 };
               }

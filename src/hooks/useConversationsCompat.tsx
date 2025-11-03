@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export interface Message {
-  id: number;
+  id: string | number;
   conversation_id?: string;
   user_message?: string;
   bot_message?: string;
@@ -65,7 +65,7 @@ export function useConversationsCompat(restaurantId?: string) {
       
       // Buscar conversas diretamente com filtro por restaurant_id
       let query = supabase
-        .from('conversations')
+        .from('chats')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -82,14 +82,24 @@ export function useConversationsCompat(restaurantId?: string) {
       const conversationsWithMessages = await Promise.all(
         (data || []).map(async (conv) => {
           const { data: messages } = await supabase
-            .from('chat_messages')
+            .from('messages')
             .select('*')
-            .eq('conversation_id', conv.id)
+            .eq('chat_id', conv.id)
             .order('created_at', { ascending: true });
+
+          // Transformar mensagens para o formato esperado
+          const transformedMessages = (messages || []).map(msg => ({
+            id: msg.id,
+            user_message: msg.sender_type === 'user' ? msg.content : undefined,
+            bot_message: msg.sender_type === 'bot' ? msg.content : undefined,
+            created_at: msg.created_at,
+            phone: conv.phone
+          }));
 
           return {
             ...conv,
-            messages: messages || []
+            id: String(conv.conversation_id || conv.id),
+            messages: transformedMessages
           };
         })
       );
@@ -110,12 +120,12 @@ export function useConversationsCompat(restaurantId?: string) {
   const updateConversationStatus = async (conversationId: string, newStatus: string) => {
     try {
       const { error } = await supabase
-        .from('conversations')
+        .from('chats')
         .update({ 
           status: newStatus, 
           updated_at: new Date().toISOString() 
         })
-        .eq('id', conversationId);
+        .eq('conversation_id', conversationId);
 
       if (error) throw error;
 
@@ -146,7 +156,7 @@ export function useConversationsCompat(restaurantId?: string) {
         {
           event: '*',
           schema: 'public',
-          table: 'conversations',
+          table: 'chats',
           filter: restaurantId ? `restaurant_id=eq.${restaurantId}` : undefined
         },
         () => {
