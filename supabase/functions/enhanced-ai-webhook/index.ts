@@ -138,7 +138,7 @@ serve(async (req) => {
         });
       }
 
-      // Find or create conversation - Unify by phone (not by status)
+      // ENTREGA 1: Find or create conversation - REOPEN if ended
       console.log(`[${requestId}] 🔍 Looking for conversation - Phone: ${customerPhone}, Agent: ${agent.id}`);
       
       let { data: chat, error: chatError } = await supabase
@@ -146,6 +146,7 @@ serve(async (req) => {
         .select('*')
         .eq('agent_id', agent.id)
         .eq('phone', customerPhone)
+        .is('archived_at', null)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -177,7 +178,29 @@ serve(async (req) => {
         chat = newChat;
         console.log(`[${requestId}] ✅ Chat created - ID: ${chat.id}`);
       } else {
-        console.log(`[${requestId}] ♻️ Using existing chat - ID: ${chat.id}, AI Enabled: ${chat.ai_enabled}`);
+        console.log(`[${requestId}] ♻️ Using existing chat - ID: ${chat.id}, Status: ${chat.status}, AI: ${chat.ai_enabled}`);
+        
+        // ENTREGA 1: CRITICAL FIX - Reopen ended conversations
+        if (chat.status === 'ended') {
+          console.log(`[${requestId}] 🔄 Reopening ended conversation`);
+          
+          const { error: updateError } = await supabase
+            .from('chats')
+            .update({ 
+              status: 'active',
+              reopened_at: new Date().toISOString(),
+              reopened_count: (chat.reopened_count || 0) + 1,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', chat.id);
+          
+          if (updateError) {
+            console.error(`[${requestId}] ❌ Error reopening chat:`, updateError);
+          } else {
+            chat.status = 'active';
+            console.log(`[${requestId}] ✅ Chat reopened successfully (count: ${(chat.reopened_count || 0) + 1})`);
+          }
+        }
       }
 
       // Get chat history for context memory

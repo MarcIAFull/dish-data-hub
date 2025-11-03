@@ -5,13 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Send, Loader2, PhoneCall, X, MessageSquare, Bot, User } from 'lucide-react';
+import { Send, Loader2, MessageSquare, Bot, User, Store } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { MessageBubble } from './MessageBubble';
+import { ConversationActions } from './ConversationActions';
 import type { Conversation, Message } from '@/hooks/useConversationsCompat';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Store } from 'lucide-react';
 import { getRestaurantColor } from '@/lib/restaurantColors';
 
 interface ChatWindowProps {
@@ -215,51 +215,62 @@ export function ChatWindow({ conversation, onStatusChange }: ChatWindowProps) {
 
   if (!conversation) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[#e5ddd5]">
-        <div className="text-center text-gray-500">
-          <MessageSquare className="h-20 w-20 mx-auto mb-4 opacity-30" />
-          <p className="text-lg">Selecione uma conversa para começar</p>
+      <div className="flex-1 flex items-center justify-center bg-background">
+        <div className="text-center text-muted-foreground">
+          <MessageSquare className="h-20 w-20 mx-auto mb-4 opacity-20" />
+          <p className="text-lg font-medium">Selecione uma conversa</p>
+          <p className="text-sm mt-1">Escolha uma conversa da lista para começar</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-muted/30">
+    <div className="flex-1 flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="bg-primary text-primary-foreground p-4 flex items-center justify-between border-b">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 flex-wrap mb-2">
-            <h3 className="font-semibold text-lg">📱 {conversation.phone || 'Sem telefone'}</h3>
-            
-            {/* Badge do Restaurante */}
-            {conversation.restaurant && (
+      <div className="bg-card border-b border-border p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-2">
+              <h3 className="font-semibold text-lg truncate">
+                {conversation.phone || 'Sem telefone'}
+              </h3>
+              
+              {/* Badge do Restaurante */}
+              {conversation.restaurant && (
+                <Badge 
+                  variant="secondary" 
+                  className={getRestaurantColor(conversation.restaurant.id)}
+                >
+                  <Store className="h-3 w-3 mr-1" />
+                  {conversation.restaurant.name}
+                </Badge>
+              )}
+
               <Badge 
-                variant="secondary" 
-                className={`${getRestaurantColor(conversation.restaurant.id)}`}
+                variant="outline"
+                className={
+                  conversation.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
+                  conversation.status === 'ended' ? 'bg-gray-50 text-gray-700 border-gray-200' :
+                  'bg-yellow-50 text-yellow-700 border-yellow-200'
+                }
               >
-                <Store className="h-3 w-3 mr-1" />
-                {conversation.restaurant.name}
+                {conversation.status}
               </Badge>
-            )}
-          </div>
-          
-          <p className="text-xs opacity-80 mb-2">
-            Iniciada {formatDistanceToNow(new Date(conversation.created_at), {
-              addSuffix: true,
-              locale: ptBR
-            })}
-          </p>
-          <div className="flex items-center gap-3">
-            <Badge className={getStatusColor(conversation.status)}>
-              {conversation.status}
-            </Badge>
-            <div className="flex items-center gap-2 bg-primary-foreground/10 px-3 py-1.5 rounded-full">
+            </div>
+            
+            <p className="text-xs text-muted-foreground mb-3">
+              Iniciada {formatDistanceToNow(new Date(conversation.created_at), {
+                addSuffix: true,
+                locale: ptBR
+              })}
+            </p>
+
+            <div className="flex items-center gap-2 bg-muted/50 px-3 py-2 rounded-lg w-fit">
               <Switch
                 checked={aiEnabled}
                 onCheckedChange={handleToggleAI}
                 id="ai-toggle"
-                className="data-[state=checked]:bg-white data-[state=unchecked]:bg-primary-foreground/30"
               />
               <label 
                 htmlFor="ai-toggle" 
@@ -267,29 +278,23 @@ export function ChatWindow({ conversation, onStatusChange }: ChatWindowProps) {
               >
                 {aiEnabled ? (
                   <>
-                    <Bot className="h-3.5 w-3.5" />
+                    <Bot className="h-3.5 w-3.5 text-primary" />
                     <span>IA Ativa</span>
                   </>
                 ) : (
                   <>
-                    <User className="h-3.5 w-3.5" />
+                    <User className="h-3.5 w-3.5 text-amber-600" />
                     <span>Modo Humano</span>
                   </>
                 )}
               </label>
             </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleEndConversation}
-            disabled={conversation.status === 'ended'}
-            className="hover:bg-primary-foreground/20"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+
+          <ConversationActions
+            conversation={conversation}
+            onStatusChange={onStatusChange}
+          />
         </div>
       </div>
 

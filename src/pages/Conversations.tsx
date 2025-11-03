@@ -3,6 +3,7 @@ import { useGlobalFilters } from '@/hooks/useGlobalFilters';
 import { useInfiniteConversations } from '@/hooks/useInfiniteConversations';
 import { useConversationFilters } from '@/hooks/useConversationFilters';
 import { ConversationsList } from '@/components/conversations/ConversationsList';
+import { ConversationsLayout } from '@/components/conversations/ConversationsLayout';
 import { ChatWindow } from '@/components/conversations/ChatWindow';
 import { markAsRead } from '@/hooks/useConversationsCompat';
 import type { Conversation } from '@/hooks/useConversationsCompat';
@@ -24,7 +25,8 @@ export default function Conversations() {
   const { 
     conversations, 
     loading, 
-    updateStatus 
+    updateStatus,
+    refresh
   } = useInfiniteConversations(selectedRestaurantId, handleSelectConversation);
 
   const {
@@ -39,9 +41,8 @@ export default function Conversations() {
     : filteredConversations;
 
   return (
-    <div className="h-screen flex overflow-hidden">
-      {/* Sidebar de conversas */}
-      <div className="w-[400px] flex-shrink-0">
+    <ConversationsLayout
+      sidebar={
         <ConversationsList
           conversations={restaurantFilteredConversations}
           selectedId={selectedConversation?.id}
@@ -54,13 +55,13 @@ export default function Conversations() {
           selectedRestaurantFilter={selectedRestaurantFilter}
           onRestaurantFilterChange={setSelectedRestaurantFilter}
         />
-      </div>
-
-      {/* Área de chat */}
-      <ChatWindow
-        conversation={selectedConversation}
-        onStatusChange={updateStatus}
-      />
-    </div>
+      }
+      chatWindow={
+        <ChatWindow
+          conversation={selectedConversation}
+          onStatusChange={updateStatus}
+        />
+      }
+    />
   );
 }

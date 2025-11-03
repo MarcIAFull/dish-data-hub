@@ -194,11 +194,48 @@ export type Database = {
           },
         ]
       }
+      chat_tags: {
+        Row: {
+          chat_id: number
+          created_at: string | null
+          id: string
+          tag_id: string
+        }
+        Insert: {
+          chat_id: number
+          created_at?: string | null
+          id?: string
+          tag_id: string
+        }
+        Update: {
+          chat_id?: number
+          created_at?: string | null
+          id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_tags_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chats: {
         Row: {
           agent_id: string | null
           ai_enabled: boolean | null
           app: string | null
+          archived_at: string | null
           conversation_id: string | null
           created_at: string
           customer_id: number | null
@@ -206,6 +243,8 @@ export type Database = {
           last_message_at: string | null
           last_read_at: string | null
           phone: string | null
+          reopened_at: string | null
+          reopened_count: number | null
           restaurant_id: string | null
           status: string
           updated_at: string | null
@@ -214,6 +253,7 @@ export type Database = {
           agent_id?: string | null
           ai_enabled?: boolean | null
           app?: string | null
+          archived_at?: string | null
           conversation_id?: string | null
           created_at?: string
           customer_id?: number | null
@@ -221,6 +261,8 @@ export type Database = {
           last_message_at?: string | null
           last_read_at?: string | null
           phone?: string | null
+          reopened_at?: string | null
+          reopened_count?: number | null
           restaurant_id?: string | null
           status?: string
           updated_at?: string | null
@@ -229,6 +271,7 @@ export type Database = {
           agent_id?: string | null
           ai_enabled?: boolean | null
           app?: string | null
+          archived_at?: string | null
           conversation_id?: string | null
           created_at?: string
           customer_id?: number | null
@@ -236,6 +279,8 @@ export type Database = {
           last_message_at?: string | null
           last_read_at?: string | null
           phone?: string | null
+          reopened_at?: string | null
+          reopened_count?: number | null
           restaurant_id?: string | null
           status?: string
           updated_at?: string | null
@@ -257,6 +302,73 @@ export type Database = {
           },
           {
             foreignKeyName: "chats_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_notes: {
+        Row: {
+          chat_id: number
+          created_at: string | null
+          id: string
+          note: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          chat_id: number
+          created_at?: string | null
+          id?: string
+          note: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          chat_id?: number
+          created_at?: string | null
+          id?: string
+          note?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_notes_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_tags: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          id: string
+          name: string
+          restaurant_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          restaurant_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          restaurant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_tags_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
@@ -634,6 +746,41 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      quick_replies: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string
+          restaurant_id: string
+          shortcut: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message: string
+          restaurant_id: string
+          shortcut: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string
+          restaurant_id?: string
+          shortcut?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quick_replies_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       restaurants: {
         Row: {
