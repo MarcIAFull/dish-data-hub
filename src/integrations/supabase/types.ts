@@ -173,6 +173,7 @@ export type Database = {
       chats: {
         Row: {
           agent_id: string | null
+          ai_enabled: boolean | null
           app: string | null
           conversation_id: string | null
           created_at: string
@@ -187,6 +188,7 @@ export type Database = {
         }
         Insert: {
           agent_id?: string | null
+          ai_enabled?: boolean | null
           app?: string | null
           conversation_id?: string | null
           created_at?: string
@@ -201,6 +203,7 @@ export type Database = {
         }
         Update: {
           agent_id?: string | null
+          ai_enabled?: boolean | null
           app?: string | null
           conversation_id?: string | null
           created_at?: string

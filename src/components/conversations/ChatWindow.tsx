@@ -4,7 +4,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Send, Loader2, PhoneCall, X, MessageSquare } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Send, Loader2, PhoneCall, X, MessageSquare, Bot, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { MessageBubble } from './MessageBubble';
 import type { Conversation, Message } from '@/hooks/useConversationsCompat';
@@ -21,12 +22,14 @@ export function ChatWindow({ conversation, onStatusChange }: ChatWindowProps) {
   const [loading, setLoading] = useState(false);
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     if (conversation?.id) {
       fetchMessages();
+      setAiEnabled((conversation as any).ai_enabled ?? true);
     } else {
       setMessages([]);
     }
@@ -166,9 +169,30 @@ export function ChatWindow({ conversation, onStatusChange }: ChatWindowProps) {
     }
   };
 
-  const handleTransferToHuman = () => {
-    if (conversation?.id) {
-      onStatusChange(conversation.id, 'human_handoff');
+  const handleToggleAI = async () => {
+    if (!conversation) return;
+    
+    const newAiEnabled = !aiEnabled;
+    setAiEnabled(newAiEnabled);
+    
+    const { error } = await supabase
+      .from('chats')
+      .update({ ai_enabled: newAiEnabled })
+      .eq('id', Number(conversation.id));
+    
+    if (error) {
+      console.error('Error toggling AI:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao alternar modo de IA',
+        variant: 'destructive'
+      });
+      setAiEnabled(!newAiEnabled);
+    } else {
+      toast({
+        title: newAiEnabled ? '🤖 IA ativada' : '👤 Modo humano',
+        description: newAiEnabled ? 'IA voltou a responder automaticamente' : 'Você está no controle agora'
+      });
     }
   };
 
@@ -202,28 +226,45 @@ export function ChatWindow({ conversation, onStatusChange }: ChatWindowProps) {
     <div className="flex-1 flex flex-col h-full bg-muted/30">
       {/* Header */}
       <div className="bg-primary text-primary-foreground p-4 flex items-center justify-between border-b">
-        <div>
+        <div className="flex-1">
           <h3 className="font-semibold text-lg">📱 {conversation.phone || 'Sem telefone'}</h3>
-          <p className="text-xs opacity-80">
+          <p className="text-xs opacity-80 mb-2">
             Iniciada {formatDistanceToNow(new Date(conversation.created_at), {
               addSuffix: true,
               locale: ptBR
             })}
           </p>
+          <div className="flex items-center gap-3">
+            <Badge className={getStatusColor(conversation.status)}>
+              {conversation.status}
+            </Badge>
+            <div className="flex items-center gap-2 bg-primary-foreground/10 px-3 py-1.5 rounded-full">
+              <Switch
+                checked={aiEnabled}
+                onCheckedChange={handleToggleAI}
+                id="ai-toggle"
+                className="data-[state=checked]:bg-white data-[state=unchecked]:bg-primary-foreground/30"
+              />
+              <label 
+                htmlFor="ai-toggle" 
+                className="text-xs font-medium cursor-pointer flex items-center gap-1.5"
+              >
+                {aiEnabled ? (
+                  <>
+                    <Bot className="h-3.5 w-3.5" />
+                    <span>IA Ativa</span>
+                  </>
+                ) : (
+                  <>
+                    <User className="h-3.5 w-3.5" />
+                    <span>Modo Humano</span>
+                  </>
+                )}
+              </label>
+            </div>
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <Badge className={getStatusColor(conversation.status)}>
-            {conversation.status}
-          </Badge>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleTransferToHuman}
-            disabled={conversation.status !== 'active'}
-            className="hover:bg-primary-foreground/20"
-          >
-            <PhoneCall className="h-4 w-4" />
-          </Button>
           <Button
             variant="ghost"
             size="sm"

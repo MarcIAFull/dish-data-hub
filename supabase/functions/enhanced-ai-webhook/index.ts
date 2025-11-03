@@ -116,7 +116,7 @@ serve(async (req) => {
 
       console.log(`[${requestId}] ✅ Agent found - ID: ${agent.id}, Restaurant: ${agent.restaurants?.name}, Name: ${agent.name}`);
 
-      // Find or create conversation with enhanced tracking
+      // Find or create conversation - Unify by phone (not by status)
       console.log(`[${requestId}] 🔍 Looking for conversation - Phone: ${customerPhone}, Agent: ${agent.id}`);
       
       let { data: chat, error: chatError } = await supabase
@@ -124,7 +124,8 @@ serve(async (req) => {
         .select('*')
         .eq('agent_id', agent.id)
         .eq('phone', customerPhone)
-        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
       
       if (!chat) {
@@ -137,7 +138,8 @@ serve(async (req) => {
             restaurant_id: agent.restaurants.id,
             phone: customerPhone,
             status: 'active',
-            app: 'whatsapp'
+            app: 'whatsapp',
+            ai_enabled: true
           })
           .select()
           .single();
@@ -153,7 +155,7 @@ serve(async (req) => {
         chat = newChat;
         console.log(`[${requestId}] ✅ Chat created - ID: ${chat.id}`);
       } else {
-        console.log(`[${requestId}] ♻️ Using existing chat - ID: ${chat.id}`);
+        console.log(`[${requestId}] ♻️ Using existing chat - ID: ${chat.id}, AI Enabled: ${chat.ai_enabled}`);
       }
 
       // Get chat history for context memory
@@ -190,11 +192,11 @@ serve(async (req) => {
         console.log(`[${requestId}] ✅ Customer message saved`);
       }
 
-      // Enhanced AI response generation
+      // Enhanced AI response generation with hybrid control
       console.log(`[${requestId}] 🤖 Checking AI configuration`);
-      console.log(`[${requestId}] OpenAI Key: ${openAIApiKey ? 'PRESENT' : 'MISSING'}, Chat Status: ${chat.status}`);
+      console.log(`[${requestId}] OpenAI Key: ${openAIApiKey ? 'PRESENT' : 'MISSING'}, AI Enabled: ${chat.ai_enabled}, Chat Status: ${chat.status}`);
       
-      if (openAIApiKey && chat.status === 'active') {
+      if (openAIApiKey && chat.ai_enabled && (chat.status === 'active' || chat.status === 'human_handoff')) {
         console.log(`[${requestId}] ✅ Starting AI response generation`);
         
         try {
@@ -386,7 +388,10 @@ MENSAGEM ATUAL DO CLIENTE: ${messageContent}`;
           console.error(`[${requestId}] ❌ Error generating enhanced AI response:`, aiError);
         }
       } else {
-        console.warn(`[${requestId}] ⚠️ AI response skipped - OpenAI Key: ${!!openAIApiKey}, Status: ${chat.status}`);
+        console.warn(`[${requestId}] ⚠️ AI response skipped - OpenAI Key: ${!!openAIApiKey}, AI Enabled: ${chat.ai_enabled}, Status: ${chat.status}`);
+        if (!chat.ai_enabled) {
+          console.log(`[${requestId}] 👤 Human mode active - message saved but no AI response generated`);
+        }
       }
       
       console.log(`[${requestId}] ============ REQUEST COMPLETE ============`);
