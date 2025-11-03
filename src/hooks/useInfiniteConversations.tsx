@@ -52,8 +52,8 @@ export function useInfiniteConversations(
           // Transformar mensagens para o formato esperado
           const transformedMessages = (messages || []).map((msg: any) => ({
             id: msg.id,
-            user_message: msg.sender_type === 'user' ? msg.content : undefined,
-            bot_message: msg.sender_type === 'bot' ? msg.content : undefined,
+            user_message: msg.sender_type === 'customer' ? msg.content : undefined,
+            bot_message: msg.sender_type === 'agent' ? msg.content : undefined,
             created_at: msg.created_at,
             phone: conv.phone
           }));
@@ -66,10 +66,32 @@ export function useInfiniteConversations(
         })
       );
 
+      // Agrupar conversas por telefone - pegar apenas a mais recente de cada número
+      const groupedByPhone = conversationsWithMessages.reduce((acc, conv) => {
+        const phone = conv.phone || 'unknown';
+        
+        if (!acc[phone] || new Date(conv.updated_at) > new Date(acc[phone].updated_at)) {
+          // Mesclar mensagens de conversas antigas do mesmo telefone se existir
+          if (acc[phone]) {
+            const allMessages = [...(acc[phone].messages || []), ...(conv.messages || [])];
+            conv.messages = allMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+          }
+          acc[phone] = conv;
+        } else {
+          // Adicionar mensagens à conversa existente
+          const allMessages = [...(acc[phone].messages || []), ...(conv.messages || [])];
+          acc[phone].messages = allMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        }
+        
+        return acc;
+      }, {} as Record<string, any>);
+
+      const uniqueConversations = Object.values(groupedByPhone);
+
       setConversations(prev => 
         pageNum === 0 
-          ? conversationsWithMessages 
-          : [...prev, ...conversationsWithMessages]
+          ? uniqueConversations 
+          : [...prev, ...uniqueConversations]
       );
 
       setHasMore((count || 0) > (pageNum + 1) * PAGE_SIZE);

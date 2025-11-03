@@ -7,10 +7,13 @@ import { ChatWindow } from '@/components/conversations/ChatWindow';
 import { markAsRead } from '@/hooks/useConversationsCompat';
 import type { Conversation } from '@/hooks/useConversationsCompat';
 
+type FilterMode = 'all' | 'ai' | 'human' | 'ended';
+
 export default function Conversations() {
   const { filters } = useGlobalFilters();
   const selectedRestaurantId = filters.selectedRestaurants[0];
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [filterMode, setFilterMode] = useState<FilterMode>('all');
 
   const handleSelectConversation = async (conversation: Conversation) => {
     setSelectedConversation(conversation);
@@ -39,6 +42,8 @@ export default function Conversations() {
           onSelect={handleSelectConversation}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
+          filterMode={filterMode}
+          onFilterChange={setFilterMode}
         />
       </div>
 
