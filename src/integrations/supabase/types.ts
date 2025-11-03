@@ -17,6 +17,7 @@ export type Database = {
       agents: {
         Row: {
           created_at: string | null
+          evolution_api_base_url: string | null
           evolution_api_instance: string | null
           evolution_api_token: string | null
           fallback_enabled: boolean | null
@@ -33,6 +34,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          evolution_api_base_url?: string | null
           evolution_api_instance?: string | null
           evolution_api_token?: string | null
           fallback_enabled?: boolean | null
@@ -49,6 +51,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          evolution_api_base_url?: string | null
           evolution_api_instance?: string | null
           evolution_api_token?: string | null
           fallback_enabled?: boolean | null
