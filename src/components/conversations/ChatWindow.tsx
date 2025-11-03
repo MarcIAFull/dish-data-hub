@@ -118,18 +118,30 @@ export function ChatWindow({ conversation, onStatusChange }: ChatWindowProps) {
 
   const handleSendMessage = async () => {
     if (!messageText.trim() || !conversation?.id || sending) return;
-
+    
+    // Validação e logging detalhado
+    console.log('=== ENVIANDO MENSAGEM ===');
+    console.log('Conversation:', conversation);
+    console.log('Conversation ID:', conversation.id);
+    console.log('Tipo do ID:', typeof conversation.id);
+    console.log('Mensagem:', messageText.trim());
+    
     setSending(true);
     try {
-      const { error } = await supabase.functions.invoke('send-whatsapp-message', {
+      const { data, error } = await supabase.functions.invoke('send-whatsapp-message', {
         body: {
-          conversationId: conversation.id,
+          conversationId: conversation.id.toString(),
           message: messageText.trim(),
           messageType: 'text'
         }
       });
 
-      if (error) throw error;
+      console.log('Resposta da edge function:', { data, error });
+
+      if (error) {
+        console.error('Erro da edge function:', error);
+        throw error;
+      }
 
       setMessageText('');
       toast({
@@ -137,7 +149,7 @@ export function ChatWindow({ conversation, onStatusChange }: ChatWindowProps) {
         description: 'Mensagem enviada com sucesso'
       });
     } catch (error: any) {
-      console.error('Error sending message:', error);
+      console.error('Exceção ao enviar mensagem:', error);
       toast({
         title: 'Erro ao enviar mensagem',
         description: error.message || 'Não foi possível enviar a mensagem',
