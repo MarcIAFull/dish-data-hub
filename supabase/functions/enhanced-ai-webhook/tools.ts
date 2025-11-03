@@ -209,13 +209,21 @@ export async function executeCreateOrder(
       validated_at: new Date().toISOString()
     };
     
-    // 3. Insert order
+    // 3. Insert order with proper fields
     const { data: order, error: orderError } = await supabase
       .from('pedidos')
       .insert({
         chat_id: chatId.toString(),
         status: 'pending',
+        order_status: 'pending', // New kanban status
+        order_source: 'ai_agent', // Tag for AI-created orders
         restaurant_id: agent.restaurants.id,
+        customer_name: sanitizedName,
+        customer_phone: cleanPhone,
+        delivery_type: args.delivery_type,
+        total_amount: total,
+        notes: sanitizedNotes,
+        estimated_time: 30, // Default 30 minutes
         payload: orderPayload,
         created_by: 'ai_agent'
       })

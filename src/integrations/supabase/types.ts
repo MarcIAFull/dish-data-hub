@@ -409,41 +409,119 @@ export type Database = {
           },
         ]
       }
+      order_status_history: {
+        Row: {
+          changed_at: string | null
+          changed_by: string
+          id: string
+          new_status: Database["public"]["Enums"]["order_status"]
+          notes: string | null
+          order_id: number
+          previous_status: Database["public"]["Enums"]["order_status"] | null
+        }
+        Insert: {
+          changed_at?: string | null
+          changed_by: string
+          id?: string
+          new_status: Database["public"]["Enums"]["order_status"]
+          notes?: string | null
+          order_id: number
+          previous_status?: Database["public"]["Enums"]["order_status"] | null
+        }
+        Update: {
+          changed_at?: string | null
+          changed_by?: string
+          id?: string
+          new_status?: Database["public"]["Enums"]["order_status"]
+          notes?: string | null
+          order_id?: number
+          previous_status?: Database["public"]["Enums"]["order_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_kanban"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pedidos: {
         Row: {
+          cancellation_reason: string | null
+          cancelled_at: string | null
           chat_id: string
+          completed_at: string | null
           created_at: string | null
           created_by: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          delivery_type: string | null
+          estimated_time: number | null
           id: number
+          notes: string | null
+          order_source: Database["public"]["Enums"]["order_source"] | null
+          order_status: Database["public"]["Enums"]["order_status"] | null
           payload: Json | null
           restaurant_id: string | null
           status: string
           status_from: string | null
           status_to: string | null
+          total_amount: number | null
           updated_at: string | null
         }
         Insert: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
           chat_id: string
+          completed_at?: string | null
           created_at?: string | null
           created_by?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          delivery_type?: string | null
+          estimated_time?: number | null
           id?: number
+          notes?: string | null
+          order_source?: Database["public"]["Enums"]["order_source"] | null
+          order_status?: Database["public"]["Enums"]["order_status"] | null
           payload?: Json | null
           restaurant_id?: string | null
           status: string
           status_from?: string | null
           status_to?: string | null
+          total_amount?: number | null
           updated_at?: string | null
         }
         Update: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
           chat_id?: string
+          completed_at?: string | null
           created_at?: string | null
           created_by?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          delivery_type?: string | null
+          estimated_time?: number | null
           id?: number
+          notes?: string | null
+          order_source?: Database["public"]["Enums"]["order_source"] | null
+          order_status?: Database["public"]["Enums"]["order_status"] | null
           payload?: Json | null
           restaurant_id?: string | null
           status?: string
           status_from?: string | null
           status_to?: string | null
+          total_amount?: number | null
           updated_at?: string | null
         }
         Relationships: [
@@ -763,6 +841,36 @@ export type Database = {
         }
         Relationships: []
       }
+      orders_kanban: {
+        Row: {
+          cancelled_at: string | null
+          completed_at: string | null
+          created_at: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          delivery_type: string | null
+          estimated_time: number | null
+          id: number | null
+          items_count: number | null
+          notes: string | null
+          order_source: Database["public"]["Enums"]["order_source"] | null
+          order_status: Database["public"]["Enums"]["order_status"] | null
+          payload: Json | null
+          restaurant_id: string | null
+          restaurant_name: string | null
+          total_amount: number | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedidos_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       has_role: {
@@ -799,6 +907,15 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      order_source: "ai_agent" | "digital_menu" | "marketplace" | "manual"
+      order_status:
+        | "pending"
+        | "confirmed"
+        | "preparing"
+        | "ready"
+        | "in_delivery"
+        | "completed"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -927,6 +1044,16 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      order_source: ["ai_agent", "digital_menu", "marketplace", "manual"],
+      order_status: [
+        "pending",
+        "confirmed",
+        "preparing",
+        "ready",
+        "in_delivery",
+        "completed",
+        "cancelled",
+      ],
     },
   },
 } as const
