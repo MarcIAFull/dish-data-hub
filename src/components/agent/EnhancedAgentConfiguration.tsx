@@ -21,7 +21,9 @@ import {
   CheckCircle2,
   XCircle,
   Calendar,
-  Clock
+  Clock,
+  Copy,
+  Loader2
 } from 'lucide-react';
 
 interface Agent {
@@ -52,6 +54,8 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
   const [restaurantName, setRestaurantName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   const defaultAgent: Omit<Agent, 'id' | 'created_at' | 'updated_at'> = {
     restaurant_id: restaurantId,
@@ -195,6 +199,65 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const copyWebhookUrl = () => {
+    const webhookUrl = 'https://wsyddfdfzfkhkkxmrmxf.supabase.co/functions/v1/enhanced-ai-webhook';
+    navigator.clipboard.writeText(webhookUrl);
+    toast({
+      title: "URL copiada!",
+      description: "A URL do webhook foi copiada para a área de transferência",
+    });
+  };
+
+  const testConnection = async () => {
+    if (!agent?.evolution_api_instance || !agent?.evolution_api_token) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha a Instância e o Token da Evolution API primeiro",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setTestingConnection(true);
+    setConnectionStatus('idle');
+
+    try {
+      const { data, error } = await supabase.functions.invoke('test-evolution-connection', {
+        body: {
+          instance: agent.evolution_api_instance,
+          token: agent.evolution_api_token,
+          baseUrl: 'https://evolution.fullbpo.com'
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        setConnectionStatus('success');
+        toast({
+          title: "Conexão estabelecida!",
+          description: "As credenciais da Evolution API estão corretas",
+        });
+      } else {
+        setConnectionStatus('error');
+        toast({
+          title: "Falha na conexão",
+          description: data?.error || 'Não foi possível conectar com a Evolution API',
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      setConnectionStatus('error');
+      toast({
+        title: "Erro ao testar",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setTestingConnection(false);
+    }
   };
 
   return (
@@ -371,15 +434,57 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
 
                 <div>
                   <Label htmlFor="webhook_url">URL do Webhook</Label>
-                  <Input
-                    id="webhook_url"
-                    value={agent.webhook_url || ''}
-                    onChange={(e) => setAgent({ ...agent, webhook_url: e.target.value })}
-                    placeholder="https://wsyddfdfzfkhkkxmrmxf.supabase.co/functions/v1/enhanced-ai-webhook"
-                    className="font-mono text-sm"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="webhook_url"
+                      value="https://wsyddfdfzfkhkkxmrmxf.supabase.co/functions/v1/enhanced-ai-webhook"
+                      readOnly
+                      className="font-mono text-sm bg-muted"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={copyWebhookUrl}
+                      title="Copiar URL"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Esta é a URL do webhook do sistema. Copie e configure no painel da Evolution API.
+                    Copie esta URL e configure no painel da Evolution API para receber mensagens.
+                  </p>
+                </div>
+
+                <Separator className="my-4" />
+
+                <div>
+                  <Label>Testar Conexão</Label>
+                  <div className="flex gap-3 items-center mt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={testConnection}
+                      disabled={testingConnection || !agent.evolution_api_instance || !agent.evolution_api_token}
+                    >
+                      {testingConnection && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Verificar Conexão Evolution API
+                    </Button>
+                    {connectionStatus === 'success' && (
+                      <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                        <CheckCircle2 className="h-5 w-5" />
+                        <span className="text-sm font-medium">Conectado</span>
+                      </div>
+                    )}
+                    {connectionStatus === 'error' && (
+                      <div className="flex items-center gap-2 text-destructive">
+                        <XCircle className="h-5 w-5" />
+                        <span className="text-sm font-medium">Falha na conexão</span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Teste se as credenciais da Evolution API estão corretas antes de salvar.
                   </p>
                 </div>
               </div>
