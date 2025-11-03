@@ -39,6 +39,8 @@ serve(async (req) => {
 
     const { conversationId, message, messageType = 'text' } = await req.json();
 
+    console.log('Request data:', { conversationId, messageType, messageLength: message?.length });
+
     if (!conversationId || !message) {
       return new Response(JSON.stringify({ error: 'conversationId and message are required' }), {
         status: 400,
@@ -46,26 +48,40 @@ serve(async (req) => {
       });
     }
 
+    // Parse conversation ID
+    const chatId = parseInt(conversationId);
+    console.log('Parsed chat ID:', chatId);
+
     // Verify conversation belongs to user's restaurant
     const { data: chat, error: chatError } = await supabase
       .from('chats')
-      .select(`
-        *,
-        agents (
-          *,
-          restaurants (
-            id,
-            user_id
-          )
-        )
-      `)
-      .eq('id', parseInt(conversationId))
+      .select('*, restaurant_id, agent_id, phone')
+      .eq('id', chatId)
       .single();
 
-    if (chatError || !chat || chat.agents?.restaurants?.user_id !== user.id) {
-      console.error('Chat not found or access denied:', chatError, chat);
-      return new Response(JSON.stringify({ error: 'Conversation not found or access denied' }), {
+    console.log('Chat query result:', { chat, chatError });
+
+    if (chatError || !chat) {
+      console.error('Chat not found:', chatError);
+      return new Response(JSON.stringify({ error: 'Conversation not found', details: chatError?.message }), {
         status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Verify user owns this restaurant
+    const { data: restaurant, error: restaurantError } = await supabase
+      .from('restaurants')
+      .select('id, user_id')
+      .eq('id', chat.restaurant_id)
+      .single();
+
+    console.log('Restaurant query result:', { restaurant, restaurantError });
+
+    if (restaurantError || !restaurant || restaurant.user_id !== user.id) {
+      console.error('Access denied:', { restaurantError, hasRestaurant: !!restaurant, userMatch: restaurant?.user_id === user.id });
+      return new Response(JSON.stringify({ error: 'Access denied' }), {
+        status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -74,7 +90,7 @@ serve(async (req) => {
     const { data: savedMessage, error: msgError } = await supabase
       .from('messages')
       .insert({
-        chat_id: parseInt(conversationId),
+        chat_id: chatId,
         sender_type: 'human',
         content: message,
         message_type: messageType
@@ -82,48 +98,67 @@ serve(async (req) => {
       .select()
       .single();
 
+    console.log('Message save result:', { savedMessage, msgError });
+
     if (msgError) {
       console.error('Error saving message:', msgError);
-      return new Response(JSON.stringify({ error: 'Failed to save message' }), {
+      return new Response(JSON.stringify({ error: 'Failed to save message', details: msgError.message }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // Send message via Evolution API
-    const agent = chat.agents;
-    if (agent?.evolution_api_token && agent?.evolution_api_instance) {
-      try {
-        const sendResponse = await fetch(`https://api.evolutionapi.com/message/sendText/${agent.evolution_api_instance}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': agent.evolution_api_token
-          },
-          body: JSON.stringify({
-            number: chat.phone,
-            textMessage: {
-              text: message
-            }
-          })
-        });
+    if (chat.agent_id) {
+      const { data: agent, error: agentError } = await supabase
+        .from('agents')
+        .select('evolution_api_token, evolution_api_instance')
+        .eq('id', chat.agent_id)
+        .single();
 
-        if (!sendResponse.ok) {
-          console.error('Failed to send WhatsApp message:', await sendResponse.text());
+      console.log('Agent query result:', { agent, agentError });
+
+      if (agent?.evolution_api_token && agent?.evolution_api_instance) {
+        try {
+          const sendResponse = await fetch(`https://api.evolutionapi.com/message/sendText/${agent.evolution_api_instance}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': agent.evolution_api_token
+            },
+            body: JSON.stringify({
+              number: chat.phone,
+              textMessage: {
+                text: message
+              }
+            })
+          });
+
+          console.log('WhatsApp send response status:', sendResponse.status);
+
+          if (!sendResponse.ok) {
+            console.error('Failed to send WhatsApp message:', await sendResponse.text());
+          }
+        } catch (sendError) {
+          console.error('Error sending WhatsApp message:', sendError);
         }
-      } catch (sendError) {
-        console.error('Error sending WhatsApp message:', sendError);
+      } else {
+        console.log('Agent credentials not configured');
       }
     }
 
     // Update conversation status and timestamp
-    await supabase
+    const { error: updateError } = await supabase
       .from('chats')
       .update({ 
         status: 'human_handoff',
         updated_at: new Date().toISOString()
       })
-      .eq('id', parseInt(conversationId));
+      .eq('id', chatId);
+
+    if (updateError) {
+      console.error('Error updating chat status:', updateError);
+    }
 
     return new Response(JSON.stringify({ 
       success: true, 
