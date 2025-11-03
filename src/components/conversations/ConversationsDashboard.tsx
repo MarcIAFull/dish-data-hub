@@ -109,12 +109,18 @@ export function ConversationsDashboard({ restaurantId }: ConversationsDashboardP
       {/* Lista de conversas */}
       {filteredConversations.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-8">
-            <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <MessageSquare className="h-16 w-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">
               {hasActiveFilters 
-                ? 'Nenhuma conversa encontrada com os filtros aplicados'
-                : 'Nenhuma conversa encontrada'
+                ? 'Nenhuma conversa encontrada'
+                : 'Aguardando conversas'
+              }
+            </h3>
+            <p className="text-muted-foreground max-w-md">
+              {hasActiveFilters 
+                ? 'Nenhuma conversa encontrada com os filtros aplicados. Tente ajustar os filtros.'
+                : 'As conversas aparecerão aqui automaticamente quando clientes enviarem mensagens pelo WhatsApp configurado no Evolution API.'
               }
             </p>
           </CardContent>
