@@ -52,7 +52,7 @@ export async function markAsRead(conversationId: string) {
   const { error } = await supabase
     .from('chats')
     .update({ last_read_at: new Date().toISOString() })
-    .eq('conversation_id', conversationId);
+    .eq('id', Number(conversationId));
 
   if (error) {
     console.error('Error marking as read:', error);
@@ -103,7 +103,7 @@ export function useConversationsCompat(restaurantId?: string) {
 
           return {
             ...conv,
-            id: String(conv.conversation_id || conv.id),
+            id: String(conv.id),
             messages: transformedMessages
           };
         })
@@ -130,7 +130,7 @@ export function useConversationsCompat(restaurantId?: string) {
           status: newStatus, 
           updated_at: new Date().toISOString() 
         })
-        .eq('conversation_id', conversationId);
+        .eq('id', Number(conversationId));
 
       if (error) throw error;
 

@@ -67,7 +67,7 @@ export function useInfiniteConversations(
 
           return {
             ...conv,
-            id: String(conv.conversation_id || conv.id),
+            id: String(conv.id),
             messages: transformedMessages,
             restaurant: conv.restaurant
           };
@@ -136,7 +136,7 @@ export function useInfiniteConversations(
           status: newStatus, 
           updated_at: new Date().toISOString() 
         })
-        .eq('conversation_id', conversationId);
+        .eq('id', Number(conversationId));
 
       if (error) throw error;
 

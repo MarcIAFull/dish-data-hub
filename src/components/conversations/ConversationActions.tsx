@@ -99,7 +99,10 @@ export function ConversationActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuItem onClick={() => onStatusChange(conversation.id, 'human_handoff')}>
+          <DropdownMenuItem onClick={() => {
+            onStatusChange(conversation.id, 'human_handoff');
+            onRefresh?.();
+          }}>
             <UserCheck className="h-4 w-4 mr-2" />
             Transferir para humano
           </DropdownMenuItem>
@@ -113,7 +116,10 @@ export function ConversationActions({
             Arquivar conversa
           </DropdownMenuItem>
           <DropdownMenuItem 
-            onClick={() => onStatusChange(conversation.id, 'ended')}
+            onClick={() => {
+              onStatusChange(conversation.id, 'ended');
+              onRefresh?.();
+            }}
             className="text-destructive focus:text-destructive"
           >
             <X className="h-4 w-4 mr-2" />
