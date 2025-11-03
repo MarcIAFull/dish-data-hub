@@ -86,12 +86,12 @@ serve(async (req) => {
       });
     }
 
-    // Save human message
+    // Save customer message (usando sender_type 'customer' conforme schema)
     const { data: savedMessage, error: msgError } = await supabase
       .from('messages')
       .insert({
         chat_id: chatId,
-        sender_type: 'human',
+        sender_type: 'customer',
         content: message,
         message_type: messageType
       })
