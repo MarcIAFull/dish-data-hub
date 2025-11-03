@@ -25,6 +25,11 @@ export interface Conversation {
   restaurant_id?: string;
   messages?: Message[];
   restaurant_name?: string;
+  restaurant?: {
+    id: string;
+    name: string;
+    slug: string;
+  } | null;
 }
 
 // Helper para calcular mensagens não lidas

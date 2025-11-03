@@ -11,6 +11,8 @@ import { MessageBubble } from './MessageBubble';
 import type { Conversation, Message } from '@/hooks/useConversationsCompat';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Store } from 'lucide-react';
+import { getRestaurantColor } from '@/lib/restaurantColors';
 
 interface ChatWindowProps {
   conversation: Conversation | null;
@@ -227,7 +229,21 @@ export function ChatWindow({ conversation, onStatusChange }: ChatWindowProps) {
       {/* Header */}
       <div className="bg-primary text-primary-foreground p-4 flex items-center justify-between border-b">
         <div className="flex-1">
-          <h3 className="font-semibold text-lg">📱 {conversation.phone || 'Sem telefone'}</h3>
+          <div className="flex items-center gap-2 flex-wrap mb-2">
+            <h3 className="font-semibold text-lg">📱 {conversation.phone || 'Sem telefone'}</h3>
+            
+            {/* Badge do Restaurante */}
+            {conversation.restaurant && (
+              <Badge 
+                variant="secondary" 
+                className={`${getRestaurantColor(conversation.restaurant.id)}`}
+              >
+                <Store className="h-3 w-3 mr-1" />
+                {conversation.restaurant.name}
+              </Badge>
+            )}
+          </div>
+          
           <p className="text-xs opacity-80 mb-2">
             Iniciada {formatDistanceToNow(new Date(conversation.created_at), {
               addSuffix: true,

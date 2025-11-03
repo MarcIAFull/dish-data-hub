@@ -1,12 +1,14 @@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, MessageSquare, Bot, User, CheckCircle2 } from 'lucide-react';
+import { Search, MessageSquare, Bot, User, CheckCircle2, Store } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Conversation } from '@/hooks/useConversationsCompat';
 import { getUnreadCount } from '@/hooks/useConversationsCompat';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getRestaurantColor } from '@/lib/restaurantColors';
 
 type FilterMode = 'all' | 'ai' | 'human' | 'ended';
 
@@ -18,16 +20,22 @@ interface ConversationsListProps {
   onSearchChange: (term: string) => void;
   filterMode: FilterMode;
   onFilterChange: (mode: FilterMode) => void;
+  restaurants?: Array<{ id: string; name: string }>;
+  selectedRestaurantFilter?: string | null;
+  onRestaurantFilterChange?: (restaurantId: string | null) => void;
 }
 
-export function ConversationsList({ 
-  conversations, 
-  selectedId, 
+export function ConversationsList({
+  conversations,
+  selectedId,
   onSelect,
   searchTerm,
   onSearchChange,
   filterMode,
-  onFilterChange
+  onFilterChange,
+  restaurants = [],
+  selectedRestaurantFilter,
+  onRestaurantFilterChange
 }: ConversationsListProps) {
   
   // Filtrar conversas baseado no modo
@@ -69,6 +77,34 @@ export function ConversationsList({
             className="pl-9 bg-primary-foreground/90 border-0"
           />
         </div>
+
+        {/* Filtro de Restaurante */}
+        {restaurants.length > 1 && onRestaurantFilterChange && (
+          <Select
+            value={selectedRestaurantFilter || 'all'}
+            onValueChange={(value) => onRestaurantFilterChange(value === 'all' ? null : value)}
+          >
+            <SelectTrigger className="mb-3 bg-primary-foreground/90 border-0">
+              <SelectValue placeholder="Todos os restaurantes" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                <div className="flex items-center gap-2">
+                  <Store className="h-4 w-4" />
+                  Todos os restaurantes
+                </div>
+              </SelectItem>
+              {restaurants.map(r => (
+                <SelectItem key={r.id} value={r.id}>
+                  <div className="flex items-center gap-2">
+                    <Store className="h-4 w-4" />
+                    {r.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         
         {/* Filtros */}
         <Tabs value={filterMode} onValueChange={(v) => onFilterChange(v as FilterMode)} className="w-full">
@@ -122,10 +158,29 @@ export function ConversationsList({
                   }`}
                 >
                   <div className="flex items-start justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap flex-1">
+                      <h3 className="font-semibold">
                         📱 {conv.phone || 'Sem telefone'}
                       </h3>
+                      
+                      {/* Badge do Restaurante */}
+                      {conv.restaurant ? (
+                        <Badge 
+                          variant="secondary" 
+                          className={`h-5 px-2 text-xs font-medium ${getRestaurantColor(conv.restaurant.id)}`}
+                        >
+                          <Store className="h-3 w-3 mr-1" />
+                          {conv.restaurant.name}
+                        </Badge>
+                      ) : (
+                        <Badge 
+                          variant="outline" 
+                          className="h-5 px-2 text-xs bg-gray-50 text-gray-500 border-gray-200"
+                        >
+                          ⚠️ Sem restaurante
+                        </Badge>
+                      )}
+                      
                       {isEnded ? (
                         <Badge variant="outline" className="h-5 px-1.5 text-xs bg-muted">
                           <CheckCircle2 className="h-3 w-3" />
@@ -145,7 +200,7 @@ export function ConversationsList({
                         </Badge>
                       )}
                     </div>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
                       {getLastMessageTime(conv)}
                     </span>
                   </div>

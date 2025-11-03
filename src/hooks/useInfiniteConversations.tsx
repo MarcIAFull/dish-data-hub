@@ -23,7 +23,14 @@ export function useInfiniteConversations(
 
       let query = supabase
         .from('chats')
-        .select('*', { count: 'exact' })
+        .select(`
+          *,
+          restaurant:restaurants!restaurant_id(
+            id,
+            name,
+            slug
+          )
+        `, { count: 'exact' })
         .order('updated_at', { ascending: false })
         .range(from, to);
 
@@ -61,7 +68,8 @@ export function useInfiniteConversations(
           return {
             ...conv,
             id: String(conv.conversation_id || conv.id),
-            messages: transformedMessages
+            messages: transformedMessages,
+            restaurant: conv.restaurant
           };
         })
       );
