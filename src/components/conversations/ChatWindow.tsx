@@ -17,9 +17,10 @@ import { getRestaurantColor } from '@/lib/restaurantColors';
 interface ChatWindowProps {
   conversation: Conversation | null;
   onStatusChange: (conversationId: string, status: string) => void;
+  onRefresh?: () => void;
 }
 
-export function ChatWindow({ conversation, onStatusChange }: ChatWindowProps) {
+export function ChatWindow({ conversation, onStatusChange, onRefresh }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [messageText, setMessageText] = useState('');
@@ -294,6 +295,7 @@ export function ChatWindow({ conversation, onStatusChange }: ChatWindowProps) {
           <ConversationActions
             conversation={conversation}
             onStatusChange={onStatusChange}
+            onRefresh={onRefresh}
           />
         </div>
       </div>

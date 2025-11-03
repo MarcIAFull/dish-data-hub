@@ -60,6 +60,7 @@ export default function Conversations() {
         <ChatWindow
           conversation={selectedConversation}
           onStatusChange={updateStatus}
+          onRefresh={refresh}
         />
       }
     />

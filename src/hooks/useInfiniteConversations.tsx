@@ -31,6 +31,7 @@ export function useInfiniteConversations(
             slug
           )
         `, { count: 'exact' })
+        .is('archived_at', null)
         .order('updated_at', { ascending: false })
         .range(from, to);
 
