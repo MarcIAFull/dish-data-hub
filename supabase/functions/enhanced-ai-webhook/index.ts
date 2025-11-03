@@ -193,7 +193,7 @@ serve(async (req) => {
           // Get enhanced restaurant data
           console.log(`[${requestId}] 🏪 Fetching restaurant data for slug: ${agent.restaurants.slug}`);
           
-          const trainingResponse = await fetch(`${supabaseUrl.replace('://','s://')}/functions/v1/enhanced-restaurant-data/${agent.restaurants.slug}`);
+          const trainingResponse = await fetch(`${supabaseUrl}/functions/v1/enhanced-restaurant-data/${agent.restaurants.slug}`);
           const restaurantData = await trainingResponse.json();
           
           console.log(`[${requestId}] ✅ Restaurant data fetched`);
