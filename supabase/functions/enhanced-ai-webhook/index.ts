@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { executeCreateOrder, executeCheckAvailability } from './tools.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -218,17 +219,32 @@ serve(async (req) => {
             });
           }
 
-          // Enhanced system prompt with AI configuration
+          // Enhanced system prompt with AI configuration and tool capabilities
           const systemPrompt = `${agent.personality}
 
-CONFIGURAÇÃO DE IA AVANÇADA:
+VOCÊ É UM ASSISTENTE VIRTUAL COM CAPACIDADES AVANÇADAS:
+
+🛠️ FERRAMENTAS DISPONÍVEIS:
+${agent.enable_order_creation ? `
+1. 🛒 CRIAR PEDIDOS AUTOMATICAMENTE
+   - Use 'create_order' quando o cliente confirmar todos os detalhes
+   - SEMPRE confirme: itens, quantidades, endereço (delivery), forma de pagamento
+   - Após criar, informe número do pedido e valor total` : ''}
+${agent.enable_automatic_notifications ? `
+2. 📱 ENVIAR NOTIFICAÇÕES
+   - Use 'send_order_notification' para atualizações importantes
+   - Confirmações, status de preparo, avisos de entrega` : ''}
+${agent.enable_product_search ? `
+3. 📋 VERIFICAR DISPONIBILIDADE
+   - Use 'check_product_availability' ANTES de sugerir produtos
+   - Sempre verifique se está no cardápio antes de oferecer` : ''}
+
+CONFIGURAÇÃO DE IA:
 - Modelo: ${agent.ai_model || 'gpt-4o'}
 - Estilo: ${agent.response_style || 'friendly'}
 - Idioma: ${agent.language || 'pt-BR'}
 - Análise de sentimento: ${agent.enable_sentiment_analysis ? 'ATIVADA' : 'DESATIVADA'}
 - Detecção de pedidos: ${agent.enable_order_intent_detection ? 'ATIVADA' : 'DESATIVADA'}
-- Sugestões proativas: ${agent.enable_proactive_suggestions ? 'ATIVADAS' : 'DESATIVADAS'}
-- Suporte multilíngue: ${agent.enable_multilingual_support ? 'ATIVADO' : 'DESATIVADO'}
 
 DADOS DO RESTAURANTE:
 ${JSON.stringify(restaurantData, null, 2)}
@@ -236,15 +252,23 @@ ${JSON.stringify(restaurantData, null, 2)}
 INSTRUÇÕES ESPECIAIS:
 ${agent.instructions || ''}
 
+${agent.enable_order_creation ? `
+FLUXO DE ATENDIMENTO PARA PEDIDOS:
+1. Cliente demonstra interesse → Apresente o cardápio
+2. Cliente escolhe itens → ${agent.order_confirmation_required ? 'Confirme cada item e quantidade' : 'Registre os itens'}
+3. Pergunte: tipo de entrega, forma de pagamento, endereço (se delivery)
+4. ${agent.order_confirmation_required ? 'Confirme TODOS os detalhes com o cliente' : 'Verifique os detalhes'}
+5. USE create_order() para registrar o pedido
+6. Informe número do pedido e tempo estimado
+7. Envie confirmação via WhatsApp` : ''}
+
 COMPORTAMENTO INTELIGENTE:
-- Mantenha memória dos últimos ${agent.context_memory_turns || 10} turnos da conversa
-${agent.enable_sentiment_analysis ? '- Analise o sentimento do cliente e adapte sua resposta (positivo, neutro, negativo)' : ''}
-${agent.enable_order_intent_detection ? '- Detecte intenções de pedido e guie o cliente naturalmente para finalizar' : ''}
-${agent.enable_proactive_suggestions ? '- Faça sugestões proativas baseadas no histórico e contexto' : ''}
-${agent.enable_multilingual_support ? '- Detecte o idioma do cliente e responda no mesmo idioma' : ''}
+- Memória dos últimos ${agent.context_memory_turns || 10} turnos da conversa
+${agent.enable_sentiment_analysis ? '- Analise sentimento e adapte sua resposta' : ''}
+${agent.enable_order_intent_detection ? '- Seja proativo ao detectar intenção de pedido' : ''}
+${agent.enable_order_creation && agent.order_confirmation_required ? '- SEMPRE confirme detalhes antes de criar pedidos' : ''}
+- Use as ferramentas disponíveis para executar ações reais
 - Seja natural, direto e útil via WhatsApp
-- Mantenha respostas concisas mas completas
-- Use emojis apropriados para o contexto
 
 ${conversationContext}
 
@@ -252,28 +276,159 @@ MENSAGEM ATUAL DO CLIENTE: ${messageContent}`;
 
           console.log(`[${requestId}] 🚀 Calling OpenAI API with model: ${agent.ai_model || 'gpt-4o'}`);
 
+          // Define tools for AI
+          const tools = [];
+          
+          if (agent.enable_order_creation) {
+            tools.push({
+              type: "function",
+              function: {
+                name: "create_order",
+                description: "Cria um pedido automaticamente quando o cliente confirma os itens",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    customer_name: { type: "string", description: "Nome do cliente" },
+                    customer_phone: { type: "string", description: "Telefone do cliente (apenas números)" },
+                    items: {
+                      type: "array",
+                      description: "Lista de produtos do pedido",
+                      items: {
+                        type: "object",
+                        properties: {
+                          product_name: { type: "string" },
+                          quantity: { type: "integer" },
+                          unit_price: { type: "number" },
+                          notes: { type: "string", description: "Observações do item" }
+                        },
+                        required: ["product_name", "quantity", "unit_price"]
+                      }
+                    },
+                    delivery_type: { 
+                      type: "string", 
+                      enum: ["delivery", "pickup"],
+                      description: "Tipo de entrega" 
+                    },
+                    payment_method: { 
+                      type: "string", 
+                      description: "Forma de pagamento (dinheiro, cartão, pix, etc)"
+                    },
+                    delivery_address: { type: "string", description: "Endereço de entrega (obrigatório se delivery)" },
+                    notes: { type: "string", description: "Observações gerais do pedido" }
+                  },
+                  required: ["customer_name", "customer_phone", "items", "delivery_type"]
+                }
+              }
+            });
+          }
+          
+          if (agent.enable_product_search) {
+            tools.push({
+              type: "function",
+              function: {
+                name: "check_product_availability",
+                description: "Verifica se um produto está disponível no cardápio",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    product_name: { type: "string", description: "Nome do produto a verificar" }
+                  },
+                  required: ["product_name"]
+                }
+              }
+            });
+          }
+
           // Call OpenAI with enhanced configuration
+          const requestBody: any = {
+            model: agent.ai_model || 'gpt-4o',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: messageContent }
+            ],
+            max_completion_tokens: agent.max_tokens || 500,
+            ...(agent.ai_model === 'gpt-4o' || agent.ai_model === 'gpt-4o-mini' ? 
+              { temperature: agent.temperature || 0.7 } : {})
+          };
+          
+          if (tools.length > 0) {
+            requestBody.tools = tools;
+            requestBody.tool_choice = "auto";
+          }
+
           const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${openAIApiKey}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              model: agent.ai_model || 'gpt-4o',
-              messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: messageContent }
-              ],
-              max_completion_tokens: agent.max_tokens || 500,
-              ...(agent.ai_model === 'gpt-4o' || agent.ai_model === 'gpt-4o-mini' ? 
-                { temperature: agent.temperature || 0.7 } : {})
-            }),
+            body: JSON.stringify(requestBody),
           });
           
           if (response.ok) {
             const aiResponse = await response.json();
-            let aiMessage = aiResponse.choices[0].message.content;
+            const choice = aiResponse.choices[0];
+            let aiMessage = '';
+            
+            // Check if AI requested tool execution
+            if (choice.message.tool_calls && choice.message.tool_calls.length > 0) {
+              console.log(`[${requestId}] 🛠️ AI requested ${choice.message.tool_calls.length} tool execution(s)`);
+              
+              const toolMessages = [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: messageContent },
+                choice.message
+              ];
+              
+              for (const toolCall of choice.message.tool_calls) {
+                const functionName = toolCall.function.name;
+                const functionArgs = JSON.parse(toolCall.function.arguments);
+                
+                console.log(`[${requestId}] Executing tool: ${functionName}`, functionArgs);
+                
+                let toolResult;
+                
+                switch (functionName) {
+                  case 'create_order':
+                    toolResult = await executeCreateOrder(supabase, agent, functionArgs, chat.id, customerPhone);
+                    break;
+                  case 'check_product_availability':
+                    toolResult = await executeCheckAvailability(supabase, agent, functionArgs);
+                    break;
+                  default:
+                    toolResult = { success: false, error: 'Unknown function' };
+                }
+                
+                toolMessages.push({
+                  role: 'tool',
+                  tool_call_id: toolCall.id,
+                  content: JSON.stringify(toolResult)
+                });
+              }
+              
+              // Get final AI response after tool execution
+              const finalResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${openAIApiKey}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  model: agent.ai_model || 'gpt-4o',
+                  messages: toolMessages,
+                  max_completion_tokens: agent.max_tokens || 500
+                })
+              });
+              
+              if (finalResponse.ok) {
+                const finalAiResponse = await finalResponse.json();
+                aiMessage = finalAiResponse.choices[0].message.content;
+              } else {
+                aiMessage = "Desculpe, tive um problema ao processar sua solicitação. Por favor, tente novamente.";
+              }
+            } else {
+              aiMessage = choice.message.content || '';
+            }
 
             console.log(`[${requestId}] ✅ OpenAI response received - Length: ${aiMessage.length} chars`);
 

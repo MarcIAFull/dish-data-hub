@@ -40,6 +40,10 @@ interface Agent {
   evolution_api_instance?: string;
   evolution_api_base_url?: string;
   webhook_url?: string;
+  enable_order_creation?: boolean;
+  enable_automatic_notifications?: boolean;
+  enable_product_search?: boolean;
+  order_confirmation_required?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -146,6 +150,10 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
           evolution_api_instance: agent.evolution_api_instance,
           evolution_api_base_url: agent.evolution_api_base_url,
           webhook_url: agent.webhook_url,
+          enable_order_creation: agent.enable_order_creation,
+          enable_automatic_notifications: agent.enable_automatic_notifications,
+          enable_product_search: agent.enable_product_search,
+          order_confirmation_required: agent.order_confirmation_required,
         })
         .eq('id', agent.id);
 
@@ -341,8 +349,9 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="basic">Básico</TabsTrigger>
+              <TabsTrigger value="tools">Ferramentas IA</TabsTrigger>
               <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
               <TabsTrigger value="fallback">Fallback</TabsTrigger>
             </TabsList>
@@ -397,6 +406,103 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
                   </div>
                   <p className="text-sm text-blue-600 dark:text-blue-400">
                     As configurações técnicas da IA (modelo, temperatura, tokens, etc.) são gerenciadas nas configurações do restaurante. Este agente herda essas configurações e adiciona personalidade única.
+                  </p>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="tools" className="space-y-4">
+              <div className="space-y-4">
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Info className="h-4 w-4 text-blue-600" />
+                    <h4 className="font-medium text-blue-700 dark:text-blue-300">Ferramentas da IA</h4>
+                  </div>
+                  <p className="text-sm text-blue-600 dark:text-blue-400">
+                    Com as ferramentas ativadas, a IA poderá executar ações reais no sistema como criar pedidos e enviar notificações automaticamente.
+                  </p>
+                </div>
+
+                <div className="flex items-center space-x-2 p-4 border rounded-lg">
+                  <Switch
+                    id="enable_order_creation"
+                    checked={agent.enable_order_creation ?? true}
+                    onCheckedChange={(checked) => setAgent(prev => 
+                      prev ? { ...prev, enable_order_creation: checked } : null
+                    )}
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="enable_order_creation" className="font-medium">
+                      🛒 Criação Automática de Pedidos
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Permite que a IA crie pedidos automaticamente quando o cliente confirmar
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 p-4 border rounded-lg">
+                  <Switch
+                    id="order_confirmation_required"
+                    checked={agent.order_confirmation_required ?? true}
+                    onCheckedChange={(checked) => setAgent(prev => 
+                      prev ? { ...prev, order_confirmation_required: checked } : null
+                    )}
+                    disabled={!agent.enable_order_creation}
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="order_confirmation_required" className="font-medium">
+                      ✅ Exigir Confirmação de Pedido
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      IA deve confirmar todos os detalhes antes de criar o pedido
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-2 p-4 border rounded-lg">
+                  <Switch
+                    id="enable_automatic_notifications"
+                    checked={agent.enable_automatic_notifications ?? true}
+                    onCheckedChange={(checked) => setAgent(prev => 
+                      prev ? { ...prev, enable_automatic_notifications: checked } : null
+                    )}
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="enable_automatic_notifications" className="font-medium">
+                      📱 Notificações Automáticas
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Envia notificações automáticas de status de pedido via WhatsApp
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 p-4 border rounded-lg">
+                  <Switch
+                    id="enable_product_search"
+                    checked={agent.enable_product_search ?? true}
+                    onCheckedChange={(checked) => setAgent(prev => 
+                      prev ? { ...prev, enable_product_search: checked } : null
+                    )}
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="enable_product_search" className="font-medium">
+                      📋 Busca de Produtos
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      IA pode verificar disponibilidade de produtos no cardápio em tempo real
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Info className="h-4 w-4 text-amber-600" />
+                    <h4 className="font-medium text-amber-700 dark:text-amber-300">Importante</h4>
+                  </div>
+                  <p className="text-sm text-amber-700 dark:text-amber-300">
+                    ⚠️ Com as ferramentas ativadas, a IA poderá executar ações reais como criar pedidos e enviar mensagens. Certifique-se de testar o comportamento antes de ativar em produção.
                   </p>
                 </div>
               </div>
