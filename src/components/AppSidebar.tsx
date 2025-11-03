@@ -10,7 +10,8 @@ import {
   Users,
   LogOut,
   Home,
-  PlusCircle
+  PlusCircle,
+  Bug
 } from "lucide-react";
 
 import {
@@ -205,6 +206,17 @@ export function AppSidebar() {
                     >
                       <Shield className="h-4 w-4" />
                       {!collapsed && <span>Painel Admin</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink 
+                      to="/webhook-debug" 
+                      className={getNavClassName('/webhook-debug')}
+                    >
+                      <Bug className="h-4 w-4" />
+                      {!collapsed && <span>Debug Webhook</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

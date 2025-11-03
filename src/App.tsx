@@ -23,6 +23,7 @@ import Analytics from "./pages/Analytics";
 import Admin from "./pages/Admin";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import WebhookDebug from "./pages/WebhookDebug";
 
 const queryClient = new QueryClient();
 
@@ -92,6 +93,11 @@ const App = () => (
                     <Route path="/admin" element={
                       <ProtectedAdminRoute>
                         <Admin />
+                      </ProtectedAdminRoute>
+                    } />
+                    <Route path="/webhook-debug" element={
+                      <ProtectedAdminRoute>
+                        <WebhookDebug />
                       </ProtectedAdminRoute>
                     } />
                     <Route path="/r/:slug" element={<RestaurantPublic />} />
