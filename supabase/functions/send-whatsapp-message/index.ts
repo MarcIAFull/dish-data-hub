@@ -141,9 +141,7 @@ serve(async (req) => {
               },
               body: JSON.stringify({
                 number: chat.phone,
-                textMessage: {
-                  text: message
-                }
+                text: message
               })
             });
 
