@@ -119,31 +119,63 @@ serve(async (req) => {
       console.log('Agent query result:', { agent, agentError });
 
       if (agent?.evolution_api_token && agent?.evolution_api_instance) {
-        try {
-          const sendResponse = await fetch(`https://api.evolutionapi.com/message/sendText/${agent.evolution_api_instance}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': agent.evolution_api_token
-            },
-            body: JSON.stringify({
-              number: chat.phone,
-              textMessage: {
-                text: message
-              }
-            })
-          });
+        const evolutionUrl = `https://api.evolutionapi.com/message/sendText/${agent.evolution_api_instance}`;
+        console.log('Evolution API URL:', evolutionUrl);
+        console.log('Phone number:', chat.phone);
+        
+        let lastError = null;
+        let success = false;
+        
+        // Retry mechanism: até 3 tentativas
+        for (let attempt = 1; attempt <= 3 && !success; attempt++) {
+          try {
+            console.log(`Tentativa ${attempt}/3 de envio via Evolution API`);
+            
+            const sendResponse = await fetch(evolutionUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': agent.evolution_api_token
+              },
+              body: JSON.stringify({
+                number: chat.phone,
+                textMessage: {
+                  text: message
+                }
+              })
+            });
 
-          console.log('WhatsApp send response status:', sendResponse.status);
+            console.log(`WhatsApp send response status (tentativa ${attempt}):`, sendResponse.status);
 
-          if (!sendResponse.ok) {
-            console.error('Failed to send WhatsApp message:', await sendResponse.text());
+            if (sendResponse.ok) {
+              const responseData = await sendResponse.json();
+              console.log('WhatsApp message sent successfully:', responseData);
+              success = true;
+            } else {
+              const errorText = await sendResponse.text();
+              console.error(`Failed to send WhatsApp message (tentativa ${attempt}):`, errorText);
+              lastError = new Error(`Evolution API returned ${sendResponse.status}: ${errorText}`);
+            }
+          } catch (sendError: any) {
+            console.error(`Error sending WhatsApp message (tentativa ${attempt}):`, sendError);
+            lastError = sendError;
+            
+            // Aguardar 500ms antes da próxima tentativa
+            if (attempt < 3) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
           }
-        } catch (sendError) {
-          console.error('Error sending WhatsApp message:', sendError);
+        }
+        
+        if (!success && lastError) {
+          console.error('Failed to send WhatsApp after 3 attempts:', lastError);
+          // Mensagem foi salva no banco, mas não enviada via WhatsApp
         }
       } else {
-        console.log('Agent credentials not configured');
+        console.log('Agent credentials not configured:', {
+          hasToken: !!agent?.evolution_api_token,
+          hasInstance: !!agent?.evolution_api_instance
+        });
       }
     }
 

@@ -52,8 +52,8 @@ export function ChatWindow({ conversation, onStatusChange }: ChatWindowProps) {
           
           setMessages(prev => [...prev, {
             id: newMessage.id,
-            user_message: newMessage.sender_type === 'user' ? newMessage.content : undefined,
-            bot_message: newMessage.sender_type === 'bot' ? newMessage.content : undefined,
+            user_message: newMessage.sender_type === 'customer' ? newMessage.content : undefined,
+            bot_message: newMessage.sender_type === 'agent' ? newMessage.content : undefined,
             created_at: newMessage.created_at,
             phone: conversation.phone
           }]);
@@ -97,8 +97,8 @@ export function ChatWindow({ conversation, onStatusChange }: ChatWindowProps) {
       // Transformar para o formato esperado
       const transformedMessages = (data || []).map((msg: any) => ({
         id: msg.id,
-        user_message: msg.sender_type === 'user' ? msg.content : undefined,
-        bot_message: msg.sender_type === 'bot' ? msg.content : undefined,
+        user_message: msg.sender_type === 'customer' ? msg.content : undefined,
+        bot_message: msg.sender_type === 'agent' ? msg.content : undefined,
         created_at: msg.created_at,
         phone: conversation.phone
       }));
