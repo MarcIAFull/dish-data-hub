@@ -76,6 +76,30 @@ export type Database = {
           },
         ]
       }
+      blocked_numbers: {
+        Row: {
+          alert_count: number | null
+          blocked_at: string | null
+          id: string
+          phone: string
+          reason: string | null
+        }
+        Insert: {
+          alert_count?: number | null
+          blocked_at?: string | null
+          id?: string
+          phone: string
+          reason?: string | null
+        }
+        Update: {
+          alert_count?: number | null
+          blocked_at?: string | null
+          id?: string
+          phone?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string | null
@@ -580,6 +604,47 @@ export type Database = {
           whatsapp?: string | null
         }
         Relationships: []
+      }
+      security_alerts: {
+        Row: {
+          agent_id: string | null
+          alert_type: string
+          created_at: string | null
+          id: string
+          message_content: string | null
+          patterns_detected: string[] | null
+          phone: string
+          request_id: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          alert_type: string
+          created_at?: string | null
+          id?: string
+          message_content?: string | null
+          patterns_detected?: string[] | null
+          phone: string
+          request_id?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          alert_type?: string
+          created_at?: string | null
+          id?: string
+          message_content?: string | null
+          patterns_detected?: string[] | null
+          phone?: string
+          request_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_alerts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

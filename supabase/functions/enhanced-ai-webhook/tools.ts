@@ -8,7 +8,163 @@ export async function executeCreateOrder(
   customerPhone: string
 ) {
   try {
-    console.log('[CREATE_ORDER] Starting order creation', { args, chatId, customerPhone });
+    console.log('[CREATE_ORDER] ========== STARTING VALIDATION ==========');
+    console.log('[CREATE_ORDER] Args:', JSON.stringify(args, null, 2));
+    
+    // ============= VALIDATION LAYER 1: DATA TYPES =============
+    
+    if (!args.customer_name || typeof args.customer_name !== 'string') {
+      return { success: false, error: 'Nome do cliente inválido' };
+    }
+    
+    if (!args.items || !Array.isArray(args.items) || args.items.length === 0) {
+      return { success: false, error: 'Lista de itens inválida ou vazia' };
+    }
+    
+    if (!['delivery', 'pickup'].includes(args.delivery_type)) {
+      return { success: false, error: 'Tipo de entrega inválido' };
+    }
+    
+    if (args.delivery_type === 'delivery' && !args.delivery_address) {
+      return { success: false, error: 'Endereço obrigatório para delivery' };
+    }
+    
+    // ============= VALIDATION LAYER 2: SANITIZATION =============
+    
+    const sanitizedName = args.customer_name.trim().substring(0, 100);
+    const sanitizedAddress = args.delivery_address ? 
+      args.delivery_address.trim().substring(0, 200) : null;
+    const sanitizedNotes = args.notes ? 
+      args.notes.trim().substring(0, 500) : null;
+    const sanitizedPayment = args.payment_method ? 
+      args.payment_method.trim().substring(0, 50) : 'cash';
+    
+    console.log('[CREATE_ORDER] ✓ Data types and sanitization passed');
+    
+    // ============= VALIDATION LAYER 3: PRODUCT DATABASE LOOKUP =============
+    
+    console.log('[CREATE_ORDER] Fetching valid products from database...');
+    
+    const { data: validProducts, error: productsError } = await supabase
+      .from('products')
+      .select(`
+        id,
+        name,
+        price,
+        categories!inner(restaurant_id)
+      `)
+      .eq('categories.restaurant_id', agent.restaurants.id)
+      .eq('is_active', true);
+    
+    if (productsError) {
+      console.error('[CREATE_ORDER] Database error:', productsError);
+      return {
+        success: false,
+        error: 'Erro ao validar produtos',
+        message: 'Não foi possível validar os produtos. Tente novamente.'
+      };
+    }
+    
+    console.log(`[CREATE_ORDER] Found ${validProducts.length} valid products in database`);
+    
+    // Create normalized map: lowercase name -> product data
+    const productsMap = new Map(
+      validProducts.map(p => [
+        p.name.toLowerCase().trim(), 
+        { id: p.id, name: p.name, price: parseFloat(p.price) }
+      ])
+    );
+    
+    // ============= VALIDATION LAYER 4: VALIDATE EACH ITEM =============
+    
+    const invalidItems: string[] = [];
+    const priceMismatchItems: string[] = [];
+    const validatedItems: any[] = [];
+    
+    for (const item of args.items) {
+      const normalizedName = item.product_name.toLowerCase().trim();
+      const dbProduct = productsMap.get(normalizedName);
+      
+      // Check if product exists
+      if (!dbProduct) {
+        invalidItems.push(item.product_name);
+        console.error(`[CREATE_ORDER] ❌ Product not found: "${item.product_name}"`);
+        continue;
+      }
+      
+      // Check quantity
+      if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 100) {
+        invalidItems.push(`${item.product_name} (quantidade inválida: ${item.quantity})`);
+        console.error(`[CREATE_ORDER] ❌ Invalid quantity for ${item.product_name}: ${item.quantity}`);
+        continue;
+      }
+      
+      // Check price match (tolerance: 0.01)
+      const dbPrice = dbProduct.price;
+      const providedPrice = parseFloat(item.unit_price);
+      
+      if (Math.abs(dbPrice - providedPrice) > 0.01) {
+        console.warn(`[CREATE_ORDER] ⚠️ Price mismatch for "${dbProduct.name}": DB=${dbPrice}, Provided=${providedPrice}`);
+        priceMismatchItems.push(`${dbProduct.name} (preço correto: R$ ${dbPrice.toFixed(2)})`);
+      }
+      
+      // Use validated data from database
+      validatedItems.push({
+        product_id: dbProduct.id,
+        product_name: dbProduct.name, // Use exact DB name
+        quantity: item.quantity,
+        unit_price: dbPrice, // Use exact DB price
+        notes: item.notes ? item.notes.trim().substring(0, 200) : null
+      });
+      
+      console.log(`[CREATE_ORDER] ✓ Validated: ${dbProduct.name} x${item.quantity} @ R$ ${dbPrice.toFixed(2)}`);
+    }
+    
+    // ============= VALIDATION LAYER 5: REJECT IF INVALID ITEMS =============
+    
+    if (invalidItems.length > 0) {
+      console.error('[CREATE_ORDER] ❌ VALIDATION FAILED - Invalid products:', invalidItems);
+      return {
+        success: false,
+        error: 'Produtos inválidos detectados',
+        message: `Os seguintes itens não estão no cardápio:\n${invalidItems.join('\n')}\n\nPor favor, escolha apenas produtos disponíveis no menu.`,
+        invalid_items: invalidItems
+      };
+    }
+    
+    if (validatedItems.length === 0) {
+      console.error('[CREATE_ORDER] ❌ No valid items after validation');
+      return {
+        success: false,
+        error: 'Nenhum produto válido',
+        message: 'Não foi possível validar os produtos do pedido.'
+      };
+    }
+    
+    // ============= VALIDATION LAYER 6: CALCULATE TOTALS =============
+    
+    const subtotal = validatedItems.reduce((sum, item) => 
+      sum + (item.quantity * item.unit_price), 0
+    );
+    
+    const deliveryFee = args.delivery_type === 'delivery' ? 5.00 : 0;
+    const total = subtotal + deliveryFee;
+    
+    // Sanity check: reasonable total
+    if (total < 0 || total > 10000) {
+      console.error(`[CREATE_ORDER] ❌ Unreasonable total: R$ ${total}`);
+      return {
+        success: false,
+        error: 'Valor total inválido',
+        message: 'O valor do pedido está fora do limite permitido.'
+      };
+    }
+    
+    console.log('[CREATE_ORDER] ✓ Totals calculated:', { subtotal, deliveryFee, total });
+    
+    // ============= VALIDATION COMPLETE - CREATE ORDER =============
+    
+    console.log('[CREATE_ORDER] ========== ALL VALIDATIONS PASSED ==========');
     
     // 1. Find or create customer
     const cleanPhone = customerPhone.replace(/\D/g, '');
@@ -21,15 +177,14 @@ export async function executeCreateOrder(
       .maybeSingle();
     
     if (!customer) {
-      console.log('[CREATE_ORDER] Creating new customer');
       const { data: newCustomer, error: customerError } = await supabase
         .from('customers')
         .insert({
-          cliente_name: args.customer_name,
+          cliente_name: sanitizedName,
           phone: cleanPhone,
           restaurant_id: agent.restaurants.id,
           app: 'whatsapp',
-          location: args.delivery_address || null
+          location: sanitizedAddress
         })
         .select()
         .single();
@@ -38,34 +193,23 @@ export async function executeCreateOrder(
       customer = newCustomer;
     }
     
-    console.log('[CREATE_ORDER] Customer:', customer.id);
-    
-    // 2. Calculate totals
-    const subtotal = args.items.reduce((sum: number, item: any) => 
-      sum + (item.quantity * item.unit_price), 0
-    );
-    
-    const deliveryFee = args.delivery_type === 'delivery' ? 5.00 : 0;
-    const total = subtotal + deliveryFee;
-    
-    console.log('[CREATE_ORDER] Totals:', { subtotal, deliveryFee, total });
-    
-    // 3. Create order payload for pedidos table
+    // 2. Create order payload
     const orderPayload = {
-      customer_name: args.customer_name,
+      customer_name: sanitizedName,
       customer_phone: cleanPhone,
-      items: args.items,
+      items: validatedItems,
       delivery_type: args.delivery_type,
-      payment_method: args.payment_method || 'cash',
-      delivery_address: args.delivery_address,
-      notes: args.notes,
+      payment_method: sanitizedPayment,
+      delivery_address: sanitizedAddress,
+      notes: sanitizedNotes,
       subtotal,
       delivery_fee: deliveryFee,
       total,
-      created_via: 'ai_agent'
+      created_via: 'ai_agent',
+      validated_at: new Date().toISOString()
     };
     
-    // 4. Insert into pedidos table
+    // 3. Insert order
     const { data: order, error: orderError } = await supabase
       .from('pedidos')
       .insert({
@@ -78,18 +222,19 @@ export async function executeCreateOrder(
       .select()
       .single();
     
-    if (orderError) {
-      console.error('[CREATE_ORDER] Error creating order:', orderError);
-      throw orderError;
-    }
+    if (orderError) throw orderError;
     
-    console.log('[CREATE_ORDER] Order created:', order.id);
+    console.log(`[CREATE_ORDER] ✅ Order #${order.id} created successfully`);
     
-    // 5. Send notification if enabled
-    if (agent.enable_automatic_notifications && agent.evolution_api_token && agent.evolution_api_instance) {
+    // 4. Send notification
+    if (agent.enable_automatic_notifications && agent.evolution_api_token) {
       const confirmationMessage = `✅ Pedido #${order.id} confirmado!\n\n` +
-        `📦 Itens: ${args.items.map((item: any) => `${item.quantity}x ${item.product_name}`).join(', ')}\n` +
-        `💰 Total: R$ ${total.toFixed(2)}\n\n` +
+        `📦 Itens:\n${validatedItems.map(item => 
+          `${item.quantity}x ${item.product_name} - R$ ${(item.quantity * item.unit_price).toFixed(2)}`
+        ).join('\n')}\n\n` +
+        `💰 Subtotal: R$ ${subtotal.toFixed(2)}\n` +
+        `🚚 Taxa de entrega: R$ ${deliveryFee.toFixed(2)}\n` +
+        `💵 TOTAL: R$ ${total.toFixed(2)}\n\n` +
         `Obrigado pela preferência! 🙏`;
       
       try {
@@ -104,7 +249,7 @@ export async function executeCreateOrder(
             text: confirmationMessage
           })
         });
-        console.log('[CREATE_ORDER] Confirmation notification sent');
+        console.log('[CREATE_ORDER] ✓ Confirmation sent');
       } catch (notifError) {
         console.error('[CREATE_ORDER] Notification failed:', notifError);
       }
@@ -115,12 +260,13 @@ export async function executeCreateOrder(
       order_id: order.id,
       order_number: order.id,
       total: total,
-      items_count: args.items.length,
-      message: `Pedido #${order.id} criado com sucesso! Total: R$ ${total.toFixed(2)}`
+      items_count: validatedItems.length,
+      message: `Pedido #${order.id} criado com sucesso! Total: R$ ${total.toFixed(2)}`,
+      price_corrections: priceMismatchItems.length > 0 ? priceMismatchItems : undefined
     };
     
   } catch (error) {
-    console.error('[CREATE_ORDER] Error:', error);
+    console.error('[CREATE_ORDER] ❌ CRITICAL ERROR:', error);
     return {
       success: false,
       error: error.message,
