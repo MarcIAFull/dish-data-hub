@@ -22,6 +22,7 @@ import Analytics from "./pages/Analytics";
 
 import Admin from "./pages/Admin";
 import Settings from "./pages/Settings";
+import RestaurantSettings from "./pages/RestaurantSettings";
 import NotFound from "./pages/NotFound";
 import WebhookDebug from "./pages/WebhookDebug";
 
@@ -68,6 +69,11 @@ const App = () => (
                     <Route path="/restaurant/manage" element={
                       <ProtectedRoute>
                         <RestaurantManagement />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/restaurant/:id/settings" element={
+                      <ProtectedRoute>
+                        <RestaurantSettings />
                       </ProtectedRoute>
                     } />
                     <Route path="/conversations" element={

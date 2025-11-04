@@ -385,6 +385,44 @@ export type Database = {
           },
         ]
       }
+      custom_messages: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          message_text: string
+          message_type: string
+          restaurant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          message_text: string
+          message_type: string
+          restaurant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          message_text?: string
+          message_type?: string
+          restaurant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_messages_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           active: boolean | null
@@ -944,45 +982,60 @@ export type Database = {
           ai_enabled: boolean | null
           created_at: string | null
           description: string | null
+          estimated_delivery_time: number | null
+          estimated_prep_time: number | null
           id: string
           instagram: string | null
           is_active: boolean | null
+          max_delivery_distance: number | null
           name: string
+          packaging_fee: number | null
           phone: string | null
           slug: string
           updated_at: string | null
           user_id: string
           whatsapp: string | null
+          working_hours: Json | null
         }
         Insert: {
           address?: string | null
           ai_enabled?: boolean | null
           created_at?: string | null
           description?: string | null
+          estimated_delivery_time?: number | null
+          estimated_prep_time?: number | null
           id?: string
           instagram?: string | null
           is_active?: boolean | null
+          max_delivery_distance?: number | null
           name: string
+          packaging_fee?: number | null
           phone?: string | null
           slug: string
           updated_at?: string | null
           user_id: string
           whatsapp?: string | null
+          working_hours?: Json | null
         }
         Update: {
           address?: string | null
           ai_enabled?: boolean | null
           created_at?: string | null
           description?: string | null
+          estimated_delivery_time?: number | null
+          estimated_prep_time?: number | null
           id?: string
           instagram?: string | null
           is_active?: boolean | null
+          max_delivery_distance?: number | null
           name?: string
+          packaging_fee?: number | null
           phone?: string | null
           slug?: string
           updated_at?: string | null
           user_id?: string
           whatsapp?: string | null
+          working_hours?: Json | null
         }
         Relationships: []
       }
