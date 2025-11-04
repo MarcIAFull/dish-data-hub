@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.enhanced-restaurant-data]
 verify_jwt = false
+
+[functions.validate-address]
+verify_jwt = false

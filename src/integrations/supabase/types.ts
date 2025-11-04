@@ -980,6 +980,7 @@ export type Database = {
         Row: {
           address: string | null
           ai_enabled: boolean | null
+          country: string | null
           created_at: string | null
           description: string | null
           estimated_delivery_time: number | null
@@ -1000,6 +1001,7 @@ export type Database = {
         Insert: {
           address?: string | null
           ai_enabled?: boolean | null
+          country?: string | null
           created_at?: string | null
           description?: string | null
           estimated_delivery_time?: number | null
@@ -1020,6 +1022,7 @@ export type Database = {
         Update: {
           address?: string | null
           ai_enabled?: boolean | null
+          country?: string | null
           created_at?: string | null
           description?: string | null
           estimated_delivery_time?: number | null

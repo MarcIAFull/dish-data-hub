@@ -15,6 +15,21 @@ interface AddressValidationRequest {
   restaurant_address?: string;
 }
 
+interface ValidationResult {
+  valid: boolean;
+  formatted_address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  distance_km?: number;
+  delivery_fee?: number;
+  calculation_method?: string;
+  validation_token?: string;
+  expires_at?: string;
+  message?: string;
+  error?: string;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -30,6 +45,31 @@ serve(async (req) => {
     
     console.log('[VALIDATE_ADDRESS] Received request:', body);
 
+    // ============= GET RESTAURANT COUNTRY =============
+    
+    const { data: restaurant, error: restaurantError } = await supabase
+      .from('restaurants')
+      .select('country, address')
+      .eq('id', body.restaurant_id)
+      .single();
+
+    if (restaurantError || !restaurant) {
+      console.error('[VALIDATE_ADDRESS] Error fetching restaurant:', restaurantError);
+      return new Response(JSON.stringify({
+        valid: false,
+        error: 'restaurant_not_found',
+        message: 'Restaurante não encontrado.'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 404
+      });
+    }
+
+    const country = restaurant.country || 'PT';
+    const currency = country === 'BR' ? 'R$' : '€';
+    
+    console.log('[VALIDATE_ADDRESS] Restaurant country:', country);
+
     // ============= VALIDATION LAYER 1: BASIC FORMAT =============
     
     if (!body.address || body.address.trim().length < 10) {
@@ -43,65 +83,95 @@ serve(async (req) => {
       });
     }
 
-    // Extract ZIP code from address if not provided separately
-    let zipCode = body.zip_code;
-    if (!zipCode) {
-      const zipRegex = /\d{5}-?\d{3}/;
-      const match = body.address.match(zipRegex);
-      zipCode = match ? match[0].replace('-', '') : null;
-    }
-
-    // ============= VALIDATION LAYER 2: ZIP CODE VALIDATION =============
+    // ============= VALIDATION LAYER 2: COUNTRY-SPECIFIC VALIDATION =============
     
     let validatedCity = body.city;
     let validatedState = '';
-    
-    if (zipCode) {
-      console.log('[VALIDATE_ADDRESS] Validating ZIP code:', zipCode);
-      
-      try {
-        // Use ViaCEP API (free Brazilian ZIP code API)
-        const cepResponse = await fetch(`https://viacep.com.br/ws/${zipCode}/json/`);
-        
-        if (cepResponse.ok) {
-          const cepData = await cepResponse.json();
-          
-          if (!cepData.erro) {
-            validatedCity = cepData.localidade;
-            validatedState = cepData.uf;
-            console.log('[VALIDATE_ADDRESS] ZIP validated:', validatedCity, validatedState);
-          } else {
-            console.warn('[VALIDATE_ADDRESS] Invalid ZIP code:', zipCode);
-          }
-        }
-      } catch (cepError) {
-        console.error('[VALIDATE_ADDRESS] ViaCEP error:', cepError);
-        // Continue without ZIP validation
+    let zipCode = body.zip_code;
+
+    if (country === 'BR') {
+      // === BRAZIL: Use ViaCEP API ===
+      if (!zipCode) {
+        const zipRegex = /\d{5}-?\d{3}/;
+        const match = body.address.match(zipRegex);
+        zipCode = match ? match[0].replace('-', '') : null;
       }
+
+      if (zipCode) {
+        console.log('[VALIDATE_ADDRESS] [BR] Validating CEP:', zipCode);
+        
+        try {
+          const cepResponse = await fetch(`https://viacep.com.br/ws/${zipCode}/json/`);
+          
+          if (cepResponse.ok) {
+            const cepData = await cepResponse.json();
+            
+            if (!cepData.erro) {
+              validatedCity = cepData.localidade;
+              validatedState = cepData.uf;
+              console.log('[VALIDATE_ADDRESS] [BR] CEP validated:', validatedCity, validatedState);
+            } else {
+              console.warn('[VALIDATE_ADDRESS] [BR] Invalid CEP:', zipCode);
+            }
+          }
+        } catch (cepError) {
+          console.error('[VALIDATE_ADDRESS] [BR] ViaCEP error:', cepError);
+        }
+      }
+      
+    } else if (country === 'PT') {
+      // === PORTUGAL: Use Geonames API ===
+      if (!zipCode) {
+        const zipRegex = /\d{4}-?\d{3}/;
+        const match = body.address.match(zipRegex);
+        zipCode = match ? match[0] : null;
+      }
+
+      if (zipCode) {
+        console.log('[VALIDATE_ADDRESS] [PT] Validating Código Postal:', zipCode);
+        
+        try {
+          const postalCodeClean = zipCode.replace('-', '');
+          const geonamesResponse = await fetch(
+            `http://api.geonames.org/postalCodeSearchJSON?postalcode=${postalCodeClean}&country=PT&maxRows=1&username=demo`
+          );
+          
+          if (geonamesResponse.ok) {
+            const geoData = await geonamesResponse.json();
+            
+            if (geoData.postalCodes && geoData.postalCodes.length > 0) {
+              const postal = geoData.postalCodes[0];
+              validatedCity = postal.placeName;
+              validatedState = postal.adminName1;
+              console.log('[VALIDATE_ADDRESS] [PT] Código Postal validated:', validatedCity, validatedState);
+            } else {
+              console.warn('[VALIDATE_ADDRESS] [PT] Invalid Código Postal:', zipCode);
+            }
+          }
+        } catch (geoError) {
+          console.error('[VALIDATE_ADDRESS] [PT] Geonames error:', geoError);
+        }
+      }
+      
+    } else {
+      // === OTHER COUNTRIES: Generic validation ===
+      console.log('[VALIDATE_ADDRESS] Using generic validation for country:', country);
     }
 
     // ============= VALIDATION LAYER 3: CALCULATE DISTANCE =============
     
-    // For now, use simplified distance calculation
-    // In production, integrate with Google Maps Distance Matrix API or similar
-    
     let distance = 0;
     let calculationMethod = 'estimated';
 
-    // Check if we have restaurant address
-    if (body.restaurant_address) {
-      // Simplified estimation: use ZIP code proximity or city matching
+    if (restaurant.address) {
       if (validatedCity) {
-        // Same city - estimate 3-5km
         distance = 4.0;
         calculationMethod = 'zip_based';
       } else {
-        // Unknown - assume 5km
         distance = 5.0;
         calculationMethod = 'default';
       }
     } else {
-      // No restaurant address - use default
       distance = 5.0;
       calculationMethod = 'default';
     }
@@ -125,26 +195,23 @@ serve(async (req) => {
       console.error('[VALIDATE_ADDRESS] Error fetching delivery zones:', zonesError);
     }
 
-    const deliveryFee = deliveryZones?.fee || 5.00; // Default R$ 5.00
+    const deliveryFee = deliveryZones?.fee || 5.00;
     
-    console.log('[VALIDATE_ADDRESS] Delivery fee:', deliveryFee);
+    console.log('[VALIDATE_ADDRESS] Delivery fee:', deliveryFee, currency);
 
     // ============= BUILD FORMATTED ADDRESS =============
     
+    const zipLabel = country === 'BR' ? 'CEP' : 'Código Postal';
     const formattedAddress = [
       body.address.trim(),
       validatedCity ? validatedCity : body.city,
-      zipCode ? `CEP: ${zipCode}` : null
+      zipCode ? `${zipLabel}: ${zipCode}` : null
     ].filter(Boolean).join(', ');
 
     // ============= GENERATE VALIDATION TOKEN =============
     
-    // Create a validation token that expires in 30 minutes
     const validationToken = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-
-    // Store validation in database (optional - for audit trail)
-    // You could create a temporary table for this
     
     console.log('[VALIDATE_ADDRESS] ✅ Address validated successfully');
 
@@ -159,7 +226,8 @@ serve(async (req) => {
       calculation_method: calculationMethod,
       validation_token: validationToken,
       expires_at: expiresAt.toISOString(),
-      message: `Endereço validado! Taxa de entrega: R$ ${deliveryFee.toFixed(2)} (${distance}km)`
+      country: country,
+      message: `Endereço validado! Taxa de entrega: ${currency} ${deliveryFee.toFixed(2)} (${distance}km)`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
