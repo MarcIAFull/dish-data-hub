@@ -246,6 +246,7 @@ export type Database = {
           id: number
           last_message_at: string | null
           last_read_at: string | null
+          metadata: Json | null
           phone: string | null
           reopened_at: string | null
           reopened_count: number | null
@@ -265,6 +266,7 @@ export type Database = {
           id?: number
           last_message_at?: string | null
           last_read_at?: string | null
+          metadata?: Json | null
           phone?: string | null
           reopened_at?: string | null
           reopened_count?: number | null
@@ -284,6 +286,7 @@ export type Database = {
           id?: number
           last_message_at?: string | null
           last_read_at?: string | null
+          metadata?: Json | null
           phone?: string | null
           reopened_at?: string | null
           reopened_count?: number | null
@@ -772,6 +775,62 @@ export type Database = {
           status_to?: string | null
         }
         Relationships: []
+      }
+      product_modifiers: {
+        Row: {
+          applicable_categories: string[] | null
+          applicable_products: string[] | null
+          created_at: string | null
+          description: string | null
+          display_order: number | null
+          id: string
+          is_active: boolean | null
+          max_quantity: number | null
+          modifier_type: string
+          name: string
+          price: number
+          restaurant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          applicable_categories?: string[] | null
+          applicable_products?: string[] | null
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          max_quantity?: number | null
+          modifier_type: string
+          name: string
+          price?: number
+          restaurant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          applicable_categories?: string[] | null
+          applicable_products?: string[] | null
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          max_quantity?: number | null
+          modifier_type?: string
+          name?: string
+          price?: number
+          restaurant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_modifiers_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {

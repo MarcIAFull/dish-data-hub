@@ -1,5 +1,17 @@
 // Tool executor functions for AI agent
 
+// FASE 5: Interface atualizada para suportar modifiers
+interface OrderItem {
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  notes?: string;
+  modifiers?: Array<{
+    name: string;
+    price: number;
+  }>;
+}
+
 export async function executeCreateOrder(
   supabase: any,
   agent: any,
@@ -167,11 +179,16 @@ export async function executeCreateOrder(
       };
     }
     
-    // ============= VALIDATION LAYER 6: CALCULATE TOTALS =============
+    // ============= VALIDATION LAYER 6: CALCULATE TOTALS (FASE 5: include modifiers) =============
     
-    const subtotal = validatedItems.reduce((sum, item) => 
-      sum + (item.quantity * item.unit_price), 0
-    );
+    const subtotal = args.items.reduce((sum: number, item: OrderItem) => {
+      const itemTotal = item.quantity * item.unit_price;
+      const modifiersTotal = (item.modifiers || []).reduce(
+        (modSum, mod) => modSum + mod.price,
+        0
+      ) * item.quantity;
+      return sum + itemTotal + modifiersTotal;
+    }, 0);
     
     // Use validated delivery fee from address validation (FASE 2)
     const deliveryFee = args.delivery_type === 'delivery' ? (args.delivery_fee || 5.00) : 0;
