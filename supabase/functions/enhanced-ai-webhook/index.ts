@@ -379,9 +379,23 @@ serve(async (req) => {
           console.log(`[${requestId}] 🏪 Fetching restaurant data for slug: ${agent.restaurants.slug}`);
           
           const trainingResponse = await fetch(`${supabaseUrl}/functions/v1/enhanced-restaurant-data/${agent.restaurants.slug}`);
+          
+          if (!trainingResponse.ok) {
+            console.error(`[${requestId}] ❌ Failed to fetch restaurant data: ${trainingResponse.status} ${trainingResponse.statusText}`);
+            const errorText = await trainingResponse.text();
+            console.error(`[${requestId}] Error details: ${errorText}`);
+            throw new Error(`Failed to fetch restaurant data: ${trainingResponse.status}`);
+          }
+
           const restaurantData = await trainingResponse.json();
           
-          console.log(`[${requestId}] ✅ Restaurant data fetched`);
+          // Validate structure before using
+          if (!restaurantData.menu || !restaurantData.menu.categories) {
+            console.error(`[${requestId}] ❌ Invalid restaurant data structure:`, JSON.stringify(restaurantData));
+            throw new Error('Invalid restaurant data structure - missing menu or categories');
+          }
+          
+          console.log(`[${requestId}] ✅ Restaurant data fetched - ${restaurantData.menu.categories.length} categories, ${restaurantData.menu.categories.reduce((acc: number, cat: any) => acc + (cat.products?.length || 0), 0)} products`);
           
           // Build conversation context
           let conversationContext = '';

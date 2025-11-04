@@ -2,3 +2,6 @@ project_id = "wsyddfdfzfkhkkxmrmxf"
 
 [functions.enhanced-ai-webhook]
 verify_jwt = false
+
+[functions.enhanced-restaurant-data]
+verify_jwt = false
