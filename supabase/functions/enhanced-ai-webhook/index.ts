@@ -173,7 +173,7 @@ serve(async (req) => {
           )
         `)
         .eq('is_active', true)
-        .or(`whatsapp_number.eq.${customerPhone},evolution_api_instance.eq.${instance}`)
+        .eq('evolution_api_instance', instance)
         .single();
       
       console.log(`[${requestId}] Agent query result - Found: ${agent ? 'YES' : 'NO'}, Error: ${agentError?.message || 'none'}`);
@@ -190,6 +190,20 @@ serve(async (req) => {
       }
 
       console.log(`[${requestId}] ✅ Agent found - ID: ${agent.id}, Restaurant: ${agent.restaurants?.name}, Name: ${agent.name}`);
+
+      // Validate restaurant_id exists
+      if (!agent.restaurants || !agent.restaurants.id) {
+        console.error(`[${requestId}] ❌ Agent ${agent.id} has no restaurant linked`);
+        return new Response(JSON.stringify({ 
+          error: 'Agent configuration error: no restaurant linked',
+          requestId 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      console.log(`[${requestId}] ✅ Restaurant ID validated: ${agent.restaurants.id}`);
 
       // ============= SECURITY: CHECK BLOCKED NUMBERS =============
       
@@ -225,7 +239,7 @@ serve(async (req) => {
         .maybeSingle();
       
       if (!chat) {
-        console.log(`[${requestId}] 🆕 Creating new chat`);
+        console.log(`[${requestId}] 🆕 Creating new chat for restaurant: ${agent.restaurants.id}`);
         
         const { data: newChat, error: createError } = await supabase
           .from('chats')
@@ -239,6 +253,15 @@ serve(async (req) => {
           })
           .select()
           .single();
+        
+        console.log(`[${requestId}] Chat insert payload:`, {
+          agent_id: agent.id,
+          restaurant_id: agent.restaurants.id,
+          phone: customerPhone,
+          status: 'active',
+          app: 'whatsapp',
+          ai_enabled: true
+        });
         
         if (createError) {
           console.error(`[${requestId}] ❌ Error creating chat:`, createError);

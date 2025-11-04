@@ -254,6 +254,9 @@ export async function executeCreateOrder(
     };
     
     // 3. Insert order with proper fields
+    console.log(`[CREATE_ORDER] Creating order in pedidos table with restaurant_id: ${agent.restaurants.id}`);
+    console.log(`[CREATE_ORDER] Full order payload:`, JSON.stringify(orderPayload, null, 2));
+    
     const { data: order, error: orderError } = await supabase
       .from('pedidos')
       .insert({
@@ -274,9 +277,19 @@ export async function executeCreateOrder(
       .select()
       .single();
     
-    if (orderError) throw orderError;
+    if (orderError) {
+      console.error(`[CREATE_ORDER] ❌ Failed to insert order:`, orderError);
+      throw orderError;
+    }
     
     console.log(`[CREATE_ORDER] ✅ Order #${order.id} created successfully`);
+    console.log(`[CREATE_ORDER] Order details:`, { 
+      id: order.id, 
+      restaurant_id: order.restaurant_id,
+      order_source: order.order_source,
+      order_status: order.order_status,
+      total_amount: order.total_amount
+    });
     
     // 4. Send notification
     if (agent.enable_automatic_notifications && agent.evolution_api_token) {
