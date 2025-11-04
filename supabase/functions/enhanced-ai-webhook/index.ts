@@ -13,6 +13,49 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
+// ============= SECURITY FUNCTIONS =============
+
+function sanitizeInput(input: string): string {
+  if (!input) return '';
+  
+  // Remove null bytes and control characters
+  let sanitized = input.replace(/\0/g, '').replace(/[\x00-\x1F\x7F]/g, '');
+  
+  // Limit length to prevent DoS
+  const MAX_LENGTH = 10000;
+  if (sanitized.length > MAX_LENGTH) {
+    sanitized = sanitized.substring(0, MAX_LENGTH);
+  }
+  
+  return sanitized.trim();
+}
+
+function detectSuspiciousInput(input: string): string[] {
+  const patterns: string[] = [];
+  const lowerInput = input.toLowerCase();
+  
+  // SQL Injection patterns
+  if (/(\bdrop\b|\bdelete\b|\btruncate\b|\balter\b)/i.test(lowerInput)) {
+    patterns.push('sql_injection');
+  }
+  
+  // Prompt injection patterns
+  if (/ignore (previous|above|all) (instructions?|rules?|prompts?)/i.test(lowerInput)) {
+    patterns.push('prompt_injection');
+  }
+  
+  if (/(you are now|act as|pretend to be|roleplay as)/i.test(lowerInput)) {
+    patterns.push('role_manipulation');
+  }
+  
+  // System command patterns
+  if (/(sudo|admin mode|debug mode|developer mode)/i.test(lowerInput)) {
+    patterns.push('privilege_escalation');
+  }
+  
+  return patterns;
+}
+
 serve(async (req) => {
   const requestId = crypto.randomUUID().substring(0, 8);
   console.log(`[${requestId}] ============ NEW REQUEST ============`);
