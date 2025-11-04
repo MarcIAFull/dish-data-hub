@@ -15,6 +15,11 @@ import { CategoriesManager } from '@/components/restaurant/CategoriesManager';
 import { ProductsManager } from '@/components/restaurant/ProductsManager';
 import { EnhancedAgentConfiguration } from '@/components/agent/EnhancedAgentConfiguration';
 import { Bot } from 'lucide-react';
+import { OperationSettings } from '@/components/restaurant/OperationSettings';
+import { DeliveryZonesManager } from '@/components/restaurant/DeliveryZonesManager';
+import { PaymentMethodsManager } from '@/components/restaurant/PaymentMethodsManager';
+import { ModifiersManager } from '@/components/restaurant/ModifiersManager';
+import { MessagesManager } from '@/components/restaurant/MessagesManager';
 
 interface RestaurantFormData {
   name: string;
@@ -140,13 +145,16 @@ function RestaurantFormContent({ restaurant }: { restaurant?: any }) {
           </div>
 
           <Tabs defaultValue="basic" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
             <TabsTrigger value="categories" disabled={!isEditing}>
               Categorias
             </TabsTrigger>
             <TabsTrigger value="products" disabled={!isEditing}>
               Produtos
+            </TabsTrigger>
+            <TabsTrigger value="operation" disabled={!isEditing}>
+              Dados da Operação
             </TabsTrigger>
             <TabsTrigger value="agent" disabled={!isEditing}>
               Agente IA
@@ -263,6 +271,25 @@ function RestaurantFormContent({ restaurant }: { restaurant?: any }) {
             <TabsContent value="products">
               {isEditing && restaurant?.id && (
                 <ProductsManager restaurantId={restaurant.id} />
+              )}
+            </TabsContent>
+
+            <TabsContent value="operation">
+              {isEditing && restaurant?.id && (
+                <div className="space-y-6">
+                  <OperationSettings 
+                    restaurantId={restaurant.id} 
+                    initialData={restaurant}
+                  />
+                  
+                  <DeliveryZonesManager restaurantId={restaurant.id} />
+                  
+                  <PaymentMethodsManager restaurantId={restaurant.id} />
+                  
+                  <ModifiersManager restaurantId={restaurant.id} />
+                  
+                  <MessagesManager restaurantId={restaurant.id} />
+                </div>
               )}
             </TabsContent>
 
