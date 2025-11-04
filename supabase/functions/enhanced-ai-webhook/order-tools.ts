@@ -183,3 +183,93 @@ export async function executeNotifyStatusChange(
     };
   }
 }
+
+// FASE 9: Transfer conversation to human agent
+export async function executeTransferToHuman(
+  supabase: any,
+  agent: any,
+  args: {
+    reason: string;
+    summary: string;
+  },
+  chatId: number,
+  customerPhone: string
+) {
+  try {
+    console.log('[TRANSFER_TO_HUMAN] Initiating transfer - Chat:', chatId, 'Reason:', args.reason);
+    
+    // 1. Disable AI for this chat
+    const { error: updateError } = await supabase
+      .from('chats')
+      .update({ 
+        ai_enabled: false,
+        status: 'human_handoff',
+        conversation_state: 'awaiting_human',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', chatId);
+    
+    if (updateError) throw updateError;
+    
+    console.log('[TRANSFER_TO_HUMAN] ✓ AI disabled for chat');
+    
+    // 2. Create internal note with context
+    const noteText = `🤖→👤 TRANSFERÊNCIA AI → HUMANO
+
+📋 Motivo: ${args.reason}
+
+📝 Resumo da conversa:
+${args.summary}
+
+⏰ Data/Hora: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+📱 Cliente: ${customerPhone}
+`;
+    
+    const { error: noteError } = await supabase
+      .from('conversation_notes')
+      .insert({
+        chat_id: chatId,
+        note: noteText,
+        user_id: null,
+        created_at: new Date().toISOString()
+      });
+    
+    if (noteError) {
+      console.error('[TRANSFER_TO_HUMAN] Failed to create note:', noteError);
+    } else {
+      console.log('[TRANSFER_TO_HUMAN] ✓ Internal note created');
+    }
+    
+    // 3. Create security alert for serious cases
+    if (['complaint', 'abuse', 'threat'].includes(args.reason)) {
+      await supabase
+        .from('security_alerts')
+        .insert({
+          agent_id: agent.id,
+          phone: customerPhone,
+          alert_type: 'escalation_required',
+          message_content: args.summary.substring(0, 500),
+          patterns_detected: [args.reason],
+          created_at: new Date().toISOString()
+        });
+      
+      console.log('[TRANSFER_TO_HUMAN] ⚠️ Security alert created');
+    }
+    
+    console.log('[TRANSFER_TO_HUMAN] ✅ Transfer completed successfully');
+    
+    return {
+      success: true,
+      message: 'Conversa transferida para atendente humano com sucesso.',
+      chat_disabled: true
+    };
+    
+  } catch (error) {
+    console.error('[TRANSFER_TO_HUMAN] ❌ Error:', error);
+    return {
+      success: false,
+      error: error.message,
+      message: 'Erro ao transferir para atendente humano.'
+    };
+  }
+}

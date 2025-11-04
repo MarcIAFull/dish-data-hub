@@ -105,6 +105,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           display_order: number | null
+          emoji: string | null
           id: string
           is_active: boolean | null
           name: string
@@ -115,6 +116,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           display_order?: number | null
+          emoji?: string | null
           id?: string
           is_active?: boolean | null
           name: string
@@ -125,6 +127,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           display_order?: number | null
+          emoji?: string | null
           id?: string
           is_active?: boolean | null
           name?: string
@@ -603,6 +606,59 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_methods: {
+        Row: {
+          created_at: string | null
+          data_type: string | null
+          data_value: string | null
+          display_name: string
+          display_order: number | null
+          id: string
+          instructions: string | null
+          is_active: boolean | null
+          method_name: string
+          requires_data: boolean | null
+          restaurant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          data_type?: string | null
+          data_value?: string | null
+          display_name: string
+          display_order?: number | null
+          id?: string
+          instructions?: string | null
+          is_active?: boolean | null
+          method_name: string
+          requires_data?: boolean | null
+          restaurant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          data_type?: string | null
+          data_value?: string | null
+          display_name?: string
+          display_order?: number | null
+          id?: string
+          instructions?: string | null
+          is_active?: boolean | null
+          method_name?: string
+          requires_data?: boolean | null
+          restaurant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_methods_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
         ]
