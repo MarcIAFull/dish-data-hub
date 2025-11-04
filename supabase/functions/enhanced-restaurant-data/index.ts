@@ -44,22 +44,19 @@ serve(async (req) => {
       });
     }
 
-    // Fetch categories and products with advanced details
+    // Fetch categories and products
     const { data: categories, error: categoriesError } = await supabase
       .from('categories')
       .select(`
         *,
-        products (
-          *,
-          ingredients,
-          allergens,
-          tags,
-          calories,
-          preparation_time
-        )
+        products (*)
       `)
       .eq('restaurant_id', restaurant.id)
+      .eq('is_active', true)
       .order('display_order');
+    
+    console.log(`[enhanced-restaurant-data] Restaurant: ${restaurant.name} (${restaurant.slug})`);
+    console.log(`[enhanced-restaurant-data] Categories found: ${categories?.length || 0}`);
 
     if (categoriesError) {
       console.error('Error fetching categories:', categoriesError);
@@ -113,17 +110,14 @@ serve(async (req) => {
           name: category.name,
           description: category.description,
           display_order: category.display_order,
-          products: category.products?.filter(p => p.is_available).map(product => ({
+          products: category.products?.filter(p => p.is_active).map(product => ({
             id: product.id,
             name: product.name,
             description: product.description,
             price: parseFloat(product.price),
-            ingredients: product.ingredients || [],
-            allergens: product.allergens || [],
-            tags: product.tags || [],
-            calories: product.calories,
-            preparation_time: product.preparation_time,
-            is_available: product.is_available
+            image_url: product.image_url,
+            is_active: product.is_active,
+            display_order: product.display_order
           })) || []
         })) || []
       },
@@ -143,12 +137,14 @@ serve(async (req) => {
       ai_context: {
         generated_at: new Date().toISOString(),
         total_products_available: categories?.reduce((acc, cat) => 
-          acc + (cat.products?.filter(p => p.is_available)?.length || 0), 0) || 0,
+          acc + (cat.products?.filter(p => p.is_active)?.length || 0), 0) || 0,
         total_categories: categories?.length || 0,
         restaurant_activity_level: recentOrders?.length > 5 ? 'high' : 
                                    recentOrders?.length > 2 ? 'medium' : 'low'
       }
     };
+    
+    console.log(`[enhanced-restaurant-data] Total products: ${enhancedData.ai_context.total_products_available}`);
 
     return new Response(JSON.stringify(enhancedData), {
       headers: { 
