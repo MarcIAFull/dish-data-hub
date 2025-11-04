@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,8 +8,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Package, ImageIcon } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { ProductModifiersSection } from './ProductModifiersSection';
 
 interface Product {
   id: string;
@@ -43,6 +47,25 @@ export function ProductsManager({ restaurantId }: ProductsManagerProps) {
     price: '',
     category_id: '',
     image_url: '',
+  });
+
+  // Query para contar complementos por produto
+  const { data: modifierCounts = {} } = useQuery({
+    queryKey: ['product-modifiers-count', restaurantId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('product_modifiers')
+        .select('id, applicable_products')
+        .eq('restaurant_id', restaurantId);
+      
+      const counts: Record<string, number> = {};
+      data?.forEach(mod => {
+        mod.applicable_products?.forEach((pid: string) => {
+          counts[pid] = (counts[pid] || 0) + 1;
+        });
+      });
+      return counts;
+    }
   });
 
   useEffect(() => {
@@ -243,102 +266,128 @@ export function ProductsManager({ restaurantId }: ProductsManagerProps) {
               Novo Produto
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingProduct ? 'Editar Produto' : 'Novo Produto'}
               </DialogTitle>
               <DialogDescription>
                 {editingProduct 
-                  ? 'Edite as informações do produto'
+                  ? 'Edite as informações do produto e seus complementos'
                   : 'Adicione um novo produto ao menu'
                 }
               </DialogDescription>
             </DialogHeader>
             
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2 col-span-2">
-                  <Label htmlFor="product-name">Nome do Produto</Label>
-                  <Input
-                    id="product-name"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Ex: Pizza Margherita"
-                    required
+            <Tabs defaultValue="basic" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
+                <TabsTrigger value="modifiers" disabled={!editingProduct}>
+                  Complementos
+                  {editingProduct && modifierCounts[editingProduct.id] > 0 && (
+                    <Badge variant="secondary" className="ml-2">
+                      {modifierCounts[editingProduct.id]}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="basic">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2 col-span-2">
+                      <Label htmlFor="product-name">Nome do Produto</Label>
+                      <Input
+                        id="product-name"
+                        value={formData.name}
+                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Ex: Pizza Margherita"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="product-price">Preço (€)</Label>
+                      <Input
+                        id="product-price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.price}
+                        onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                        placeholder="9.99"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="product-category">Categoria</Label>
+                      <Select
+                        value={formData.category_id}
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: value }))}
+                        required
+                      >
+                        <SelectTrigger id="product-category">
+                          <SelectValue placeholder="Selecione uma categoria" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((category) => (
+                            <SelectItem key={category.id} value={category.id}>
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2 col-span-2">
+                      <Label htmlFor="product-description">Descrição</Label>
+                      <Textarea
+                        id="product-description"
+                        value={formData.description}
+                        onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Descreva o produto..."
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="space-y-2 col-span-2">
+                      <Label htmlFor="product-image">URL da Imagem (opcional)</Label>
+                      <Input
+                        id="product-image"
+                        type="url"
+                        value={formData.image_url}
+                        onChange={(e) => setFormData(prev => ({ ...prev, image_url: e.target.value }))}
+                        placeholder="https://exemplo.com/imagem.jpg"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button type="submit" disabled={loading}>
+                      {loading ? 'Salvando...' : (editingProduct ? 'Atualizar' : 'Criar')}
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => setIsDialogOpen(false)}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </form>
+              </TabsContent>
+
+              <TabsContent value="modifiers">
+                {editingProduct && (
+                  <ProductModifiersSection 
+                    restaurantId={restaurantId}
+                    productId={editingProduct.id}
+                    categoryId={editingProduct.category_id}
                   />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="product-price">Preço (€)</Label>
-                  <Input
-                    id="product-price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.price}
-                    onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-                    placeholder="9.99"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="product-category">Categoria</Label>
-                  <Select
-                    value={formData.category_id}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: value }))}
-                    required
-                  >
-                    <SelectTrigger id="product-category">
-                      <SelectValue placeholder="Selecione uma categoria" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2 col-span-2">
-                  <Label htmlFor="product-description">Descrição</Label>
-                  <Textarea
-                    id="product-description"
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Descreva o produto..."
-                    rows={3}
-                  />
-                </div>
-
-                <div className="space-y-2 col-span-2">
-                  <Label htmlFor="product-image">URL da Imagem (opcional)</Label>
-                  <Input
-                    id="product-image"
-                    type="url"
-                    value={formData.image_url}
-                    onChange={(e) => setFormData(prev => ({ ...prev, image_url: e.target.value }))}
-                    placeholder="https://exemplo.com/imagem.jpg"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Salvando...' : (editingProduct ? 'Atualizar' : 'Criar')}
-                </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setIsDialogOpen(false)}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </form>
+                )}
+              </TabsContent>
+            </Tabs>
           </DialogContent>
         </Dialog>
       </div>
@@ -402,7 +451,14 @@ export function ProductsManager({ restaurantId }: ProductsManagerProps) {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
-                    <CardTitle className="text-lg">{product.name}</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-lg">{product.name}</CardTitle>
+                      {modifierCounts[product.id] > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          {modifierCounts[product.id]} complementos
+                        </Badge>
+                      )}
+                    </div>
                     <CardDescription className="text-xs mt-1">
                       {getCategoryName(product.category_id)}
                     </CardDescription>

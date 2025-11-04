@@ -18,7 +18,6 @@ import { Bot } from 'lucide-react';
 import { OperationSettings } from '@/components/restaurant/OperationSettings';
 import { DeliveryZonesManager } from '@/components/restaurant/DeliveryZonesManager';
 import { PaymentMethodsManager } from '@/components/restaurant/PaymentMethodsManager';
-import { ModifiersManager } from '@/components/restaurant/ModifiersManager';
 import { MessagesManager } from '@/components/restaurant/MessagesManager';
 
 interface RestaurantFormData {
@@ -285,8 +284,6 @@ function RestaurantFormContent({ restaurant }: { restaurant?: any }) {
                   <DeliveryZonesManager restaurantId={restaurant.id} />
                   
                   <PaymentMethodsManager restaurantId={restaurant.id} />
-                  
-                  <ModifiersManager restaurantId={restaurant.id} />
                   
                   <MessagesManager restaurantId={restaurant.id} />
                 </div>
