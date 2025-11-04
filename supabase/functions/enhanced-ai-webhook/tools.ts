@@ -11,6 +11,19 @@ export async function executeCreateOrder(
     console.log('[CREATE_ORDER] ========== STARTING VALIDATION ==========');
     console.log('[CREATE_ORDER] Args:', JSON.stringify(args, null, 2));
     
+    // ============= VALIDATION LAYER 0: CONFIRMATION CHECK (FASE 3) =============
+    
+    if (!args._confirmed_by_customer) {
+      console.error('[CREATE_ORDER] ❌ Order not confirmed by customer');
+      return {
+        success: false,
+        error: 'Pedido não confirmado',
+        message: 'Por favor, revise os itens, valores e confirme o pedido antes de finalizar. Diga "confirmo" ou "pode fazer" para prosseguir.'
+      };
+    }
+    
+    console.log('[CREATE_ORDER] ✓ Customer confirmation verified');
+    
     // ============= VALIDATION LAYER 1: DATA TYPES =============
     
     if (!args.customer_name || typeof args.customer_name !== 'string') {
@@ -28,6 +41,19 @@ export async function executeCreateOrder(
     if (args.delivery_type === 'delivery' && !args.delivery_address) {
       return { success: false, error: 'Endereço obrigatório para delivery' };
     }
+    
+    // ============= VALIDATION LAYER 1.5: ADDRESS VALIDATION (FASE 2) =============
+    
+    if (args.delivery_type === 'delivery' && !args.validated_address_token) {
+      console.error('[CREATE_ORDER] ❌ Address not validated - missing token');
+      return {
+        success: false,
+        error: 'Endereço não validado',
+        message: 'O endereço precisa ser validado antes de criar o pedido. Por favor, forneça um endereço completo com CEP para validação.'
+      };
+    }
+    
+    console.log('[CREATE_ORDER] ✓ Address validation token present');
     
     // ============= VALIDATION LAYER 2: SANITIZATION =============
     
@@ -147,7 +173,8 @@ export async function executeCreateOrder(
       sum + (item.quantity * item.unit_price), 0
     );
     
-    const deliveryFee = args.delivery_type === 'delivery' ? 5.00 : 0;
+    // Use validated delivery fee from address validation (FASE 2)
+    const deliveryFee = args.delivery_type === 'delivery' ? (args.delivery_fee || 5.00) : 0;
     const total = subtotal + deliveryFee;
     
     // Sanity check: reasonable total
@@ -285,9 +312,9 @@ export async function executeCreateOrder(
 
 export async function executeCheckAvailability(supabase: any, agent: any, args: any) {
   try {
-    console.log('[CHECK_AVAILABILITY] Checking product:', args.product_name);
+    console.log('[CHECK_AVAILABILITY] Checking product:', args.product_name, 'Category:', args.category);
     
-    const { data: products, error } = await supabase
+    let query = supabase
       .from('products')
       .select(`
         id, 
@@ -295,11 +322,22 @@ export async function executeCheckAvailability(supabase: any, agent: any, args: 
         price, 
         description,
         is_active,
-        categories!inner(restaurant_id)
+        categories!inner(name, restaurant_id)
       `)
       .eq('categories.restaurant_id', agent.restaurants.id)
-      .ilike('name', `%${args.product_name}%`)
       .eq('is_active', true);
+    
+    // Filter by category if provided (FASE 4 - Menu Presentation)
+    if (args.category) {
+      query = query.eq('categories.name', args.category);
+    }
+    
+    // Filter by product name if provided
+    if (args.product_name) {
+      query = query.ilike('name', `%${args.product_name}%`);
+    }
+    
+    const { data: products, error } = await query;
     
     if (error) throw error;
     

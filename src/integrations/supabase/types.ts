@@ -237,6 +237,7 @@ export type Database = {
           app: string | null
           archived_at: string | null
           conversation_id: string | null
+          conversation_state: string | null
           created_at: string
           customer_id: number | null
           id: number
@@ -255,6 +256,7 @@ export type Database = {
           app?: string | null
           archived_at?: string | null
           conversation_id?: string | null
+          conversation_state?: string | null
           created_at?: string
           customer_id?: number | null
           id?: number
@@ -273,6 +275,7 @@ export type Database = {
           app?: string | null
           archived_at?: string | null
           conversation_id?: string | null
+          conversation_state?: string | null
           created_at?: string
           customer_id?: number | null
           id?: number
@@ -458,6 +461,44 @@ export type Database = {
           telefone?: string | null
         }
         Relationships: []
+      }
+      delivery_zones: {
+        Row: {
+          created_at: string | null
+          fee: number
+          id: string
+          is_active: boolean | null
+          max_distance: number
+          min_distance: number
+          restaurant_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          fee: number
+          id?: string
+          is_active?: boolean | null
+          max_distance: number
+          min_distance: number
+          restaurant_id: string
+        }
+        Update: {
+          created_at?: string | null
+          fee?: number
+          id?: string
+          is_active?: boolean | null
+          max_distance?: number
+          min_distance?: number
+          restaurant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_zones_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       documents: {
         Row: {
