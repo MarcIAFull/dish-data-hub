@@ -204,7 +204,7 @@ export default function RestaurantManagement() {
               
               <CardContent className="space-y-2">
                 {/* Primary Actions */}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <Button
                     variant="outline"
                     size="sm"
@@ -212,6 +212,14 @@ export default function RestaurantManagement() {
                   >
                     <Settings className="mr-2 h-4 w-4" />
                     Editar
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => navigate(`/restaurant/${restaurant.id}/settings`)}
+                  >
+                    <Settings className="mr-2 h-4 w-4" />
+                    Config
                   </Button>
                   <Button
                     variant="outline"
