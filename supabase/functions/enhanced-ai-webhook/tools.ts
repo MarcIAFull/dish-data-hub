@@ -12,6 +12,75 @@ interface OrderItem {
   }>;
 }
 
+export async function executeCheckOrderPrerequisites(
+  supabase: any,
+  chatId: number,
+  args: any
+) {
+  try {
+    console.log('[CHECK_PREREQUISITES] Starting validation...');
+    
+    // Buscar metadata atual
+    const { data: chat } = await supabase
+      .from('chats')
+      .select('metadata')
+      .eq('id', chatId)
+      .single();
+    
+    const metadata = chat?.metadata || {};
+    
+    console.log('[CHECK_PREREQUISITES] Current metadata:', JSON.stringify(metadata, null, 2));
+    
+    // Verificar dados obrigatórios
+    const missing = [];
+    
+    if (!metadata.customer_name || metadata.customer_name.trim() === '') {
+      missing.push("nome do cliente");
+    }
+    
+    if (args.delivery_type === 'delivery') {
+      if (!metadata.validated_address_token) {
+        missing.push("endereço validado (use validate_delivery_address)");
+      }
+      if (!metadata.delivery_fee) {
+        missing.push("taxa de entrega");
+      }
+      if (!metadata.delivery_address) {
+        missing.push("endereço completo");
+      }
+    }
+    
+    if (missing.length > 0) {
+      console.log('[CHECK_PREREQUISITES] ❌ Missing data:', missing);
+      return {
+        ready: false,
+        missing_data: missing,
+        message: `Faltam os seguintes dados para finalizar o pedido: ${missing.join(', ')}.`,
+        action: "Colete esses dados antes de mostrar o resumo ao cliente."
+      };
+    }
+    
+    console.log('[CHECK_PREREQUISITES] ✅ All prerequisites met');
+    
+    return {
+      ready: true,
+      message: "Todos os dados necessários foram coletados. Pode mostrar o resumo.",
+      customer_name: metadata.customer_name,
+      delivery_type: args.delivery_type,
+      delivery_address: metadata.delivery_address,
+      delivery_fee: metadata.delivery_fee,
+      validated_address_token: metadata.validated_address_token
+    };
+  } catch (error) {
+    console.error('[CHECK_PREREQUISITES] ❌ Error:', error);
+    return {
+      ready: false,
+      error: 'validation_error',
+      message: 'Erro ao validar pré-requisitos do pedido.'
+    };
+  }
+}
+
 export async function executeCreateOrder(
   supabase: any,
   agent: any,
@@ -26,7 +95,67 @@ export async function executeCreateOrder(
     console.log('[CREATE_ORDER] ========== STARTING VALIDATION ==========');
     console.log('[CREATE_ORDER] Args:', JSON.stringify(args, null, 2));
     
-    // ============= VALIDATION LAYER 0: CONFIRMATION CHECK (FASE 3) =============
+    // ============= VALIDATION LAYER -1: FETCH METADATA (FASE 6) =============
+    
+    const { data: chat } = await supabase
+      .from('chats')
+      .select('metadata')
+      .eq('id', chatId)
+      .single();
+    
+    const metadata = chat?.metadata || {};
+    
+    console.log('[CREATE_ORDER] 📊 Current metadata:', JSON.stringify(metadata, null, 2));
+    
+    // ✅ DADOS DO METADATA SOBRESCREVEM ARGS (fonte da verdade)
+    const customerName = metadata.customer_name || args.customer_name;
+    const validatedToken = metadata.validated_address_token;
+    const deliveryFee = metadata.delivery_fee;
+    const deliveryAddress = metadata.delivery_address;
+    
+    console.log('[CREATE_ORDER] Using data from metadata:', {
+      customerName,
+      hasValidatedToken: !!validatedToken,
+      deliveryFee,
+      deliveryAddress
+    });
+    
+    // ============= VALIDATION LAYER 0: MANDATORY DATA CHECK (FASE 6) =============
+    
+    if (!customerName || customerName.trim() === '') {
+      console.error('[CREATE_ORDER] ❌ Customer name not collected');
+      return {
+        success: false,
+        error: 'Nome não coletado',
+        message: 'Não foi possível criar o pedido porque não temos o nome do cliente. Por favor, informe seu nome.'
+      };
+    }
+    
+    console.log('[CREATE_ORDER] ✓ Customer name validated:', customerName);
+    
+    if (args.delivery_type === 'delivery') {
+      if (!validatedToken) {
+        console.error('[CREATE_ORDER] ❌ Address not validated - missing token');
+        return {
+          success: false,
+          error: 'Endereço não validado',
+          message: 'O endereço precisa ser validado antes de criar o pedido. Por favor, forneça um endereço completo com CEP.'
+        };
+      }
+      
+      if (!deliveryAddress) {
+        console.error('[CREATE_ORDER] ❌ Delivery address not collected');
+        return {
+          success: false,
+          error: 'Endereço incompleto',
+          message: 'Endereço de entrega não foi coletado.'
+        };
+      }
+      
+      console.log('[CREATE_ORDER] ✓ Delivery address validated');
+    }
+    
+    // ============= VALIDATION LAYER 1: CONFIRMATION CHECK (FASE 3) =============
     
     if (!args._confirmed_by_customer) {
       console.error('[CREATE_ORDER] ❌ Order not confirmed by customer');
@@ -39,11 +168,7 @@ export async function executeCreateOrder(
     
     console.log('[CREATE_ORDER] ✓ Customer confirmation verified');
     
-    // ============= VALIDATION LAYER 1: DATA TYPES =============
-    
-    if (!args.customer_name || typeof args.customer_name !== 'string') {
-      return { success: false, error: 'Nome do cliente inválido' };
-    }
+    // ============= VALIDATION LAYER 2: DATA TYPES =============
     
     if (!args.items || !Array.isArray(args.items) || args.items.length === 0) {
       return { success: false, error: 'Lista de itens inválida ou vazia' };
@@ -57,24 +182,13 @@ export async function executeCreateOrder(
       return { success: false, error: 'Endereço obrigatório para delivery' };
     }
     
-    // ============= VALIDATION LAYER 1.5: ADDRESS VALIDATION (FASE 2) =============
+    // Address validation was already checked in LAYER 0
     
-    if (args.delivery_type === 'delivery' && !args.validated_address_token) {
-      console.error('[CREATE_ORDER] ❌ Address not validated - missing token');
-      return {
-        success: false,
-        error: 'Endereço não validado',
-        message: 'O endereço precisa ser validado antes de criar o pedido. Por favor, forneça um endereço completo com CEP para validação.'
-      };
-    }
+    // ============= VALIDATION LAYER 3: SANITIZATION =============
     
-    console.log('[CREATE_ORDER] ✓ Address validation token present');
-    
-    // ============= VALIDATION LAYER 2: SANITIZATION =============
-    
-    const sanitizedName = args.customer_name.trim().substring(0, 100);
-    const sanitizedAddress = args.delivery_address ? 
-      args.delivery_address.trim().substring(0, 200) : null;
+    const sanitizedName = customerName.trim().substring(0, 100);
+    const sanitizedAddress = deliveryAddress ? 
+      deliveryAddress.trim().substring(0, 200) : null;
     const sanitizedNotes = args.notes ? 
       args.notes.trim().substring(0, 500) : null;
     const sanitizedPayment = args.payment_method ? 
@@ -82,7 +196,7 @@ export async function executeCreateOrder(
     
     console.log('[CREATE_ORDER] ✓ Data types and sanitization passed');
     
-    // ============= VALIDATION LAYER 3: PRODUCT DATABASE LOOKUP =============
+    // ============= VALIDATION LAYER 4: PRODUCT DATABASE LOOKUP =============
     
     console.log('[CREATE_ORDER] Fetching valid products from database...');
     
@@ -116,7 +230,7 @@ export async function executeCreateOrder(
       ])
     );
     
-    // ============= VALIDATION LAYER 4: VALIDATE EACH ITEM =============
+    // ============= VALIDATION LAYER 5: VALIDATE EACH ITEM =============
     
     const invalidItems: string[] = [];
     const priceMismatchItems: string[] = [];
@@ -161,7 +275,7 @@ export async function executeCreateOrder(
       console.log(`[CREATE_ORDER] ✓ Validated: ${dbProduct.name} x${item.quantity} @ ${currency} ${dbPrice.toFixed(2)}`);
     }
     
-    // ============= VALIDATION LAYER 5: REJECT IF INVALID ITEMS =============
+    // ============= VALIDATION LAYER 6: REJECT IF INVALID ITEMS =============
     
     if (invalidItems.length > 0) {
       console.error('[CREATE_ORDER] ❌ VALIDATION FAILED - Invalid products:', invalidItems);
@@ -182,7 +296,7 @@ export async function executeCreateOrder(
       };
     }
     
-    // ============= VALIDATION LAYER 6: CALCULATE TOTALS (FASE 5: include modifiers) =============
+    // ============= VALIDATION LAYER 7: CALCULATE TOTALS (FASE 5: include modifiers) =============
     
     const subtotal = args.items.reduce((sum: number, item: OrderItem) => {
       const itemTotal = item.quantity * item.unit_price;
@@ -193,9 +307,11 @@ export async function executeCreateOrder(
       return sum + itemTotal + modifiersTotal;
     }, 0);
     
-    // Use validated delivery fee from address validation (FASE 2)
-    const deliveryFee = args.delivery_type === 'delivery' ? (args.delivery_fee || 5.00) : 0;
-    const total = subtotal + deliveryFee;
+    // FASE 6: Use validated delivery fee from metadata (prioritize over args)
+    const finalDeliveryFee = args.delivery_type === 'delivery' ? (deliveryFee || args.delivery_fee || 5.00) : 0;
+    const total = subtotal + finalDeliveryFee;
+    
+    console.log('[CREATE_ORDER] ✓ Totals calculated:', { subtotal, deliveryFee: finalDeliveryFee, total });
     
     // Sanity check: reasonable total
     if (total < 0 || total > 10000) {
@@ -206,8 +322,6 @@ export async function executeCreateOrder(
         message: 'O valor do pedido está fora do limite permitido.'
       };
     }
-    
-    console.log('[CREATE_ORDER] ✓ Totals calculated:', { subtotal, deliveryFee, total });
     
     // ============= VALIDATION COMPLETE - CREATE ORDER =============
     
@@ -250,10 +364,11 @@ export async function executeCreateOrder(
       delivery_address: sanitizedAddress,
       notes: sanitizedNotes,
       subtotal,
-      delivery_fee: deliveryFee,
+      delivery_fee: finalDeliveryFee,
       total,
       created_via: 'ai_agent',
-      validated_at: new Date().toISOString()
+      validated_at: new Date().toISOString(),
+      validated_address_token: validatedToken
     };
     
     // 3. Insert order with proper fields
@@ -304,7 +419,7 @@ export async function executeCreateOrder(
         ).join('\n\n')}\n\n` +
         `━━━━━━━━━━━━━━━━\n` +
         `💰 Subtotal: ${currency} ${subtotal.toFixed(2)}\n` +
-        `🚚 Entrega: ${currency} ${deliveryFee.toFixed(2)}\n` +
+        `🚚 Entrega: ${currency} ${finalDeliveryFee.toFixed(2)}\n` +
         `━━━━━━━━━━━━━━━━\n` +
         `💵 *TOTAL: ${currency} ${total.toFixed(2)}*\n\n` +
         `Obrigado pela preferência! 🙏`;
