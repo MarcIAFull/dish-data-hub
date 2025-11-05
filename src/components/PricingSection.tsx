@@ -34,7 +34,7 @@ export const PricingSection = () => {
       description: "Para restaurantes em crescimento",
       features: [
         "Até 1000 pedidos/mês",
-        "Restaurantes ilimitados",
+        "1 restaurante",
         "IA personalizada com treino",
         "Validação de moradas PT",
         "Analíticas avançadas",
