@@ -1,37 +1,50 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, Camera, Code, Search, Shield, Zap } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { MessageSquare, LayoutGrid, MessagesSquare, Store, BarChart3, Plug } from "lucide-react";
 
 export const FeaturesSection = () => {
   const features = [
     {
-      icon: Upload,
-      title: "Upload Simples",
-      description: "Interface intuitiva para cadastrar produtos e informações dos restaurantes"
+      icon: MessageSquare,
+      title: "Atendimento IA via WhatsApp",
+      description: "A IA conversa com clientes, apresenta o menu, faz upsell e processa pedidos automaticamente",
+      highlights: ["24/7", "Upsell inteligente", "Multi-idioma"],
+      color: "text-blue-500"
     },
     {
-      icon: Camera,
-      title: "Gestão de Fotos",
-      description: "Upload otimizado de imagens com compressão automática e múltiplos formatos"
+      icon: LayoutGrid,
+      title: "Central de Pedidos Kanban",
+      description: "Visualize todos os pedidos em tempo real com notificações e gestão drag-and-drop",
+      highlights: ["7 estados", "Notificações sonoras", "Filtros avançados"],
+      color: "text-purple-500"
     },
     {
-      icon: Code,
-      title: "API Estruturada",
-      description: "Dados organizados em JSON-LD com schema.org para máxima compatibilidade"
+      icon: MessagesSquare,
+      title: "Gestão de Conversas",
+      description: "Histórico completo de todas as conversas, estatísticas e insights de atendimento",
+      highlights: ["Busca avançada", "Estatísticas", "Filtros inteligentes"],
+      color: "text-green-500"
     },
     {
-      icon: Search,
-      title: "SEO Otimizado",
-      description: "Páginas públicas otimizadas para motores de busca e raspagem de dados"
+      icon: Store,
+      title: "Multi-Restaurante",
+      description: "Gerencie vários restaurantes numa única conta com configurações independentes",
+      highlights: ["Ilimitado", "Configuração individual", "Relatórios por loja"],
+      color: "text-orange-500"
     },
     {
-      icon: Shield,
-      title: "Acesso Controlado",
-      description: "Sistema de login simples para uso interno com controle de permissões"
+      icon: BarChart3,
+      title: "Analíticas Inteligentes",
+      description: "Métricas em tempo real de vendas, produtos mais vendidos e performance",
+      highlights: ["Tempo real", "Exportação CSV", "Insights de IA"],
+      color: "text-cyan-500"
     },
     {
-      icon: Zap,
-      title: "Performance",
-      description: "Páginas rápidas com cache inteligente e CDN para imagens"
+      icon: Plug,
+      title: "Integrações Nativas",
+      description: "WhatsApp Business, validação de moradas e sistemas de pagamento",
+      highlights: ["WhatsApp API", "Validação PT", "Pagamentos"],
+      color: "text-pink-500"
     }
   ];
 
@@ -40,29 +53,35 @@ export const FeaturesSection = () => {
       <div className="container">
         <div className="text-center space-y-4 mb-16">
           <h2 className="text-4xl md:text-5xl font-bold">
-            Recursos <span className="text-orange">Completos</span>
+            Funcionalidades <span className="text-primary">Completas</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Tudo que você precisa para criar e gerenciar dados de restaurantes 
-            otimizados para assistentes de IA
+            Tudo o que precisa para automatizar e gerir pedidos com inteligência artificial
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map((feature, index) => (
-            <Card key={index} className="group hover:shadow-card transition-all duration-300 border-border/50 hover:border-orange/50">
-              <CardHeader className="text-center">
-                <div className="mx-auto w-16 h-16 bg-orange-light rounded-xl flex items-center justify-center mb-4 group-hover:bg-orange group-hover:scale-110 transition-all duration-300">
-                  <feature.icon className="h-8 w-8 text-orange group-hover:text-white transition-colors duration-300" />
-                </div>
-                <CardTitle className="text-xl font-semibold">{feature.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground text-center leading-relaxed">
-                  {feature.description}
-                </p>
-              </CardContent>
-            </Card>
+            <div key={index}>
+              <Card className="group hover:shadow-lg transition-all duration-300 h-full border-border/50 hover:border-primary/50">
+                <CardHeader>
+                  <feature.icon className={`h-10 w-10 mb-4 ${feature.color}`} />
+                  <CardTitle className="text-xl font-semibold">{feature.title}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-muted-foreground leading-relaxed">
+                    {feature.description}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {feature.highlights.map((highlight, i) => (
+                      <Badge key={i} variant="secondary" className="text-xs">
+                        {highlight}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           ))}
         </div>
       </div>

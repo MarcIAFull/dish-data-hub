@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ChefHat, Menu, X } from "lucide-react";
+import { Bot, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -13,26 +13,28 @@ export const Header = () => {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center space-x-2">
-          <ChefHat className="h-8 w-8 text-orange" />
-          <span className="text-xl font-bold text-foreground">MenuBot</span>
+          <Bot className="h-8 w-8 text-primary" />
+          <div>
+            <span className="text-xl font-bold text-foreground">Zendy</span>
+            <span className="hidden sm:inline text-xs text-muted-foreground ml-2">Gestor de Pedidos com IA</span>
+          </div>
         </div>
 
         <nav className="hidden md:flex items-center space-x-6">
-          <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-orange transition-colors">
-            Recursos
+          <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+            Funcionalidades
           </a>
-          <a href="#pricing" className="text-sm font-medium text-muted-foreground hover:text-orange transition-colors">
+          <a href="#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+            Como Funciona
+          </a>
+          <a href="#pricing" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
             Preços
-          </a>
-          <a href="#about" className="text-sm font-medium text-muted-foreground hover:text-orange transition-colors">
-            Sobre
           </a>
         </nav>
 
         <div className="hidden md:flex items-center space-x-4">
           {user ? (
             <Button 
-              className="bg-orange hover:bg-orange/90 text-white"
               onClick={() => navigate('/dashboard')}
             >
               Dashboard
@@ -47,10 +49,9 @@ export const Header = () => {
                 Entrar
               </Button>
               <Button 
-                className="bg-orange hover:bg-orange/90 text-white"
                 onClick={() => navigate('/auth')}
               >
-                Começar Grátis
+                Começar Teste Gratuito
               </Button>
             </>
           )}
@@ -72,18 +73,18 @@ export const Header = () => {
         <div className="md:hidden border-t bg-background">
           <div className="container py-4 space-y-4">
             <a href="#features" className="block text-sm font-medium text-muted-foreground">
-              Recursos
+              Funcionalidades
+            </a>
+            <a href="#how-it-works" className="block text-sm font-medium text-muted-foreground">
+              Como Funciona
             </a>
             <a href="#pricing" className="block text-sm font-medium text-muted-foreground">
               Preços
             </a>
-            <a href="#about" className="block text-sm font-medium text-muted-foreground">
-              Sobre
-            </a>
             <div className="pt-4 space-y-2">
               {user ? (
                 <Button 
-                  className="w-full bg-orange hover:bg-orange/90 text-white"
+                  className="w-full"
                   onClick={() => navigate('/dashboard')}
                 >
                   Dashboard
@@ -98,10 +99,10 @@ export const Header = () => {
                     Entrar
                   </Button>
                   <Button 
-                    className="w-full bg-orange hover:bg-orange/90 text-white"
+                    className="w-full"
                     onClick={() => navigate('/auth')}
                   >
-                    Começar Grátis
+                    Começar Teste Gratuito
                   </Button>
                 </>
               )}

@@ -1,98 +1,158 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Check, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const PricingSection = () => {
+  const navigate = useNavigate();
+
   const plans = [
     {
-      name: "Gratuito",
-      price: "R$ 0",
-      description: "Para pequenos restaurantes",
+      name: "Teste Gratuito",
+      price: "€0",
+      period: "14 dias",
+      description: "Experimente todas as funcionalidades",
       features: [
-        "Até 50 produtos",
+        "Até 50 pedidos",
         "1 restaurante",
-        "API básica",
-        "Suporte por email"
-      ]
+        "Atendimento IA 24/7",
+        "WhatsApp integrado",
+        "Central de pedidos",
+        "Sem custo de implantação"
+      ],
+      cta: "Começar Teste",
+      highlighted: false,
+      setupFee: null
     },
     {
       name: "Profissional",
-      price: "R$ 49",
-      description: "Para redes de restaurantes",
+      price: "€97",
+      period: "mês",
+      setupFee: "€247",
+      setupLabel: "Taxa de implantação única",
+      description: "Para restaurantes em crescimento",
       features: [
-        "Produtos ilimitados",
-        "Até 5 restaurantes",
-        "API avançada",
+        "Até 1000 pedidos/mês",
+        "Restaurantes ilimitados",
+        "IA personalizada com treino",
+        "Validação de moradas PT",
+        "Analíticas avançadas",
+        "Notificações WhatsApp",
         "Suporte prioritário",
-        "Analytics avançado"
+        "Configuração assistida"
       ],
-      popular: true
+      cta: "Começar Agora",
+      highlighted: true,
+      badge: "Mais Popular"
     },
     {
       name: "Enterprise",
       price: "Personalizado",
+      period: null,
       description: "Para grandes operações",
       features: [
         "Tudo do Profissional",
-        "Restaurantes ilimitados",
+        "Pedidos ilimitados",
+        "SLA garantido",
+        "Suporte dedicado 24/7",
         "Integrações personalizadas",
-        "Suporte dedicado",
-        "SLA garantido"
-      ]
+        "Gestão de contas",
+        "Relatórios personalizados",
+        "Onboarding premium"
+      ],
+      cta: "Contactar Vendas",
+      highlighted: false,
+      setupFee: null
     }
   ];
 
   return (
-    <section id="pricing" className="py-24 bg-muted/50">
+    <section id="pricing" className="py-24 bg-muted/30">
       <div className="container">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Planos que Crescem com Você
+        <div className="text-center space-y-4 mb-16">
+          <h2 className="text-4xl md:text-5xl font-bold">
+            Preços <span className="text-primary">Transparentes</span>
           </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Escolha o plano ideal para o seu negócio e comece a criar dados estruturados hoje mesmo
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+            Escolha o plano que melhor se adequa ao seu negócio
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {plans.map((plan, index) => (
-            <Card key={index} className={`relative ${plan.popular ? 'border-orange shadow-lg scale-105' : ''}`}>
-              {plan.popular && (
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-orange text-white px-4 py-1 rounded-full text-sm font-medium">
-                    Mais Popular
-                  </span>
-                </div>
-              )}
-              
-              <CardHeader className="text-center">
-                <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                <CardDescription>{plan.description}</CardDescription>
-                <div className="text-4xl font-bold text-orange">
-                  {plan.price}
-                  {plan.price !== "Personalizado" && <span className="text-lg text-muted-foreground">/mês</span>}
-                </div>
-              </CardHeader>
-              
-              <CardContent className="space-y-4">
-                <ul className="space-y-3">
-                  {plan.features.map((feature, featureIndex) => (
-                    <li key={featureIndex} className="flex items-center space-x-3">
-                      <Check className="h-5 w-5 text-orange" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
+            <div
+              key={index}
+              className={plan.highlighted ? "md:scale-105" : ""}
+            >
+              <Card className={`h-full relative ${
+                plan.highlighted 
+                  ? "border-primary shadow-2xl" 
+                  : "border-border/50"
+              }`}>
+                {plan.badge && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                    <Badge className="bg-primary text-primary-foreground px-4 py-1 shadow-lg">
+                      <Sparkles className="h-3 w-3 mr-1 inline" />
+                      {plan.badge}
+                    </Badge>
+                  </div>
+                )}
                 
-                <Button 
-                  className={`w-full ${plan.popular ? 'bg-orange hover:bg-orange/90' : ''}`}
-                  variant={plan.popular ? "default" : "outline"}
-                >
-                  {plan.price === "Personalizado" ? "Entrar em Contato" : "Começar Agora"}
-                </Button>
-              </CardContent>
-            </Card>
+                <CardHeader className="text-center pb-8">
+                  <CardTitle className="text-2xl mb-2">{plan.name}</CardTitle>
+                  <CardDescription className="text-base">{plan.description}</CardDescription>
+                  
+                  <div className="mt-6">
+                    <div className="text-5xl font-bold">
+                      {plan.price}
+                      {plan.period && (
+                        <span className="text-lg text-muted-foreground font-normal">
+                          /{plan.period}
+                        </span>
+                      )}
+                    </div>
+                    
+                    {plan.setupFee && (
+                      <div className="mt-3">
+                        <Badge variant="outline" className="text-sm py-1">
+                          + {plan.setupFee} {plan.setupLabel}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="space-y-6">
+                  <ul className="space-y-3">
+                    {plan.features.map((feature, i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                        <span className="text-sm leading-relaxed">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  
+                  <Button 
+                    className="w-full" 
+                    variant={plan.highlighted ? "default" : "outline"}
+                    size="lg"
+                    onClick={() => navigate('/auth')}
+                  >
+                    {plan.cta}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           ))}
+        </div>
+
+        <div className="text-center mt-12">
+          <div className="inline-block p-6 bg-muted/50 rounded-lg border">
+            <p className="text-sm text-muted-foreground">
+              💼 <strong>Mais de 1000 pedidos/mês?</strong> Contacte-nos para um plano personalizado que se adequa ao volume do seu negócio.
+            </p>
+          </div>
         </div>
       </div>
     </section>
