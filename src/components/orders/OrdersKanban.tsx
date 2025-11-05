@@ -121,6 +121,9 @@ export function OrdersKanban({ restaurantId }: OrdersKanbanProps) {
 
   const loadOrders = async () => {
     try {
+      setLoading(true);
+      console.log('[OrdersKanban] Loading orders for restaurant:', restaurantId);
+      
       const { data, error } = await supabase
         .from('pedidos')
         .select('*')
@@ -128,7 +131,19 @@ export function OrdersKanban({ restaurantId }: OrdersKanbanProps) {
         .not('order_status', 'is', null)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[OrdersKanban] Error fetching orders:', error);
+        throw error;
+      }
+
+      console.log('[OrdersKanban] Raw data from DB:', data?.length || 0, 'orders');
+      console.log('[OrdersKanban] Sample order:', data?.[0]);
+      console.log('[OrdersKanban] All orders:', data?.map(o => ({ 
+        id: o.id, 
+        status: o.order_status, 
+        restaurant_id: o.restaurant_id,
+        source: o.order_source 
+      })));
 
       // Parse payload and count items
       const ordersWithItemCount = data.map((order: any) => ({
@@ -136,9 +151,10 @@ export function OrdersKanban({ restaurantId }: OrdersKanbanProps) {
         items_count: order.payload?.items?.length || 0
       }));
 
+      console.log('[OrdersKanban] Parsed orders:', ordersWithItemCount.length);
       setOrders(ordersWithItemCount);
     } catch (error) {
-      console.error('Error loading orders:', error);
+      console.error('[OrdersKanban] Error loading orders:', error);
       toast.error('Erro ao carregar pedidos');
     } finally {
       setLoading(false);

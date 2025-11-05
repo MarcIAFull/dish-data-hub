@@ -20,6 +20,9 @@ export async function executeCreateOrder(
   customerPhone: string
 ) {
   try {
+    // Determinar moeda baseada no país do restaurante
+    const currency = agent.restaurants?.country === 'PT' ? '€' : 'R$';
+    
     console.log('[CREATE_ORDER] ========== STARTING VALIDATION ==========');
     console.log('[CREATE_ORDER] Args:', JSON.stringify(args, null, 2));
     
@@ -143,7 +146,7 @@ export async function executeCreateOrder(
       
       if (Math.abs(dbPrice - providedPrice) > 0.01) {
         console.warn(`[CREATE_ORDER] ⚠️ Price mismatch for "${dbProduct.name}": DB=${dbPrice}, Provided=${providedPrice}`);
-        priceMismatchItems.push(`${dbProduct.name} (preço correto: R$ ${dbPrice.toFixed(2)})`);
+        priceMismatchItems.push(`${dbProduct.name} (preço correto: ${currency} ${dbPrice.toFixed(2)})`);
       }
       
       // Use validated data from database
@@ -155,7 +158,7 @@ export async function executeCreateOrder(
         notes: item.notes ? item.notes.trim().substring(0, 200) : null
       });
       
-      console.log(`[CREATE_ORDER] ✓ Validated: ${dbProduct.name} x${item.quantity} @ R$ ${dbPrice.toFixed(2)}`);
+      console.log(`[CREATE_ORDER] ✓ Validated: ${dbProduct.name} x${item.quantity} @ ${currency} ${dbPrice.toFixed(2)}`);
     }
     
     // ============= VALIDATION LAYER 5: REJECT IF INVALID ITEMS =============
@@ -196,7 +199,7 @@ export async function executeCreateOrder(
     
     // Sanity check: reasonable total
     if (total < 0 || total > 10000) {
-      console.error(`[CREATE_ORDER] ❌ Unreasonable total: R$ ${total}`);
+      console.error(`[CREATE_ORDER] ❌ Unreasonable total: ${currency} ${total}`);
       return {
         success: false,
         error: 'Valor total inválido',
@@ -291,15 +294,19 @@ export async function executeCreateOrder(
       total_amount: order.total_amount
     });
     
-    // 4. Send notification
+    // 4. Send notification (Formatação WhatsApp nativa)
     if (agent.enable_automatic_notifications && agent.evolution_api_token) {
-      const confirmationMessage = `✅ Pedido #${order.id} confirmado!\n\n` +
-        `📦 Itens:\n${validatedItems.map(item => 
-          `${item.quantity}x ${item.product_name} - R$ ${(item.quantity * item.unit_price).toFixed(2)}`
-        ).join('\n')}\n\n` +
-        `💰 Subtotal: R$ ${subtotal.toFixed(2)}\n` +
-        `🚚 Taxa de entrega: R$ ${deliveryFee.toFixed(2)}\n` +
-        `💵 TOTAL: R$ ${total.toFixed(2)}\n\n` +
+      const confirmationMessage = 
+        `✅ *Pedido #${order.id} confirmado!*\n\n` +
+        `📦 *Itens do pedido:*\n` +
+        `${validatedItems.map(item => 
+          `  ${item.quantity}x ${item.product_name}\n  ${currency} ${(item.quantity * item.unit_price).toFixed(2)}`
+        ).join('\n\n')}\n\n` +
+        `━━━━━━━━━━━━━━━━\n` +
+        `💰 Subtotal: ${currency} ${subtotal.toFixed(2)}\n` +
+        `🚚 Entrega: ${currency} ${deliveryFee.toFixed(2)}\n` +
+        `━━━━━━━━━━━━━━━━\n` +
+        `💵 *TOTAL: ${currency} ${total.toFixed(2)}*\n\n` +
         `Obrigado pela preferência! 🙏`;
       
       try {
@@ -326,7 +333,7 @@ export async function executeCreateOrder(
       order_number: order.id,
       total: total,
       items_count: validatedItems.length,
-      message: `Pedido #${order.id} criado com sucesso! Total: R$ ${total.toFixed(2)}`,
+      message: `Pedido #${order.id} criado com sucesso! Total: ${currency} ${total.toFixed(2)}`,
       price_corrections: priceMismatchItems.length > 0 ? priceMismatchItems : undefined
     };
     
