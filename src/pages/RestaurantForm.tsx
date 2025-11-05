@@ -14,6 +14,7 @@ import { ProtectedRestaurantRoute } from '@/components/ProtectedRestaurantRoute'
 import { CategoriesManager } from '@/components/restaurant/CategoriesManager';
 import { ProductsManager } from '@/components/restaurant/ProductsManager';
 import { EnhancedAgentConfiguration } from '@/components/agent/EnhancedAgentConfiguration';
+import { OnboardingGuide } from '@/components/restaurant/OnboardingGuide';
 import { Bot } from 'lucide-react';
 import { OperationSettings } from '@/components/restaurant/OperationSettings';
 import { DeliveryZonesManager } from '@/components/restaurant/DeliveryZonesManager';
@@ -34,6 +35,7 @@ function RestaurantFormContent({ restaurant }: { restaurant?: any }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isEditing = !!restaurant;
+  const [activeTab, setActiveTab] = useState('basic');
   
   const [formData, setFormData] = useState<RestaurantFormData>(
     restaurant || {
@@ -143,7 +145,14 @@ function RestaurantFormContent({ restaurant }: { restaurant?: any }) {
             </div>
           </div>
 
-          <Tabs defaultValue="basic" className="space-y-6">
+          {isEditing && (
+            <OnboardingGuide 
+              restaurantId={restaurant.id} 
+              onNavigate={setActiveTab}
+            />
+          )}
+
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
             <TabsTrigger value="categories" disabled={!isEditing}>

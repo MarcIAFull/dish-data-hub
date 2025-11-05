@@ -63,6 +63,18 @@ serve(async (req) => {
       });
     }
 
+    // Fetch product modifiers
+    const { data: modifiers, error: modifiersError } = await supabase
+      .from('product_modifiers')
+      .select('*')
+      .eq('restaurant_id', restaurant.id)
+      .eq('is_active', true)
+      .order('display_order');
+
+    if (modifiersError) {
+      console.error('Error fetching modifiers:', modifiersError);
+    }
+
     // Structure data for AI consumption
     const aiData = {
       restaurant: {
@@ -97,6 +109,16 @@ serve(async (req) => {
           })) || []
         })) || []
       },
+      modifiers: modifiers?.map(mod => ({
+        id: mod.id,
+        name: mod.name,
+        type: mod.modifier_type,
+        price: mod.price,
+        description: mod.description,
+        max_quantity: mod.max_quantity,
+        applicable_products: mod.applicable_products,
+        applicable_categories: mod.applicable_categories
+      })) || [],
       metadata: {
         total_categories: categories?.length || 0,
         total_products: categories?.reduce((acc: number, cat: any) => acc + (cat.products?.length || 0), 0) || 0,

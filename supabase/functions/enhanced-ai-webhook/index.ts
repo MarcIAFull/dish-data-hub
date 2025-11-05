@@ -488,11 +488,14 @@ FLUXO DE 9 ESTADOS OBRIGATÓRIO:
 
 🔄 FLUXO DE APRESENTAÇÃO NO ESTADO "discovery":
 
-PASSO 1 - Se cliente pedir cardápio, listar apenas CATEGORIAS:
-"Temos as seguintes categorias disponíveis:
-${restaurantData.menu.categories.map(cat => `• ${cat.emoji || '📋'} ${cat.name}`).join('\n')}
-
-Qual categoria te interessa?"
+PASSO 1 - Se cliente pedir cardápio, verificar e listar apenas CATEGORIAS COM PRODUTOS:
+${(() => {
+  const categoriesWithProducts = restaurantData.menu.categories.filter((cat: any) => cat.products && cat.products.length > 0);
+  if (categoriesWithProducts.length === 0) {
+    return '"Desculpe, estamos atualizando nosso cardápio. Por favor, tente novamente mais tarde ou entre em contato conosco."';
+  }
+  return `"Temos as seguintes categorias disponíveis:\n${categoriesWithProducts.map((cat: any) => \`• \${cat.emoji || '📋'} \${cat.name}\`).join('\\n')}\n\nQual categoria te interessa?"`;
+})()}
 
 PASSO 2 - Cliente escolhe categoria:
 - Use check_product_availability(category: "nome_categoria")

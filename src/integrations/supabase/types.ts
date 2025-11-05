@@ -17,6 +17,9 @@ export type Database = {
       agents: {
         Row: {
           created_at: string | null
+          enable_automatic_notifications: boolean | null
+          enable_order_creation: boolean | null
+          enable_product_search: boolean | null
           evolution_api_base_url: string | null
           evolution_api_instance: string | null
           evolution_api_token: string | null
@@ -26,6 +29,7 @@ export type Database = {
           instructions: string | null
           is_active: boolean | null
           name: string
+          order_confirmation_required: boolean | null
           personality: string
           restaurant_id: string
           updated_at: string | null
@@ -34,6 +38,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          enable_automatic_notifications?: boolean | null
+          enable_order_creation?: boolean | null
+          enable_product_search?: boolean | null
           evolution_api_base_url?: string | null
           evolution_api_instance?: string | null
           evolution_api_token?: string | null
@@ -43,6 +50,7 @@ export type Database = {
           instructions?: string | null
           is_active?: boolean | null
           name: string
+          order_confirmation_required?: boolean | null
           personality: string
           restaurant_id: string
           updated_at?: string | null
@@ -51,6 +59,9 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          enable_automatic_notifications?: boolean | null
+          enable_order_creation?: boolean | null
+          enable_product_search?: boolean | null
           evolution_api_base_url?: string | null
           evolution_api_instance?: string | null
           evolution_api_token?: string | null
@@ -60,6 +71,7 @@ export type Database = {
           instructions?: string | null
           is_active?: boolean | null
           name?: string
+          order_confirmation_required?: boolean | null
           personality?: string
           restaurant_id?: string
           updated_at?: string | null
