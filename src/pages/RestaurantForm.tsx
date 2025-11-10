@@ -20,6 +20,7 @@ import { OperationSettings } from '@/components/restaurant/OperationSettings';
 import { DeliveryZonesManager } from '@/components/restaurant/DeliveryZonesManager';
 import { PaymentMethodsManager } from '@/components/restaurant/PaymentMethodsManager';
 import { MessagesManager } from '@/components/restaurant/MessagesManager';
+import { generateSlug, isValidSlug } from '@/lib/utils';
 
 interface RestaurantFormData {
   name: string;
@@ -50,22 +51,13 @@ function RestaurantFormContent({ restaurant }: { restaurant?: any }) {
   );
   const [loading, setLoading] = useState(false);
 
-  const generateSlug = (name: string) => {
-    return name
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .trim();
-  };
-
   const handleNameChange = (name: string) => {
+    const newSlug = generateSlug(name);
     setFormData(prev => ({
       ...prev,
       name,
-      slug: isEditing ? prev.slug : generateSlug(name)
+      // Sempre gera slug automaticamente, mesmo editando
+      slug: newSlug
     }));
   };
 
@@ -74,6 +66,51 @@ function RestaurantFormContent({ restaurant }: { restaurant?: any }) {
     setLoading(true);
 
     try {
+      // Validação final do slug
+      const sanitizedSlug = generateSlug(formData.name);
+      
+      if (!sanitizedSlug) {
+        throw new Error('Nome inválido - não foi possível gerar URL');
+      }
+
+      if (!isValidSlug(sanitizedSlug)) {
+        throw new Error('URL gerada é inválida');
+      }
+
+      // Verifica se slug já existe (apenas para novos restaurantes)
+      if (!isEditing) {
+        const { data: existing } = await supabase
+          .from('restaurants')
+          .select('id')
+          .eq('slug', sanitizedSlug)
+          .single();
+
+        if (existing) {
+          // Adiciona sufixo numérico se slug já existe
+          let counter = 2;
+          let uniqueSlug = `${sanitizedSlug}-${counter}`;
+          
+          while (true) {
+            const { data: check } = await supabase
+              .from('restaurants')
+              .select('id')
+              .eq('slug', uniqueSlug)
+              .single();
+            
+            if (!check) {
+              formData.slug = uniqueSlug;
+              break;
+            }
+            counter++;
+            uniqueSlug = `${sanitizedSlug}-${counter}`;
+          }
+        } else {
+          formData.slug = sanitizedSlug;
+        }
+      } else {
+        formData.slug = sanitizedSlug;
+      }
+
       if (isEditing) {
         if (!user) throw new Error('Usuário não autenticado');
         
@@ -110,8 +147,8 @@ function RestaurantFormContent({ restaurant }: { restaurant?: any }) {
       toast({
         title: 'Erro',
         description: error.message.includes('unique') 
-          ? 'Este slug já está em uso. Escolha outro.' 
-          : 'Erro ao salvar restaurante',
+          ? 'Este slug já está em uso. Tente um nome diferente.' 
+          : error.message || 'Erro ao salvar restaurante',
         variant: 'destructive',
       });
     } finally {
@@ -188,10 +225,17 @@ function RestaurantFormContent({ restaurant }: { restaurant?: any }) {
                         placeholder="Ex: Pizzaria do João"
                         required
                       />
+                      {formData.name && (
+                        <p className="text-xs text-muted-foreground">
+                          URL gerada: <code className="bg-muted px-1.5 py-0.5 rounded font-mono">
+                            lovable.app/r/{formData.slug || '...'}
+                          </code>
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="slug">URL do Restaurante</Label>
+                      <Label htmlFor="slug">URL do Restaurante (gerada automaticamente)</Label>
                       <div className="flex rounded-md shadow-sm">
                         <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-muted bg-muted text-muted-foreground text-sm">
                           lovable.app/r/
@@ -199,11 +243,14 @@ function RestaurantFormContent({ restaurant }: { restaurant?: any }) {
                         <Input
                           id="slug"
                           value={formData.slug}
-                          onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
-                          className="rounded-l-none"
+                          disabled
+                          className="rounded-l-none bg-muted cursor-not-allowed"
                           required
                         />
                       </div>
+                      <p className="text-xs text-muted-foreground">
+                        ℹ️ A URL é gerada automaticamente com base no nome do restaurante
+                      </p>
                     </div>
 
                     <div className="space-y-2">
