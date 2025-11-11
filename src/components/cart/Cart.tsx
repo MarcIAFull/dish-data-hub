@@ -40,28 +40,32 @@ export const Cart: React.FC<CartProps> = ({ restaurantWhatsApp }) => {
   };
 
   const generateOrderMessage = () => {
-    let message = `🛍️ *Novo Pedido*\n\n`;
+    // Identificador claro de que é pedido vindo do site
+    let message = `🌐 *PEDIDO DO SITE*\n`;
+    message += `━━━━━━━━━━━━━━━━\n\n`;
+    
     message += `👤 *Cliente:* ${customerName}\n`;
     message += `📱 *Telefone:* ${customerPhone}\n`;
     message += `📍 *Endereço:* ${deliveryAddress}\n\n`;
     
-    message += `📋 *Itens do Pedido:*\n`;
+    message += `📦 *ITENS DO PEDIDO:*\n`;
     items.forEach((item, index) => {
-      message += `${index + 1}. ${item.name}\n`;
-      message += `   Qtd: ${item.quantity}x | Preço: ${formatPrice(item.price)}\n`;
+      message += `${index + 1}. ${item.quantity}x ${item.name}\n`;
+      message += `   ${formatPrice(item.price)} cada = ${formatPrice(item.price * item.quantity)}\n`;
       if (item.notes) {
-        message += `   Obs: ${item.notes}\n`;
+        message += `   📝 Obs: ${item.notes}\n`;
       }
-      message += `   Subtotal: ${formatPrice(item.price * item.quantity)}\n\n`;
+      message += `\n`;
     });
     
-    message += `💰 *Total: ${formatPrice(getTotalPrice())}*\n\n`;
+    message += `━━━━━━━━━━━━━━━━\n`;
+    message += `💰 *TOTAL: ${formatPrice(getTotalPrice())}*\n\n`;
     
     if (specialInstructions) {
-      message += `📝 *Observações especiais:*\n${specialInstructions}\n\n`;
+      message += `📋 *Observações gerais:*\n${specialInstructions}\n\n`;
     }
     
-    message += `✅ Pedido realizado através do site`;
+    message += `⏱️ Aguardando confirmação do restaurante`;
     
     return encodeURIComponent(message);
   };
