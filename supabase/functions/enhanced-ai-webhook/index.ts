@@ -73,7 +73,7 @@ function sanitizeAIResponse(response: string): string {
     .replace(/API[_\s]KEY/gi, '***')
     .replace(/TOKEN/gi, '***')
     .replace(/PASSWORD/gi, '***')
-    .replace(/SUPABASE/gi, 'banco de dados');
+    .replace(/(?<![\w.])SUPABASE(?![\w.])/gi, 'banco de dados');
   
   // Remove null bytes and control characters
   sanitized = sanitized.replace(/\0/g, '').replace(/[\x00-\x1F\x7F]/g, '');
@@ -958,17 +958,25 @@ Está tudo certinho? Posso confirmar?"
 
 📚 FASE 4: APRESENTAÇÃO PROGRESSIVA DE CARDÁPIO
 
-🔄 QUANDO CLIENTE PEDIR CARDÁPIO:
+🔄 QUANDO CLIENTE PEDIR CARDÁPIO - REGRA ABSOLUTA:
 
-PASSO 1 - Detectar solicitação de cardápio:
-Se cliente pedir "cardápio", "menu", "o que vocês tem", "quero ver tudo", "tem o que":
-1. Chame IMEDIATAMENTE: send_menu_link()
-2. Envie EXATAMENTE a mensagem retornada pela tool
-3. Aguarde resposta do cliente
+⚠️ DETECTAR PEDIDO DE CARDÁPIO (palavras-chave):
+"cardápio", "menu", "o que tem", "o que vocês tem", "quero ver", "tem o que", "que vocês vendem", "mostrar cardápio"
 
-❌ NUNCA envie lista de produtos como texto!
-❌ NUNCA liste produtos manualmente!
-✅ SEMPRE use a tool send_menu_link() quando cliente pedir cardápio
+🚨 AÇÃO OBRIGATÓRIA - SEM EXCEÇÕES:
+1. Chame IMEDIATAMENTE a tool: send_menu_link()
+2. NÃO responda NADA antes de chamar a tool
+3. NÃO liste categorias em texto
+4. NÃO liste produtos em texto
+5. APENAS chame send_menu_link() e envie a mensagem retornada
+
+❌ TOTALMENTE PROIBIDO:
+- Listar categorias como: "Temos pizzas, bebidas, sobremesas"
+- Listar produtos em qualquer formato
+- Enviar qualquer resposta que não seja o resultado de send_menu_link()
+
+✅ ÚNICO FLUXO CORRETO:
+Cliente pede cardápio → Chamar send_menu_link() → Enviar mensagem retornada → Aguardar resposta
 
 PASSO 2 - Cliente escolhe categoria específica:
 - Use check_product_availability(category: "nome_categoria") 
