@@ -75,8 +75,10 @@ function sanitizeAIResponse(response: string): string {
     .replace(/PASSWORD/gi, '***')
     .replace(/(?<![\w.])SUPABASE(?![\w.])/gi, 'banco de dados');
   
-  // Remove null bytes and control characters
-  sanitized = sanitized.replace(/\0/g, '').replace(/[\x00-\x1F\x7F]/g, '');
+  // Remove null bytes and control characters, but preserve \n, \r, \t for proper formatting
+  sanitized = sanitized
+    .replace(/\0/g, '')  // Remove null bytes
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');  // Remove control chars except \t(\x09), \n(\x0A), \r(\x0D)
   
   // Limit length to prevent extremely long responses
   const MAX_LENGTH = 4000;
