@@ -30,7 +30,14 @@ export async function executeListPaymentMethods(
         methods: [
           { name: 'dinheiro', display_name: 'Dinheiro', requires_data: false },
           { name: 'cartao', display_name: 'Cartão', requires_data: false },
-          { name: 'pix', display_name: 'PIX', requires_data: true, data_value: 'Solicite a chave PIX' }
+          { 
+            name: 'pix', 
+            display_name: 'PIX', 
+            requires_data: true, 
+            data_type: 'pix_key',
+            data_value: 'Chave PIX CPF: 123.456.789-00',
+            instructions: 'Forneça a chave PIX ao cliente imediatamente após ele escolher esta forma de pagamento'
+          }
         ],
         count: 3,
         message: 'Aceitamos dinheiro, cartão e PIX.'

@@ -112,6 +112,10 @@ export async function executeCreateOrder(
     const validatedToken = metadata.validated_address_token;
     const deliveryFee = metadata.delivery_fee;
     const deliveryAddress = metadata.delivery_address;
+    const orderItems = metadata.order_items || [];
+    
+    // ✅ USE ORDER ITEMS FROM METADATA (if available)
+    const items = orderItems.length > 0 ? orderItems : args.items;
     
     console.log('[CREATE_ORDER] Using data from metadata:', {
       customerName,
