@@ -1,3 +1,4 @@
+// Enhanced AI Webhook - V2.0 Humanized Service System - Force Deploy 2025-11-11
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
