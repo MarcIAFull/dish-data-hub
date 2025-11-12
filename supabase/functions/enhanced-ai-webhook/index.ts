@@ -1008,13 +1008,15 @@ ${chat.metadata?.customer_name ? `Nome do cliente: ${chat.metadata.customer_name
     
     let aiMessage = assistantMessage.content || '';
     
-    // If there were tool calls but no content, ask AI to generate response based on tool results
-    if (!aiMessage && toolResults.length > 0) {
-      console.log(`[${requestId}] 🔄 Getting AI response for tool results...`);
+    // If there were tool calls, always do a follow-up to get natural response
+    if (toolResults.length > 0) {
+      console.log(`[${requestId}] 🔄 Getting AI response based on ${toolResults.length} tool results...`);
       
-      const toolResultsMessage = toolResults.map(tr => 
-        `Tool ${tr.tool} resultado: ${JSON.stringify(tr.result)}`
-      ).join('\n');
+      // Format tool results as user message (simpler and more reliable)
+      const toolResultsText = toolResults.map(tr => {
+        const resultStr = typeof tr.result === 'object' ? JSON.stringify(tr.result, null, 2) : String(tr.result);
+        return `Ferramenta ${tr.tool} executada:\n${resultStr}`;
+      }).join('\n\n');
       
       const followUpResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -1028,17 +1030,33 @@ ${chat.metadata?.customer_name ? `Nome do cliente: ${chat.metadata.customer_name
             { role: 'system', content: systemPrompt },
             ...conversationHistory,
             { role: 'user', content: messageContent },
-            { role: 'assistant', content: toolResultsMessage },
-            { role: 'user', content: 'Com base nos resultados das ferramentas acima, formule uma resposta natural para o cliente.' }
+            { 
+              role: 'user', 
+              content: `[RESULTADOS DAS FERRAMENTAS EXECUTADAS]\n\n${toolResultsText}\n\n[FIM DOS RESULTADOS]\n\nCom base nos resultados acima, responda ao cliente de forma natural e humanizada. Lembre-se: máximo 1 emoji na conversa inteira, use quebras duplas de linha, seja direto e vendedor.`
+            }
           ],
-          max_completion_tokens: 300
+          max_completion_tokens: 400
         })
       });
       
-      if (followUpResponse.ok) {
+      if (!followUpResponse.ok) {
+        const errorText = await followUpResponse.text();
+        console.error(`[${requestId}] ❌ Follow-up API error: ${followUpResponse.status} - ${errorText}`);
+      } else {
         const followUpData = await followUpResponse.json();
-        aiMessage = followUpData.choices[0].message.content || '';
+        const followUpContent = followUpData.choices[0].message.content || '';
+        
+        if (followUpContent) {
+          aiMessage = followUpContent;
+          console.log(`[${requestId}] ✅ Follow-up response received (${aiMessage.length} chars)`);
+        }
       }
+    }
+    
+    // Fallback: if still no message after all attempts
+    if (!aiMessage || aiMessage.trim() === '') {
+      console.warn(`[${requestId}] ⚠️ No AI response generated, using fallback`);
+      aiMessage = getRandomResponse('confirmation');
     }
     
     // ========== CLEAN AI RESPONSE ==========
