@@ -9,7 +9,7 @@ import { executeListPaymentMethods } from './payment-tools.ts';
 import { executeListProductModifiers } from './modifier-tools.ts';
 import { executeAddItemToOrder } from './cart-tools.ts';
 
-// Multi-Agent Architecture (Phases 1-4)
+// Multi-Agent Architecture (Complete - Phases 1-5)
 import { classifyIntent, routeToAgent } from './agents/orchestrator.ts';
 import { processSalesAgent } from './agents/sales-agent.ts';
 import { processCheckoutAgent } from './agents/checkout-agent.ts';
@@ -22,6 +22,7 @@ import {
   buildMenuContext,
   buildSupportContext
 } from './utils/context-builder.ts';
+import { executeToolCalls, getFollowUpResponse } from './utils/tool-executor.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -608,7 +609,7 @@ async function processAIResponse(
     const restaurantData = restaurantDataResponse.data;
     console.log(`[${requestId}] ✅ Restaurant data fetched - ${restaurantData.categories?.length || 0} categories`);
     
-    // ========== MULTI-AGENT ORCHESTRATION (Phases 1-4) ==========
+    // ========== MULTI-AGENT ORCHESTRATION (Complete) ==========
     console.log(`[${requestId}] 🎯 Starting Multi-Agent Orchestration...`);
     
     // Step 1: Analyze conversation state
@@ -727,377 +728,57 @@ async function processAIResponse(
       };
       
     } else {
-      // FALLBACK - Use original monolithic agent for other intents (Phase 1)
-      console.log(`[${requestId}] ⚠️ Using fallback agent for intent: ${targetAgent}`);
-      
-      // Continue with original flow...
+      // Should never happen with proper routing, but handle gracefully
+      console.error(`[${requestId}] ❌ Unknown agent type: ${targetAgent}`);
+      assistantMessage = {
+        content: 'Desculpe, houve um erro no atendimento. Por favor, reformule sua mensagem.',
+        tool_calls: []
+      };
+    }
     
-      // ========== BUILD FALLBACK SYSTEM PROMPT ==========
-      
-      const menuText = restaurantData.categories?.map((cat: any) => {
-        const catProducts = restaurantData.products?.filter((p: any) => p.category_id === cat.id) || [];
-        return `${cat.name}:\n${catProducts.map((p: any) => 
-          `- ${p.name} (R$ ${p.price.toFixed(2)})${p.description ? ': ' + p.description : ''}`
-        ).join('\n')}`;
-      }).join('\n\n') || '';
+    // ========== UNIFIED RESPONSE LOGGING ==========
+    if (assistantMessage.content) {
+      console.log(`[${requestId}] 💬 AI Content Preview: ${assistantMessage.content.substring(0, 100)}...`);
+    }
 
-      const popularProductsText = restaurantData.analytics?.popular_products?.length > 0
-        ? `\n=== PRODUTOS MAIS VENDIDOS (use para sugestões!) ===\n${
-            restaurantData.analytics.popular_products.slice(0, 3).map((p: any) => 
-              `- ${p.name} ${p.price ? `(R$ ${parseFloat(p.price).toFixed(2)})` : ''} - ${p.total_ordered} pedidos`
-            ).join('\n')
-          }\n`
-        : '';
-      
-      const restaurantDescription = restaurantData.restaurant?.description 
-        ? `\n=== SOBRE O RESTAURANTE ===\n${restaurantData.restaurant.description}\n`
-        : '';
-      
-      const activityLevel = restaurantData.ai_context?.restaurant_activity_level || 'medium';
-      const activityContext = activityLevel === 'high'
-        ? `CONTEXTO: Somos um restaurante popular com alto volume de pedidos. Seja eficiente mas caloroso.`
-        : `CONTEXTO: Valorizamos cada cliente. Seja atencioso e detalhado no atendimento.`;
-      
-      const instagramInfo = restaurantData.restaurant?.instagram 
-        ? `\nInstagram: @${restaurantData.restaurant.instagram.replace('@', '')}`
-        : '';
-
-      const systemPrompt = `Você é o atendente virtual do restaurante ${restaurantData.restaurant.name}.
-${restaurantDescription}
-IMPORTANTE: Use NO MÁXIMO 1 emoji por conversa INTEIRA. Seja profissional e objetivo.
-${activityContext}${instagramInfo}
-${popularProductsText}
-=== CARDÁPIO COMPLETO ===
-${menuText}
-
-=== TOM DE VOZ ===
-- Natural e conversacional (como WhatsApp)
-- Amigável mas profissional
-- Empolgado com vendas
-- MÁXIMO 1 emoji por conversa
-- Quebras DUPLAS de linha entre parágrafos (\n\n)
-- NÃO use negrito, itálico ou asteriscos
-- Use "você" (informal)
-
-=== FLUXO DE ATENDIMENTO (5 ESTADOS) ===
-
-1. GREETING (saudação inicial):
-   - Primeira mensagem do cliente
-   - Responder: "Olá! Bem-vindo ao ${restaurantData.restaurant.name}. Como posso ajudar você hoje?"
-   - Avançar para DISCOVERY
-
-2. DISCOVERY (descobrir necessidade):
-   - Entender o que o cliente quer
-   - Fazer perguntas abertas: "O que você está com vontade de comer hoje?"
-   - Sugerir categorias populares
-   - Avançar para ITEMS quando cliente mencionar produto
-
-3. ITEMS (adicionar itens ao pedido):
-   - Cliente menciona produto → SEMPRE usar add_item_to_order()
-   - Confirmar adição: "Perfeito! [PRODUTO] adicionado (R$ X,XX)"
-   - SEMPRE fazer upsell: "Quer adicionar [COMPLEMENTO/BEBIDA]?"
-   - Mostrar subtotal atual
-   - Perguntar "Quer adicionar algo mais?"
-   - Avançar para ADDRESS quando cliente confirmar que terminou
-
-4. ADDRESS (coletar endereço):
-   - Perguntar endereço completo (rua, número, bairro)
-   - Usar validate_delivery_address() para validar
-   - Informar taxa de entrega
-   - Avançar para PAYMENT
-
-5. PAYMENT (forma de pagamento):
-   - Usar list_payment_methods()
-   - Perguntar forma de pagamento
-   - Se dinheiro: perguntar "Precisa de troco para quanto?"
-   - Usar create_order() para finalizar
-   - Avançar para CONFIRMATION
-
-6. CONFIRMATION (confirmação final):
-   - Mostrar resumo completo:
-     * Itens + valores
-     * Subtotal
-     * Taxa de entrega
-     * Total final
-   - Agradecer: "Seu pedido foi enviado! Tempo estimado: 40-50 minutos"
-   - Encerrar conversa
-
-=== ESTRATÉGIA DE VENDEDOR EXPERT ===
-
-UPSELL BASEADO EM DADOS REAIS:
-${restaurantData.analytics?.popular_products?.length > 0 
-  ? `Nossos best-sellers (SEMPRE sugira quando relevante):\n${
-      restaurantData.analytics.popular_products.slice(0, 5).map((p: any) => `- ${p.name}`).join('\n')
-    }`
-  : `- Cliente pede hambúrguer → Sugerir batata frita ou refrigerante
-- Cliente pede pizza → Sugerir borda recheada ou sobremesa
-- Cliente pede cerveja → Sugerir petisco`
-}
-
-CROSS-SELL (produtos complementares):
-- Hambúrguer → Batata frita + Refrigerante
-- Pizza → Refrigerante ou cerveja
-- Pastel → Caldo de cana
-- Porção → Cerveja
-
-TÉCNICAS:
-1. "Combos mentais": "Que tal adicionar uma batata frita? Fica perfeito com hambúrguer!"
-2. "Economia falsa": "Por só R$ 5 a mais você leva uma Coca-Cola 2L"
-3. "Escassez": "Temos sobremesa de morango hoje, está saindo muito!"
-4. "Social proof": Use os produtos mais vendidos como prova social
-
-QUANDO USAR:
-- SEMPRE após adicionar item principal
-- NUNCA insistir se cliente recusar
-- Máximo 1 sugestão por rodada
-
-=== REGRAS DE RASTREAMENTO ===
-
-1. SEMPRE usar add_item_to_order() quando cliente mencionar produto
-2. MANTER metadata.order_items atualizado
-3. MOSTRAR subtotal após cada adição
-4. NÃO permitir finalizar pedido vazio (verificar com check_order_prerequisites)
-
-=== FERRAMENTAS DISPONÍVEIS ===
-
-1. send_menu_link - Envia link do cardápio online
-2. check_product_availability - Verifica se produto está disponível
-3. add_item_to_order - CRITICAL: Adiciona item ao carrinho (USE SEMPRE!)
-4. validate_delivery_address - Valida endereço e calcula taxa
-5. list_payment_methods - Lista formas de pagamento aceitas
-6. check_order_prerequisites - Verifica se pode finalizar pedido
-7. create_order - Finaliza e cria pedido no sistema
-
-=== FORMATAÇÃO ===
-
-CORRETO:
-"Olá! Bem-vindo ao ${restaurantData.restaurant.name}.\n\nO que você está com vontade de comer hoje?"
-
-ERRADO:
-"Olá! 👋\n**Bem-vindo** ao ${restaurantData.restaurant.name}!\n\nO que você *gostaria*? 😊"
-
-=== EXAMPLES ===
-
-Cliente: "quero hambúrguer"
-Você: "Ótima pedida! Temos vários hambúrgueres deliciosos:\n\n- Hambúrguer Clássico (R$ 15,00)\n- Hambúrguer Bacon (R$ 18,00)\n- Hambúrguer Especial (R$ 22,00)\n\nQual você prefere?"
-
-Cliente: "o clássico"
-Você: [USA add_item_to_order("Hambúrguer Clássico", 1, 15.00)]
-Você: "Perfeito! Hambúrguer Clássico adicionado (R$ 15,00).\n\nQue tal adicionar uma batata frita crocante por R$ 8,00? Fica perfeito junto!"
-
-Cliente: "não, só o hambúrguer"
-Você: "Tudo bem! Subtotal: R$ 15,00.\n\nPosso finalizar seu pedido?"
-
-=== ESTADO ATUAL DA CONVERSA ===
-${chat.metadata?.current_state ? `Estado: ${chat.metadata.current_state}` : 'Estado: GREETING'}
-${chat.metadata?.order_items?.length ? `Itens no carrinho: ${chat.metadata.order_items.length}` : 'Carrinho vazio'}
-${chat.metadata?.customer_name ? `Nome do cliente: ${chat.metadata.customer_name}` : 'Nome não informado'}`;
-
-    // ========== BUILD CONVERSATION HISTORY ==========
+    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+      console.log(`[${requestId}] 🔧 Tool Calls:`, assistantMessage.tool_calls.map((tc: any) => ({
+        name: tc.function.name,
+        args: tc.function.arguments
+      })));
+    }
     
-    const conversationHistory = (messageHistory || [])
-      .reverse()
-      .map(msg => ({
-        role: msg.sender_type === 'customer' ? 'user' : 'assistant',
-        content: msg.content
-      }));
-
-    // ========== DEFINE TOOLS ==========
+    // ========== PROCESS TOOL CALLS (UNIFIED) ==========
     
-    const tools = [
-      {
-        type: "function",
-        function: {
-          name: "send_menu_link",
-          description: "Envia link do cardápio online do restaurante",
-          parameters: {
-            type: "object",
-            properties: {},
-            required: []
-          }
-        }
-      },
-      {
-        type: "function",
-        function: {
-          name: "check_product_availability",
-          description: "Verifica disponibilidade de um produto específico",
-          parameters: {
-            type: "object",
-            properties: {
-              product_name: {
-                type: "string",
-                description: "Nome do produto a verificar"
-              },
-              category_name: {
-                type: "string",
-                description: "Nome da categoria do produto (opcional)"
-              }
-            },
-            required: ["product_name"]
-          }
-        }
-      },
-      {
-        type: "function",
-        function: {
-          name: "add_item_to_order",
-          description: "CRITICAL: Adiciona item ao carrinho. USE SEMPRE que cliente mencionar produto!",
-          parameters: {
-            type: "object",
-            properties: {
-              product_name: {
-                type: "string",
-                description: "Nome exato do produto"
-              },
-              quantity: {
-                type: "number",
-                description: "Quantidade (padrão: 1)"
-              },
-              unit_price: {
-                type: "number",
-                description: "Preço unitário em reais"
-              },
-              notes: {
-                type: "string",
-                description: "Observações especiais (ex: sem cebola, ponto da carne)"
-              }
-            },
-            required: ["product_name", "unit_price"]
-          }
-        }
-      },
-      {
-        type: "function",
-        function: {
-          name: "validate_delivery_address",
-          description: "Valida endereço de entrega e calcula taxa",
-          parameters: {
-            type: "object",
-            properties: {
-              address: {
-                type: "string",
-                description: "Endereço completo (rua, número)"
-              },
-              city: {
-                type: "string",
-                description: "Cidade"
-              },
-              zip_code: {
-                type: "string",
-                description: "CEP (opcional)"
-              }
-            },
-            required: ["address", "city"]
-          }
-        }
-      },
-      {
-        type: "function",
-        function: {
-          name: "list_payment_methods",
-          description: "Lista todas as formas de pagamento aceitas",
-          parameters: {
-            type: "object",
-            properties: {},
-            required: []
-          }
-        }
-      },
-      {
-        type: "function",
-        function: {
-          name: "check_order_prerequisites",
-          description: "Verifica se todos os dados necessários estão preenchidos para finalizar pedido",
-          parameters: {
-            type: "object",
-            properties: {},
-            required: []
-          }
-        }
-      },
-      {
-        type: "function",
-        function: {
-          name: "create_order",
-          description: "Finaliza e cria pedido no sistema (APENAS quando tiver todos os dados)",
-          parameters: {
-            type: "object",
-            properties: {
-              customer_name: {
-                type: "string",
-                description: "Nome do cliente"
-              },
-              customer_phone: {
-                type: "string",
-                description: "Telefone do cliente"
-              },
-              delivery_address: {
-                type: "string",
-                description: "Endereço completo de entrega"
-              },
-              payment_method: {
-                type: "string",
-                description: "Forma de pagamento escolhida"
-              },
-              change_for: {
-                type: "number",
-                description: "Valor para troco (se pagamento em dinheiro)"
-              },
-              notes: {
-                type: "string",
-                description: "Observações gerais do pedido"
-              }
-            },
-            required: ["customer_name", "customer_phone", "delivery_address", "payment_method"]
-          }
-        }
-      },
-      {
-        type: "function",
-        function: {
-          name: "get_restaurant_info",
-          description: "Retorna informações de contato e localização do restaurante quando cliente perguntar sobre endereço, telefone, horário ou redes sociais",
-          parameters: {
-            type: "object",
-            properties: {
-              info_type: {
-                type: "string",
-                enum: ["address", "phone", "instagram", "all"],
-                description: "Tipo de informação solicitada pelo cliente"
-              }
-            },
-            required: ["info_type"]
-          }
-        }
-      }
-    ];
-
-      // ========== CALL OPENAI (FALLBACK) ==========
+    let aiMessage = assistantMessage.content || '';
+    
+    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+      // Execute tools using shared executor
+      const toolResults = await executeToolCalls(
+        assistantMessage.tool_calls,
+        supabase,
+        agent,
+        chatId,
+        customerPhone,
+        requestId
+      );
       
-      console.log(`[${requestId}] 🤖 Calling OpenAI API (Fallback Agent)...`);
+      // Get follow-up natural response
+      const agentContext = `Você é o atendente do ${restaurantData.restaurant.name}. Responda de forma natural baseado nos resultados das ferramentas. Use no máximo 1 emoji na conversa toda.`;
       
-      const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openAIApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-5-mini-2025-08-07',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...conversationHistory,
-            { role: 'user', content: messageContent }
-          ],
-          tools: tools,
-          tool_choice: 'auto',
-          max_completion_tokens: 1000
-        })
-      });
-
-      if (!openAIResponse.ok) {
-        const errorText = await openAIResponse.text();
+      aiMessage = await getFollowUpResponse(
+        toolResults,
+        messageHistory || [],
+        agentContext,
+        requestId
+      );
+    }
+    
+    // Fallback if no message generated
+    if (!aiMessage || aiMessage.trim() === '') {
+      console.warn(`[${requestId}] ⚠️ No AI response generated, using fallback`);
+      aiMessage = 'Como posso ajudar você?';
+    }
         console.error(`[${requestId}] ❌ OpenAI API error: ${openAIResponse.status} - ${errorText}`);
         throw new Error(`OpenAI API error: ${openAIResponse.status}`);
       }
