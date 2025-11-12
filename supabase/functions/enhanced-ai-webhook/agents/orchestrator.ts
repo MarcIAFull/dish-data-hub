@@ -95,7 +95,8 @@ export function routeToAgent(
   }
 
   // CHECKOUT → Finalize order (CHECKOUT agent)
-  if (intent === 'CHECKOUT') {
+  // Also route to CHECKOUT if has items and intent is CHECKOUT
+  if (intent === 'CHECKOUT' || (conversationState.hasItemsInCart && intent === 'UNCLEAR')) {
     return 'CHECKOUT';
   }
 
@@ -104,12 +105,22 @@ export function routeToAgent(
     return 'SUPPORT';
   }
 
-  // UNCLEAR or fallback scenarios
-  if (conversationState.hasItemsInCart && intent === 'UNCLEAR') {
-    // Has items but unclear → probably wants to checkout or add more
-    return 'SALES';
+  // UNCLEAR - route based on conversation state
+  if (intent === 'UNCLEAR') {
+    // Has greeted but no items → probably wants menu
+    if (conversationState.hasGreeted && !conversationState.hasItemsInCart) {
+      return 'MENU';
+    }
+    // Has items → probably wants to continue shopping
+    if (conversationState.hasItemsInCart) {
+      return 'SALES';
+    }
+    // First contact → welcome with menu
+    if (!conversationState.hasGreeted) {
+      return 'MENU';
+    }
   }
 
-  // Default fallback for now (Phase 1)
+  // Default fallback (should rarely happen now)
   return 'FALLBACK';
 }

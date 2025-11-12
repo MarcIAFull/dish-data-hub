@@ -9,12 +9,18 @@ import { executeListPaymentMethods } from './payment-tools.ts';
 import { executeListProductModifiers } from './modifier-tools.ts';
 import { executeAddItemToOrder } from './cart-tools.ts';
 
-// Multi-Agent Architecture (Phase 1 & 2)
+// Multi-Agent Architecture (Phases 1-4)
 import { classifyIntent, routeToAgent } from './agents/orchestrator.ts';
 import { processSalesAgent } from './agents/sales-agent.ts';
+import { processCheckoutAgent } from './agents/checkout-agent.ts';
+import { processMenuAgent } from './agents/menu-agent.ts';
+import { processSupportAgent } from './agents/support-agent.ts';
 import { 
   analyzeConversationState, 
-  buildSalesContext 
+  buildSalesContext,
+  buildCheckoutContext,
+  buildMenuContext,
+  buildSupportContext
 } from './utils/context-builder.ts';
 
 const corsHeaders = {
@@ -602,7 +608,7 @@ async function processAIResponse(
     const restaurantData = restaurantDataResponse.data;
     console.log(`[${requestId}] ✅ Restaurant data fetched - ${restaurantData.categories?.length || 0} categories`);
     
-    // ========== MULTI-AGENT ORCHESTRATION (Phase 1 & 2) ==========
+    // ========== MULTI-AGENT ORCHESTRATION (Phases 1-4) ==========
     console.log(`[${requestId}] 🎯 Starting Multi-Agent Orchestration...`);
     
     // Step 1: Analyze conversation state
@@ -642,6 +648,82 @@ async function processAIResponse(
       assistantMessage = {
         content: salesResult.content,
         tool_calls: salesResult.toolCalls
+      };
+      
+    } else if (targetAgent === 'CHECKOUT') {
+      // CHECKOUT AGENT - Optimized for order finalization
+      
+      // Fetch delivery zones and payment methods
+      const { data: deliveryZones } = await supabase
+        .from('delivery_zones')
+        .select('*')
+        .eq('restaurant_id', agent.restaurants.id)
+        .eq('is_active', true);
+      
+      const { data: paymentMethods } = await supabase
+        .from('payment_methods')
+        .select('*')
+        .eq('restaurant_id', agent.restaurants.id);
+      
+      const checkoutContext = buildCheckoutContext(
+        restaurantData.restaurant,
+        deliveryZones || [],
+        paymentMethods || [],
+        chat.metadata
+      );
+      
+      const checkoutResult = await processCheckoutAgent(
+        checkoutContext,
+        messageHistory || [],
+        chatId,
+        supabase,
+        agent,
+        requestId
+      );
+      
+      assistantMessage = {
+        content: checkoutResult.content,
+        tool_calls: checkoutResult.toolCalls
+      };
+      
+    } else if (targetAgent === 'MENU') {
+      // MENU AGENT - Optimized for menu presentation
+      const menuContext = buildMenuContext(
+        restaurantData.restaurant,
+        restaurantData.categories || [],
+        restaurantData.products || []
+      );
+      
+      const menuResult = await processMenuAgent(
+        menuContext,
+        messageHistory || [],
+        chatId,
+        supabase,
+        agent,
+        requestId
+      );
+      
+      assistantMessage = {
+        content: menuResult.content,
+        tool_calls: menuResult.toolCalls
+      };
+      
+    } else if (targetAgent === 'SUPPORT') {
+      // SUPPORT AGENT - Optimized for customer support
+      const supportContext = buildSupportContext(restaurantData.restaurant);
+      
+      const supportResult = await processSupportAgent(
+        supportContext,
+        messageHistory || [],
+        chatId,
+        supabase,
+        agent,
+        requestId
+      );
+      
+      assistantMessage = {
+        content: supportResult.content,
+        tool_calls: supportResult.toolCalls
       };
       
     } else {

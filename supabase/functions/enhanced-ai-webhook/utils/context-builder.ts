@@ -121,12 +121,12 @@ export function buildCheckoutContext(
     restaurantName: restaurant.name,
     cartItems: orderItems,
     cartTotal,
-    deliveryZones: deliveryZones.map(z => ({
+    deliveryZones: (deliveryZones || []).map(z => ({
       name: z.name,
-      fee: z.delivery_fee,
-      minOrder: z.min_order_value
+      fee: z.delivery_fee || 0,
+      minOrder: z.min_order_value || 0
     })),
-    paymentMethods: paymentMethods
+    paymentMethods: (paymentMethods || [])
       .filter(pm => pm.is_active)
       .map(pm => pm.method_type),
     minOrderValue: restaurant.min_order_value || 0
