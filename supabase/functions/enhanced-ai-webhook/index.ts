@@ -748,39 +748,7 @@ async function processAIResponse(
       })));
     }
     
-    // ========== PROCESS TOOL CALLS (UNIFIED) ==========
-    
-    let aiMessage = assistantMessage.content || '';
-    
-    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-      // Execute tools using shared executor
-      const toolResults = await executeToolCalls(
-        assistantMessage.tool_calls,
-        supabase,
-        agent,
-        chatId,
-        customerPhone,
-        requestId
-      );
-      
-      // Get follow-up natural response
-      const agentContext = `Você é o atendente do ${restaurantData.restaurant.name}. Responda de forma natural baseado nos resultados das ferramentas. Use no máximo 1 emoji na conversa toda.`;
-      
-      aiMessage = await getFollowUpResponse(
-        toolResults,
-        messageHistory || [],
-        agentContext,
-        requestId
-      );
-    }
-    
-    // Fallback if no message generated
-    if (!aiMessage || aiMessage.trim() === '') {
-      console.warn(`[${requestId}] ⚠️ No AI response generated, using fallback`);
-      aiMessage = 'Como posso ajudar você?';
-    }
-    
-    // ========== PROCESS TOOL CALLS (OLD SYSTEM - DEPRECATED) ==========
+    // ========== PROCESS TOOL CALLS ==========
     
     let toolResults = [];
     
