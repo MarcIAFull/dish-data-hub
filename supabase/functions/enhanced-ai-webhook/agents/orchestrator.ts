@@ -41,8 +41,7 @@ export async function classifyIntent(
         messages: [
           { role: 'system', content: prompt }
         ],
-        max_completion_tokens: 10,
-        temperature: 0.3 // Low temperature for consistent classification
+        max_completion_tokens: 10
       })
     });
 
