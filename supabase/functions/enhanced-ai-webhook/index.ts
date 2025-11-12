@@ -606,10 +606,33 @@ async function processAIResponse(
       ).join('\n')}`
     ).join('\n\n');
 
-    const systemPrompt = `Você é o atendente virtual do restaurante ${restaurantData.name}.
+    // Build rich context information
+    const popularProductsText = restaurantData.analytics?.popular_products?.length > 0
+      ? `\n=== PRODUTOS MAIS VENDIDOS (use para sugestões!) ===\n${
+          restaurantData.analytics.popular_products.slice(0, 3).map((p: any) => 
+            `- ${p.name} ${p.price ? `(R$ ${parseFloat(p.price).toFixed(2)})` : ''} - ${p.total_ordered} pedidos`
+          ).join('\n')
+        }\n`
+      : '';
+    
+    const restaurantDescription = restaurantData.restaurant?.description 
+      ? `\n=== SOBRE O RESTAURANTE ===\n${restaurantData.restaurant.description}\n`
+      : '';
+    
+    const activityLevel = restaurantData.ai_context?.restaurant_activity_level || 'medium';
+    const activityContext = activityLevel === 'high'
+      ? `CONTEXTO: Somos um restaurante popular com alto volume de pedidos. Seja eficiente mas caloroso.`
+      : `CONTEXTO: Valorizamos cada cliente. Seja atencioso e detalhado no atendimento.`;
+    
+    const instagramInfo = restaurantData.restaurant?.instagram 
+      ? `\nInstagram: @${restaurantData.restaurant.instagram.replace('@', '')}`
+      : '';
 
+    const systemPrompt = `Você é o atendente virtual do restaurante ${restaurantData.restaurant.name}.
+${restaurantDescription}
 IMPORTANTE: Use NO MÁXIMO 1 emoji por conversa INTEIRA. Seja profissional e objetivo.
-
+${activityContext}${instagramInfo}
+${popularProductsText}
 === CARDÁPIO COMPLETO ===
 ${menuText}
 
@@ -626,7 +649,7 @@ ${menuText}
 
 1. GREETING (saudação inicial):
    - Primeira mensagem do cliente
-   - Responder: "Olá! Bem-vindo ao ${restaurantData.name}. Como posso ajudar você hoje?"
+   - Responder: "Olá! Bem-vindo ao ${restaurantData.restaurant.name}. Como posso ajudar você hoje?"
    - Avançar para DISCOVERY
 
 2. DISCOVERY (descobrir necessidade):
@@ -667,10 +690,15 @@ ${menuText}
 
 === ESTRATÉGIA DE VENDEDOR EXPERT ===
 
-UPSELL (aumentar ticket):
-- Cliente pede hambúrguer → Sugerir batata frita ou refrigerante
+UPSELL BASEADO EM DADOS REAIS:
+${restaurantData.analytics?.popular_products?.length > 0 
+  ? `Nossos best-sellers (SEMPRE sugira quando relevante):\n${
+      restaurantData.analytics.popular_products.slice(0, 5).map((p: any) => `- ${p.name}`).join('\n')
+    }`
+  : `- Cliente pede hambúrguer → Sugerir batata frita ou refrigerante
 - Cliente pede pizza → Sugerir borda recheada ou sobremesa
-- Cliente pede cerveja → Sugerir petisco
+- Cliente pede cerveja → Sugerir petisco`
+}
 
 CROSS-SELL (produtos complementares):
 - Hambúrguer → Batata frita + Refrigerante
@@ -682,7 +710,7 @@ TÉCNICAS:
 1. "Combos mentais": "Que tal adicionar uma batata frita? Fica perfeito com hambúrguer!"
 2. "Economia falsa": "Por só R$ 5 a mais você leva uma Coca-Cola 2L"
 3. "Escassez": "Temos sobremesa de morango hoje, está saindo muito!"
-4. "Social proof": "Os clientes adoram combinar com batata frita"
+4. "Social proof": Use os produtos mais vendidos como prova social
 
 QUANDO USAR:
 - SEMPRE após adicionar item principal
@@ -709,10 +737,10 @@ QUANDO USAR:
 === FORMATAÇÃO ===
 
 CORRETO:
-"Olá! Bem-vindo ao ${restaurantData.name}.\n\nO que você está com vontade de comer hoje?"
+"Olá! Bem-vindo ao ${restaurantData.restaurant.name}.\n\nO que você está com vontade de comer hoje?"
 
 ERRADO:
-"Olá! 👋\n**Bem-vindo** ao ${restaurantData.name}!\n\nO que você *gostaria*? 😊"
+"Olá! 👋\n**Bem-vindo** ao ${restaurantData.restaurant.name}!\n\nO que você *gostaria*? 😊"
 
 === EXAMPLES ===
 
@@ -890,6 +918,24 @@ ${chat.metadata?.customer_name ? `Nome do cliente: ${chat.metadata.customer_name
             required: ["customer_name", "customer_phone", "delivery_address", "payment_method"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "get_restaurant_info",
+          description: "Retorna informações de contato e localização do restaurante quando cliente perguntar sobre endereço, telefone, horário ou redes sociais",
+          parameters: {
+            type: "object",
+            properties: {
+              info_type: {
+                type: "string",
+                enum: ["address", "phone", "instagram", "all"],
+                description: "Tipo de informação solicitada pelo cliente"
+              }
+            },
+            required: ["info_type"]
+          }
+        }
       }
     ];
 
@@ -980,6 +1026,33 @@ ${chat.metadata?.customer_name ? `Nome do cliente: ${chat.metadata.customer_name
             case 'create_order':
               const { executeCreateOrder } = await import('./tools.ts');
               toolResult = await executeCreateOrder(supabase, agent, toolArgs, chatId, customerPhone);
+              break;
+            
+            case 'get_restaurant_info':
+              // Get restaurant info from agent data
+              const restaurant = agent.restaurants;
+              const infoType = toolArgs.info_type;
+              
+              const restaurantInfo: any = {
+                address: restaurant.address || "Endereço não cadastrado",
+                phone: restaurant.phone || "Telefone não cadastrado",
+                whatsapp: restaurant.whatsapp || agent.evolution_whatsapp_number,
+                instagram: restaurant.instagram ? `@${restaurant.instagram.replace('@', '')}` : null
+              };
+              
+              if (infoType === 'all') {
+                toolResult = {
+                  success: true,
+                  data: restaurantInfo,
+                  message: `📍 Endereço: ${restaurantInfo.address}\n📞 Telefone: ${restaurantInfo.phone}${restaurantInfo.whatsapp ? `\n📱 WhatsApp: ${restaurantInfo.whatsapp}` : ''}${restaurantInfo.instagram ? `\n📷 Instagram: ${restaurantInfo.instagram}` : ''}`
+                };
+              } else {
+                toolResult = {
+                  success: true,
+                  data: restaurantInfo[infoType],
+                  message: restaurantInfo[infoType] || 'Informação não disponível'
+                };
+              }
               break;
             
             default:
