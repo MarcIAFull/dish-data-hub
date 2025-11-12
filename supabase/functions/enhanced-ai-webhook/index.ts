@@ -866,6 +866,16 @@ async function processAIResponse(
         return `Ferramenta ${tr.tool} executada:\n${resultStr}`;
       }).join('\n\n');
       
+      const followUpSystemPrompt = `Você é o atendente virtual do restaurante ${restaurantData.restaurant.name}.
+      
+Com base nos resultados das ferramentas executadas, responda ao cliente de forma natural e humanizada.
+
+REGRAS IMPORTANTES:
+- Use NO MÁXIMO 1 emoji na conversa TODA
+- Seja direto, claro e vendedor
+- Use quebras duplas de linha para organizar a mensagem
+- Não mencione que você executou ferramentas ou funções`;
+
       const followUpResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -875,12 +885,12 @@ async function processAIResponse(
         body: JSON.stringify({
           model: 'gpt-5-mini-2025-08-07',
           messages: [
-            { role: 'system', content: systemPrompt },
+            { role: 'system', content: followUpSystemPrompt },
             ...conversationHistory,
             { role: 'user', content: messageContent },
             { 
               role: 'user', 
-              content: `[RESULTADOS DAS FERRAMENTAS EXECUTADAS]\n\n${toolResultsText}\n\n[FIM DOS RESULTADOS]\n\nCom base nos resultados acima, responda ao cliente de forma natural e humanizada. Lembre-se: máximo 1 emoji na conversa inteira, use quebras duplas de linha, seja direto e vendedor.`
+              content: `[RESULTADOS DAS FERRAMENTAS EXECUTADAS]\n\n${toolResultsText}\n\n[FIM DOS RESULTADOS]`
             }
           ],
           max_completion_tokens: 800
