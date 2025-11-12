@@ -779,36 +779,8 @@ async function processAIResponse(
       console.warn(`[${requestId}] ⚠️ No AI response generated, using fallback`);
       aiMessage = 'Como posso ajudar você?';
     }
-        console.error(`[${requestId}] ❌ OpenAI API error: ${openAIResponse.status} - ${errorText}`);
-        throw new Error(`OpenAI API error: ${openAIResponse.status}`);
-      }
-
-      const openAIData = await openAIResponse.json();
-      assistantMessage = openAIData.choices[0].message;
-      
-      console.log(`[${requestId}] 📊 Fallback Response:`, {
-        has_content: !!assistantMessage.content,
-        content_length: assistantMessage.content?.length || 0,
-        has_tool_calls: !!assistantMessage.tool_calls,
-        tool_calls_count: assistantMessage.tool_calls?.length || 0,
-        finish_reason: openAIData.choices[0].finish_reason,
-        tokens: openAIData.usage
-      });
-    }
     
-    // ========== UNIFIED RESPONSE LOGGING ==========
-    if (assistantMessage.content) {
-      console.log(`[${requestId}] 💬 AI Content Preview: ${assistantMessage.content.substring(0, 100)}...`);
-    }
-
-    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-      console.log(`[${requestId}] 🔧 Tool Calls:`, assistantMessage.tool_calls.map((tc: any) => ({
-        name: tc.function.name,
-        args: tc.function.arguments
-      })));
-    }
-    
-    // ========== PROCESS TOOL CALLS ==========
+    // ========== PROCESS TOOL CALLS (OLD SYSTEM - DEPRECATED) ==========
     
     let toolResults = [];
     
