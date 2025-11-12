@@ -1066,10 +1066,10 @@ ${chat.metadata?.customer_name ? `Nome do cliente: ${chat.metadata.customer_name
       const chunks = splitMessageNaturally(aiMessage, 240);
       await sendMessageChunks(
         chunks,
-        customerPhone,
+        'https://evolution.fullbpo.com',
         agent.evolution_api_instance,
-        agent.evolution_api_token,
-        requestId
+        customerPhone,
+        agent.evolution_api_token
       );
       
       console.log(`[${requestId}] ✅ Message sent via WhatsApp (${chunks.length} chunks)`);
