@@ -598,36 +598,483 @@ async function processAIResponse(
     
     console.log(`[${requestId}] ✅ Restaurant data fetched - ${restaurantData.menu.categories.length} categories`);
     
-    // NOTA: A implementação completa do system prompt, tools e processamento será adicionada
-    // na próxima etapa. Por ora, apenas enviamos uma resposta simples de confirmação.
+    // ========== BUILD SYSTEM PROMPT ==========
     
-    const simpleResponse = `Recebi sua mensagem: "${messageContent.substring(0, 50)}..."\n\nEstamos processando seu pedido. Em breve teremos a implementação completa! 🎯`;
+    const menuText = restaurantData.menu.categories.map((cat: any) => 
+      `${cat.name}:\n${cat.products.map((p: any) => 
+        `- ${p.name} (R$ ${p.price.toFixed(2)})${p.description ? ': ' + p.description : ''}`
+      ).join('\n')}`
+    ).join('\n\n');
+
+    const systemPrompt = `Você é o atendente virtual do restaurante ${restaurantData.name}.
+
+IMPORTANTE: Use NO MÁXIMO 1 emoji por conversa INTEIRA. Seja profissional e objetivo.
+
+=== CARDÁPIO COMPLETO ===
+${menuText}
+
+=== TOM DE VOZ ===
+- Natural e conversacional (como WhatsApp)
+- Amigável mas profissional
+- Empolgado com vendas
+- MÁXIMO 1 emoji por conversa
+- Quebras DUPLAS de linha entre parágrafos (\n\n)
+- NÃO use negrito, itálico ou asteriscos
+- Use "você" (informal)
+
+=== FLUXO DE ATENDIMENTO (5 ESTADOS) ===
+
+1. GREETING (saudação inicial):
+   - Primeira mensagem do cliente
+   - Responder: "Olá! Bem-vindo ao ${restaurantData.name}. Como posso ajudar você hoje?"
+   - Avançar para DISCOVERY
+
+2. DISCOVERY (descobrir necessidade):
+   - Entender o que o cliente quer
+   - Fazer perguntas abertas: "O que você está com vontade de comer hoje?"
+   - Sugerir categorias populares
+   - Avançar para ITEMS quando cliente mencionar produto
+
+3. ITEMS (adicionar itens ao pedido):
+   - Cliente menciona produto → SEMPRE usar add_item_to_order()
+   - Confirmar adição: "Perfeito! [PRODUTO] adicionado (R$ X,XX)"
+   - SEMPRE fazer upsell: "Quer adicionar [COMPLEMENTO/BEBIDA]?"
+   - Mostrar subtotal atual
+   - Perguntar "Quer adicionar algo mais?"
+   - Avançar para ADDRESS quando cliente confirmar que terminou
+
+4. ADDRESS (coletar endereço):
+   - Perguntar endereço completo (rua, número, bairro)
+   - Usar validate_delivery_address() para validar
+   - Informar taxa de entrega
+   - Avançar para PAYMENT
+
+5. PAYMENT (forma de pagamento):
+   - Usar list_payment_methods()
+   - Perguntar forma de pagamento
+   - Se dinheiro: perguntar "Precisa de troco para quanto?"
+   - Usar create_order() para finalizar
+   - Avançar para CONFIRMATION
+
+6. CONFIRMATION (confirmação final):
+   - Mostrar resumo completo:
+     * Itens + valores
+     * Subtotal
+     * Taxa de entrega
+     * Total final
+   - Agradecer: "Seu pedido foi enviado! Tempo estimado: 40-50 minutos"
+   - Encerrar conversa
+
+=== ESTRATÉGIA DE VENDEDOR EXPERT ===
+
+UPSELL (aumentar ticket):
+- Cliente pede hambúrguer → Sugerir batata frita ou refrigerante
+- Cliente pede pizza → Sugerir borda recheada ou sobremesa
+- Cliente pede cerveja → Sugerir petisco
+
+CROSS-SELL (produtos complementares):
+- Hambúrguer → Batata frita + Refrigerante
+- Pizza → Refrigerante ou cerveja
+- Pastel → Caldo de cana
+- Porção → Cerveja
+
+TÉCNICAS:
+1. "Combos mentais": "Que tal adicionar uma batata frita? Fica perfeito com hambúrguer!"
+2. "Economia falsa": "Por só R$ 5 a mais você leva uma Coca-Cola 2L"
+3. "Escassez": "Temos sobremesa de morango hoje, está saindo muito!"
+4. "Social proof": "Os clientes adoram combinar com batata frita"
+
+QUANDO USAR:
+- SEMPRE após adicionar item principal
+- NUNCA insistir se cliente recusar
+- Máximo 1 sugestão por rodada
+
+=== REGRAS DE RASTREAMENTO ===
+
+1. SEMPRE usar add_item_to_order() quando cliente mencionar produto
+2. MANTER metadata.order_items atualizado
+3. MOSTRAR subtotal após cada adição
+4. NÃO permitir finalizar pedido vazio (verificar com check_order_prerequisites)
+
+=== FERRAMENTAS DISPONÍVEIS ===
+
+1. send_menu_link - Envia link do cardápio online
+2. check_product_availability - Verifica se produto está disponível
+3. add_item_to_order - CRITICAL: Adiciona item ao carrinho (USE SEMPRE!)
+4. validate_delivery_address - Valida endereço e calcula taxa
+5. list_payment_methods - Lista formas de pagamento aceitas
+6. check_order_prerequisites - Verifica se pode finalizar pedido
+7. create_order - Finaliza e cria pedido no sistema
+
+=== FORMATAÇÃO ===
+
+CORRETO:
+"Olá! Bem-vindo ao ${restaurantData.name}.\n\nO que você está com vontade de comer hoje?"
+
+ERRADO:
+"Olá! 👋\n**Bem-vindo** ao ${restaurantData.name}!\n\nO que você *gostaria*? 😊"
+
+=== EXAMPLES ===
+
+Cliente: "quero hambúrguer"
+Você: "Ótima pedida! Temos vários hambúrgueres deliciosos:\n\n- Hambúrguer Clássico (R$ 15,00)\n- Hambúrguer Bacon (R$ 18,00)\n- Hambúrguer Especial (R$ 22,00)\n\nQual você prefere?"
+
+Cliente: "o clássico"
+Você: [USA add_item_to_order("Hambúrguer Clássico", 1, 15.00)]
+Você: "Perfeito! Hambúrguer Clássico adicionado (R$ 15,00).\n\nQue tal adicionar uma batata frita crocante por R$ 8,00? Fica perfeito junto!"
+
+Cliente: "não, só o hambúrguer"
+Você: "Tudo bem! Subtotal: R$ 15,00.\n\nPosso finalizar seu pedido?"
+
+=== ESTADO ATUAL DA CONVERSA ===
+${chat.metadata?.current_state ? `Estado: ${chat.metadata.current_state}` : 'Estado: GREETING'}
+${chat.metadata?.order_items?.length ? `Itens no carrinho: ${chat.metadata.order_items.length}` : 'Carrinho vazio'}
+${chat.metadata?.customer_name ? `Nome do cliente: ${chat.metadata.customer_name}` : 'Nome não informado'}`;
+
+    // ========== BUILD CONVERSATION HISTORY ==========
     
-    // Salvar resposta no banco
+    const conversationHistory = (messageHistory || [])
+      .reverse()
+      .map(msg => ({
+        role: msg.sender_type === 'customer' ? 'user' : 'assistant',
+        content: msg.content
+      }));
+
+    // ========== DEFINE TOOLS ==========
+    
+    const tools = [
+      {
+        type: "function",
+        function: {
+          name: "send_menu_link",
+          description: "Envia link do cardápio online do restaurante",
+          parameters: {
+            type: "object",
+            properties: {},
+            required: []
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "check_product_availability",
+          description: "Verifica disponibilidade de um produto específico",
+          parameters: {
+            type: "object",
+            properties: {
+              product_name: {
+                type: "string",
+                description: "Nome do produto a verificar"
+              },
+              category_name: {
+                type: "string",
+                description: "Nome da categoria do produto (opcional)"
+              }
+            },
+            required: ["product_name"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "add_item_to_order",
+          description: "CRITICAL: Adiciona item ao carrinho. USE SEMPRE que cliente mencionar produto!",
+          parameters: {
+            type: "object",
+            properties: {
+              product_name: {
+                type: "string",
+                description: "Nome exato do produto"
+              },
+              quantity: {
+                type: "number",
+                description: "Quantidade (padrão: 1)"
+              },
+              unit_price: {
+                type: "number",
+                description: "Preço unitário em reais"
+              },
+              notes: {
+                type: "string",
+                description: "Observações especiais (ex: sem cebola, ponto da carne)"
+              }
+            },
+            required: ["product_name", "unit_price"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "validate_delivery_address",
+          description: "Valida endereço de entrega e calcula taxa",
+          parameters: {
+            type: "object",
+            properties: {
+              address: {
+                type: "string",
+                description: "Endereço completo (rua, número)"
+              },
+              city: {
+                type: "string",
+                description: "Cidade"
+              },
+              zip_code: {
+                type: "string",
+                description: "CEP (opcional)"
+              }
+            },
+            required: ["address", "city"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "list_payment_methods",
+          description: "Lista todas as formas de pagamento aceitas",
+          parameters: {
+            type: "object",
+            properties: {},
+            required: []
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "check_order_prerequisites",
+          description: "Verifica se todos os dados necessários estão preenchidos para finalizar pedido",
+          parameters: {
+            type: "object",
+            properties: {},
+            required: []
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "create_order",
+          description: "Finaliza e cria pedido no sistema (APENAS quando tiver todos os dados)",
+          parameters: {
+            type: "object",
+            properties: {
+              customer_name: {
+                type: "string",
+                description: "Nome do cliente"
+              },
+              customer_phone: {
+                type: "string",
+                description: "Telefone do cliente"
+              },
+              delivery_address: {
+                type: "string",
+                description: "Endereço completo de entrega"
+              },
+              payment_method: {
+                type: "string",
+                description: "Forma de pagamento escolhida"
+              },
+              change_for: {
+                type: "number",
+                description: "Valor para troco (se pagamento em dinheiro)"
+              },
+              notes: {
+                type: "string",
+                description: "Observações gerais do pedido"
+              }
+            },
+            required: ["customer_name", "customer_phone", "delivery_address", "payment_method"]
+          }
+        }
+      }
+    ];
+
+    // ========== CALL OPENAI ==========
+    
+    console.log(`[${requestId}] 🤖 Calling OpenAI API (gpt-5-mini-2025-08-07)...`);
+    
+    const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-5-mini-2025-08-07',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...conversationHistory,
+          { role: 'user', content: messageContent }
+        ],
+        tools: tools,
+        tool_choice: 'auto',
+        max_completion_tokens: 500
+      })
+    });
+
+    if (!openAIResponse.ok) {
+      const errorText = await openAIResponse.text();
+      console.error(`[${requestId}] ❌ OpenAI API error: ${openAIResponse.status} - ${errorText}`);
+      throw new Error(`OpenAI API error: ${openAIResponse.status}`);
+    }
+
+    const openAIData = await openAIResponse.json();
+    const assistantMessage = openAIData.choices[0].message;
+    
+    console.log(`[${requestId}] ✅ OpenAI response received`);
+    
+    // ========== PROCESS TOOL CALLS ==========
+    
+    let toolResults = [];
+    
+    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+      console.log(`[${requestId}] 🔧 Processing ${assistantMessage.tool_calls.length} tool calls`);
+      
+      for (const toolCall of assistantMessage.tool_calls) {
+        const toolName = toolCall.function.name;
+        const toolArgs = JSON.parse(toolCall.function.arguments);
+        
+        console.log(`[${requestId}] 🔨 Executing tool: ${toolName}`, toolArgs);
+        
+        let toolResult;
+        
+        try {
+          switch (toolName) {
+            case 'send_menu_link':
+              toolResult = {
+                success: true,
+                link: `https://ebbe56d2-234f-45f9-8d89-11b4c6add970.lovableproject.com/r/${agent.restaurants.slug}`,
+                message: 'Link do cardápio enviado'
+              };
+              break;
+            
+            case 'check_product_availability':
+              const { executeCheckAvailability } = await import('./tools.ts');
+              toolResult = await executeCheckAvailability(supabase, agent, toolArgs);
+              break;
+            
+            case 'add_item_to_order':
+              const { executeAddItemToOrder } = await import('./cart-tools.ts');
+              toolResult = await executeAddItemToOrder(supabase, chatId, toolArgs);
+              break;
+            
+            case 'validate_delivery_address':
+              const { executeValidateAddress } = await import('./address-tools.ts');
+              toolResult = await executeValidateAddress(supabase, agent, toolArgs);
+              break;
+            
+            case 'list_payment_methods':
+              const { executeListPaymentMethods } = await import('./payment-tools.ts');
+              toolResult = await executeListPaymentMethods(supabase, agent);
+              break;
+            
+            case 'check_order_prerequisites':
+              const { executeCheckOrderPrerequisites } = await import('./tools.ts');
+              toolResult = await executeCheckOrderPrerequisites(supabase, chatId);
+              break;
+            
+            case 'create_order':
+              const { executeCreateOrder } = await import('./tools.ts');
+              toolResult = await executeCreateOrder(supabase, agent, toolArgs, chatId, customerPhone);
+              break;
+            
+            default:
+              console.warn(`[${requestId}] ⚠️ Unknown tool: ${toolName}`);
+              toolResult = { error: 'Unknown tool' };
+          }
+          
+          toolResults.push({
+            tool: toolName,
+            result: toolResult
+          });
+          
+          console.log(`[${requestId}] ✅ Tool ${toolName} executed:`, toolResult);
+          
+        } catch (error) {
+          console.error(`[${requestId}] ❌ Tool ${toolName} error:`, error);
+          toolResults.push({
+            tool: toolName,
+            result: { error: error.message }
+          });
+        }
+      }
+    }
+    
+    // ========== GET FINAL AI MESSAGE ==========
+    
+    let aiMessage = assistantMessage.content || '';
+    
+    // If there were tool calls but no content, ask AI to generate response based on tool results
+    if (!aiMessage && toolResults.length > 0) {
+      console.log(`[${requestId}] 🔄 Getting AI response for tool results...`);
+      
+      const toolResultsMessage = toolResults.map(tr => 
+        `Tool ${tr.tool} resultado: ${JSON.stringify(tr.result)}`
+      ).join('\n');
+      
+      const followUpResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openAIApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-5-mini-2025-08-07',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...conversationHistory,
+            { role: 'user', content: messageContent },
+            { role: 'assistant', content: toolResultsMessage },
+            { role: 'user', content: 'Com base nos resultados das ferramentas acima, formule uma resposta natural para o cliente.' }
+          ],
+          max_completion_tokens: 300
+        })
+      });
+      
+      if (followUpResponse.ok) {
+        const followUpData = await followUpResponse.json();
+        aiMessage = followUpData.choices[0].message.content || '';
+      }
+    }
+    
+    // ========== CLEAN AI RESPONSE ==========
+    
+    aiMessage = cleanAIResponse(aiMessage);
+    
+    console.log(`[${requestId}] 📝 Final AI message (${aiMessage.length} chars): ${aiMessage.substring(0, 100)}...`);
+    
+    // ========== SAVE TO DATABASE ==========
+    
     await supabase
       .from('messages')
       .insert({
         chat_id: chat.id,
         sender_type: 'agent',
-        content: simpleResponse,
+        content: aiMessage,
         message_type: 'text'
       });
     
-    // Enviar via WhatsApp
+    console.log(`[${requestId}] 💾 Message saved to database`);
+    
+    // ========== SEND VIA WHATSAPP ==========
+    
     if (agent.evolution_api_token && agent.evolution_api_instance) {
-      await fetch(`https://evolution.fullbpo.com/message/sendText/${agent.evolution_api_instance}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': agent.evolution_api_token
-        },
-        body: JSON.stringify({
-          number: customerPhone,
-          text: simpleResponse
-        })
-      });
+      const chunks = splitMessageNaturally(aiMessage, 240);
+      await sendMessageChunks(
+        chunks,
+        customerPhone,
+        agent.evolution_api_instance,
+        agent.evolution_api_token,
+        requestId
+      );
       
-      console.log(`[${requestId}] ✅ Mensagem enviada via WhatsApp`);
+      console.log(`[${requestId}] ✅ Message sent via WhatsApp (${chunks.length} chunks)`);
+    } else {
+      console.warn(`[${requestId}] ⚠️ Evolution API credentials missing - message not sent`);
     }
     
   } catch (error) {
