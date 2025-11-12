@@ -958,7 +958,7 @@ ${chat.metadata?.customer_name ? `Nome do cliente: ${chat.metadata.customer_name
         ],
         tools: tools,
         tool_choice: 'auto',
-        max_completion_tokens: 500
+        max_completion_tokens: 1000
       })
     });
 
@@ -971,6 +971,27 @@ ${chat.metadata?.customer_name ? `Nome do cliente: ${chat.metadata.customer_name
     const openAIData = await openAIResponse.json();
     const assistantMessage = openAIData.choices[0].message;
     
+    // 🔍 DEBUG: Log completo da resposta
+    console.log(`[${requestId}] 📊 OpenAI Response Debug:`, {
+      has_content: !!assistantMessage.content,
+      content_length: assistantMessage.content?.length || 0,
+      has_tool_calls: !!assistantMessage.tool_calls,
+      tool_calls_count: assistantMessage.tool_calls?.length || 0,
+      finish_reason: openAIData.choices[0].finish_reason,
+      usage: openAIData.usage
+    });
+
+    if (assistantMessage.content) {
+      console.log(`[${requestId}] 💬 AI Content Preview: ${assistantMessage.content.substring(0, 100)}...`);
+    }
+
+    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+      console.log(`[${requestId}] 🔧 Tool Calls:`, assistantMessage.tool_calls.map(tc => ({
+        name: tc.function.name,
+        args: tc.function.arguments
+      })));
+    }
+
     console.log(`[${requestId}] ✅ OpenAI response received`);
     
     // ========== PROCESS TOOL CALLS ==========
@@ -1108,7 +1129,7 @@ ${chat.metadata?.customer_name ? `Nome do cliente: ${chat.metadata.customer_name
               content: `[RESULTADOS DAS FERRAMENTAS EXECUTADAS]\n\n${toolResultsText}\n\n[FIM DOS RESULTADOS]\n\nCom base nos resultados acima, responda ao cliente de forma natural e humanizada. Lembre-se: máximo 1 emoji na conversa inteira, use quebras duplas de linha, seja direto e vendedor.`
             }
           ],
-          max_completion_tokens: 400
+          max_completion_tokens: 800
         })
       });
       
