@@ -9,6 +9,14 @@ import { executeListPaymentMethods } from './payment-tools.ts';
 import { executeListProductModifiers } from './modifier-tools.ts';
 import { executeAddItemToOrder } from './cart-tools.ts';
 
+// Multi-Agent Architecture (Phase 1 & 2)
+import { classifyIntent, routeToAgent } from './agents/orchestrator.ts';
+import { processSalesAgent } from './agents/sales-agent.ts';
+import { 
+  analyzeConversationState, 
+  buildSalesContext 
+} from './utils/context-builder.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -579,56 +587,100 @@ async function processAIResponse(
     
     console.log(`[${requestId}] Found ${messageHistory?.length || 0} previous messages`);
     
-    // Buscar dados do restaurante
+    // Buscar dados do restaurante via edge function
     console.log(`[${requestId}] 🏪 Fetching restaurant data for slug: ${agent.restaurants.slug}`);
     
-    const trainingResponse = await fetch(`${supabaseUrl}/functions/v1/enhanced-restaurant-data/${agent.restaurants.slug}`);
+    const restaurantDataResponse = await supabase.functions.invoke('enhanced-restaurant-data', {
+      body: { slug: agent.restaurants.slug }
+    });
     
-    if (!trainingResponse.ok) {
-      console.error(`[${requestId}] ❌ Failed to fetch restaurant data: ${trainingResponse.status}`);
-      throw new Error(`Failed to fetch restaurant data: ${trainingResponse.status}`);
-    }
-
-    const restaurantData = await trainingResponse.json();
-    
-    if (!restaurantData.menu || !restaurantData.menu.categories) {
-      console.error(`[${requestId}] ❌ Invalid restaurant data structure`);
-      throw new Error('Invalid restaurant data structure');
+    if (restaurantDataResponse.error) {
+      console.error(`[${requestId}] ❌ Error fetching restaurant data:`, restaurantDataResponse.error);
+      throw new Error('Failed to fetch restaurant data');
     }
     
-    console.log(`[${requestId}] ✅ Restaurant data fetched - ${restaurantData.menu.categories.length} categories`);
+    const restaurantData = restaurantDataResponse.data;
+    console.log(`[${requestId}] ✅ Restaurant data fetched - ${restaurantData.categories?.length || 0} categories`);
     
-    // ========== BUILD SYSTEM PROMPT ==========
+    // ========== MULTI-AGENT ORCHESTRATION (Phase 1 & 2) ==========
+    console.log(`[${requestId}] 🎯 Starting Multi-Agent Orchestration...`);
     
-    const menuText = restaurantData.menu.categories.map((cat: any) => 
-      `${cat.name}:\n${cat.products.map((p: any) => 
-        `- ${p.name} (R$ ${p.price.toFixed(2)})${p.description ? ': ' + p.description : ''}`
-      ).join('\n')}`
-    ).join('\n\n');
+    // Step 1: Analyze conversation state
+    const conversationState = analyzeConversationState(chat.metadata, messageHistory || []);
+    console.log(`[${requestId}] 📊 Conversation State:`, conversationState);
+    
+    // Step 2: Classify intent
+    const intent = await classifyIntent(messageHistory || [], conversationState, requestId);
+    console.log(`[${requestId}] 🎯 Classified Intent: ${intent}`);
+    
+    // Step 3: Route to appropriate agent
+    const targetAgent = routeToAgent(intent, conversationState);
+    console.log(`[${requestId}] 🔀 Routing to: ${targetAgent} Agent`);
+    
+    let assistantMessage: any;
+    let finalMessage = '';
+    
+    // Step 4: Process with specialized agent
+    if (targetAgent === 'SALES') {
+      // SALES AGENT - Optimized for product sales
+      const salesContext = buildSalesContext(
+        restaurantData.restaurant,
+        restaurantData.categories || [],
+        restaurantData.products || [],
+        chat.metadata
+      );
+      
+      const salesResult = await processSalesAgent(
+        salesContext,
+        messageHistory || [],
+        chatId,
+        supabase,
+        agent,
+        requestId
+      );
+      
+      assistantMessage = {
+        content: salesResult.content,
+        tool_calls: salesResult.toolCalls
+      };
+      
+    } else {
+      // FALLBACK - Use original monolithic agent for other intents (Phase 1)
+      console.log(`[${requestId}] ⚠️ Using fallback agent for intent: ${targetAgent}`);
+      
+      // Continue with original flow...
+    
+      // ========== BUILD FALLBACK SYSTEM PROMPT ==========
+      
+      const menuText = restaurantData.categories?.map((cat: any) => {
+        const catProducts = restaurantData.products?.filter((p: any) => p.category_id === cat.id) || [];
+        return `${cat.name}:\n${catProducts.map((p: any) => 
+          `- ${p.name} (R$ ${p.price.toFixed(2)})${p.description ? ': ' + p.description : ''}`
+        ).join('\n')}`;
+      }).join('\n\n') || '';
 
-    // Build rich context information
-    const popularProductsText = restaurantData.analytics?.popular_products?.length > 0
-      ? `\n=== PRODUTOS MAIS VENDIDOS (use para sugestões!) ===\n${
-          restaurantData.analytics.popular_products.slice(0, 3).map((p: any) => 
-            `- ${p.name} ${p.price ? `(R$ ${parseFloat(p.price).toFixed(2)})` : ''} - ${p.total_ordered} pedidos`
-          ).join('\n')
-        }\n`
-      : '';
-    
-    const restaurantDescription = restaurantData.restaurant?.description 
-      ? `\n=== SOBRE O RESTAURANTE ===\n${restaurantData.restaurant.description}\n`
-      : '';
-    
-    const activityLevel = restaurantData.ai_context?.restaurant_activity_level || 'medium';
-    const activityContext = activityLevel === 'high'
-      ? `CONTEXTO: Somos um restaurante popular com alto volume de pedidos. Seja eficiente mas caloroso.`
-      : `CONTEXTO: Valorizamos cada cliente. Seja atencioso e detalhado no atendimento.`;
-    
-    const instagramInfo = restaurantData.restaurant?.instagram 
-      ? `\nInstagram: @${restaurantData.restaurant.instagram.replace('@', '')}`
-      : '';
+      const popularProductsText = restaurantData.analytics?.popular_products?.length > 0
+        ? `\n=== PRODUTOS MAIS VENDIDOS (use para sugestões!) ===\n${
+            restaurantData.analytics.popular_products.slice(0, 3).map((p: any) => 
+              `- ${p.name} ${p.price ? `(R$ ${parseFloat(p.price).toFixed(2)})` : ''} - ${p.total_ordered} pedidos`
+            ).join('\n')
+          }\n`
+        : '';
+      
+      const restaurantDescription = restaurantData.restaurant?.description 
+        ? `\n=== SOBRE O RESTAURANTE ===\n${restaurantData.restaurant.description}\n`
+        : '';
+      
+      const activityLevel = restaurantData.ai_context?.restaurant_activity_level || 'medium';
+      const activityContext = activityLevel === 'high'
+        ? `CONTEXTO: Somos um restaurante popular com alto volume de pedidos. Seja eficiente mas caloroso.`
+        : `CONTEXTO: Valorizamos cada cliente. Seja atencioso e detalhado no atendimento.`;
+      
+      const instagramInfo = restaurantData.restaurant?.instagram 
+        ? `\nInstagram: @${restaurantData.restaurant.instagram.replace('@', '')}`
+        : '';
 
-    const systemPrompt = `Você é o atendente virtual do restaurante ${restaurantData.restaurant.name}.
+      const systemPrompt = `Você é o atendente virtual do restaurante ${restaurantData.restaurant.name}.
 ${restaurantDescription}
 IMPORTANTE: Use NO MÁXIMO 1 emoji por conversa INTEIRA. Seja profissional e objetivo.
 ${activityContext}${instagramInfo}
@@ -939,60 +991,59 @@ ${chat.metadata?.customer_name ? `Nome do cliente: ${chat.metadata.customer_name
       }
     ];
 
-    // ========== CALL OPENAI ==========
-    
-    console.log(`[${requestId}] 🤖 Calling OpenAI API (gpt-5-mini-2025-08-07)...`);
-    
-    const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-5-mini-2025-08-07',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...conversationHistory,
-          { role: 'user', content: messageContent }
-        ],
-        tools: tools,
-        tool_choice: 'auto',
-        max_completion_tokens: 1000
-      })
-    });
+      // ========== CALL OPENAI (FALLBACK) ==========
+      
+      console.log(`[${requestId}] 🤖 Calling OpenAI API (Fallback Agent)...`);
+      
+      const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openAIApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-5-mini-2025-08-07',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...conversationHistory,
+            { role: 'user', content: messageContent }
+          ],
+          tools: tools,
+          tool_choice: 'auto',
+          max_completion_tokens: 1000
+        })
+      });
 
-    if (!openAIResponse.ok) {
-      const errorText = await openAIResponse.text();
-      console.error(`[${requestId}] ❌ OpenAI API error: ${openAIResponse.status} - ${errorText}`);
-      throw new Error(`OpenAI API error: ${openAIResponse.status}`);
+      if (!openAIResponse.ok) {
+        const errorText = await openAIResponse.text();
+        console.error(`[${requestId}] ❌ OpenAI API error: ${openAIResponse.status} - ${errorText}`);
+        throw new Error(`OpenAI API error: ${openAIResponse.status}`);
+      }
+
+      const openAIData = await openAIResponse.json();
+      assistantMessage = openAIData.choices[0].message;
+      
+      console.log(`[${requestId}] 📊 Fallback Response:`, {
+        has_content: !!assistantMessage.content,
+        content_length: assistantMessage.content?.length || 0,
+        has_tool_calls: !!assistantMessage.tool_calls,
+        tool_calls_count: assistantMessage.tool_calls?.length || 0,
+        finish_reason: openAIData.choices[0].finish_reason,
+        tokens: openAIData.usage
+      });
     }
-
-    const openAIData = await openAIResponse.json();
-    const assistantMessage = openAIData.choices[0].message;
     
-    // 🔍 DEBUG: Log completo da resposta
-    console.log(`[${requestId}] 📊 OpenAI Response Debug:`, {
-      has_content: !!assistantMessage.content,
-      content_length: assistantMessage.content?.length || 0,
-      has_tool_calls: !!assistantMessage.tool_calls,
-      tool_calls_count: assistantMessage.tool_calls?.length || 0,
-      finish_reason: openAIData.choices[0].finish_reason,
-      usage: openAIData.usage
-    });
-
+    // ========== UNIFIED RESPONSE LOGGING ==========
     if (assistantMessage.content) {
       console.log(`[${requestId}] 💬 AI Content Preview: ${assistantMessage.content.substring(0, 100)}...`);
     }
 
     if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-      console.log(`[${requestId}] 🔧 Tool Calls:`, assistantMessage.tool_calls.map(tc => ({
+      console.log(`[${requestId}] 🔧 Tool Calls:`, assistantMessage.tool_calls.map((tc: any) => ({
         name: tc.function.name,
         args: tc.function.arguments
       })));
     }
-
-    console.log(`[${requestId}] ✅ OpenAI response received`);
     
     // ========== PROCESS TOOL CALLS ==========
     
