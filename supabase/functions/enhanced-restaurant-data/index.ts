@@ -16,16 +16,29 @@ serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const pathParts = url.pathname.split('/');
-    const slug = pathParts[pathParts.length - 1]; // Get slug from /enhanced-restaurant-data/{slug}
-
-    if (!slug) {
-      return new Response('Restaurant slug is required', {
+    // Parse request body to get slug
+    let slug: string;
+    
+    try {
+      const body = await req.json();
+      slug = body.slug;
+    } catch (parseError) {
+      console.error('[enhanced-restaurant-data] Error parsing request body:', parseError);
+      return new Response(JSON.stringify({ error: 'Invalid request body' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    if (!slug) {
+      console.error('[enhanced-restaurant-data] Missing slug in request');
+      return new Response(JSON.stringify({ error: 'Restaurant slug is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    console.log(`[enhanced-restaurant-data] Processing request for slug: ${slug}`);
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
