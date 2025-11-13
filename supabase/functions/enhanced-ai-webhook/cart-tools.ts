@@ -51,16 +51,14 @@ export async function executeAddItemToOrder(
       quantity: args.quantity || 1,
       current_items: orderItems,
       items_count: orderItems.length,
-      current_total: total,
-      message: `${args.product_name} adicionado ao pedido! Total parcial: R$ ${total.toFixed(2)}`
+      current_total: total
     };
     
   } catch (error) {
     console.error('[ADD_ITEM_TO_ORDER] ❌ Error:', error);
     return {
       success: false,
-      error: error.message,
-      message: 'Erro ao adicionar item ao pedido.'
+      error: error.message
     };
   }
 }

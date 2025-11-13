@@ -87,30 +87,36 @@ export async function executeToolCalls(
           break;
         
         case 'get_restaurant_info':
-          // Get restaurant info from agent data
+          // Get restaurant info from agent data - NEVER invent data
           const restaurant = agent.restaurants;
           const infoType = toolArgs.info_type;
           
-          const restaurantInfo: any = {
-            address: restaurant.address || "Endereço não cadastrado",
-            phone: restaurant.phone || "Telefone não cadastrado",
-            whatsapp: restaurant.whatsapp || agent.evolution_whatsapp_number,
-            instagram: restaurant.instagram ? `@${restaurant.instagram.replace('@', '')}` : null
-          };
+          const restaurantInfo: any = {};
           
-          if (infoType === 'all') {
-            toolResult = {
-              success: true,
-              data: restaurantInfo,
-              message: `📍 Endereço: ${restaurantInfo.address}\n📞 Telefone: ${restaurantInfo.phone}${restaurantInfo.whatsapp ? `\n📱 WhatsApp: ${restaurantInfo.whatsapp}` : ''}${restaurantInfo.instagram ? `\n📷 Instagram: ${restaurantInfo.instagram}` : ''}`
-            };
-          } else {
-            toolResult = {
-              success: true,
-              data: restaurantInfo[infoType],
-              message: restaurantInfo[infoType] || 'Informação não disponível'
-            };
+          if (infoType === 'all' || infoType === 'address') {
+            if (restaurant.address && restaurant.address.trim() !== '') {
+              restaurantInfo.address = restaurant.address;
+            }
           }
+          
+          if (infoType === 'all' || infoType === 'phone') {
+            if (restaurant.phone && restaurant.phone.trim() !== '') {
+              restaurantInfo.phone = restaurant.phone;
+            }
+            if (restaurant.whatsapp && restaurant.whatsapp.trim() !== '') {
+              restaurantInfo.whatsapp = restaurant.whatsapp;
+            } else if (agent.evolution_whatsapp_number) {
+              restaurantInfo.whatsapp = agent.evolution_whatsapp_number;
+            }
+          }
+          
+          if (infoType === 'all' || infoType === 'instagram') {
+            if (restaurant.instagram && restaurant.instagram.trim() !== '') {
+              restaurantInfo.instagram = `@${restaurant.instagram.replace('@', '')}`;
+            }
+          }
+          
+          toolResult = restaurantInfo;
           break;
         
         default:

@@ -815,30 +815,36 @@ async function processAIResponse(
               break;
             
             case 'get_restaurant_info':
-              // Get restaurant info from agent data
+              // Get restaurant info from agent data - NEVER invent data
               const restaurant = agent.restaurants;
               const infoType = toolArgs.info_type;
               
-              const restaurantInfo: any = {
-                address: restaurant.address || "Endereço não cadastrado",
-                phone: restaurant.phone || "Telefone não cadastrado",
-                whatsapp: restaurant.whatsapp || agent.evolution_whatsapp_number,
-                instagram: restaurant.instagram ? `@${restaurant.instagram.replace('@', '')}` : null
-              };
+              const restaurantInfo: any = {};
               
-              if (infoType === 'all') {
-                toolResult = {
-                  success: true,
-                  data: restaurantInfo,
-                  message: `📍 Endereço: ${restaurantInfo.address}\n📞 Telefone: ${restaurantInfo.phone}${restaurantInfo.whatsapp ? `\n📱 WhatsApp: ${restaurantInfo.whatsapp}` : ''}${restaurantInfo.instagram ? `\n📷 Instagram: ${restaurantInfo.instagram}` : ''}`
-                };
-              } else {
-                toolResult = {
-                  success: true,
-                  data: restaurantInfo[infoType],
-                  message: restaurantInfo[infoType] || 'Informação não disponível'
-                };
+              if (infoType === 'all' || infoType === 'address') {
+                if (restaurant.address && restaurant.address.trim() !== '') {
+                  restaurantInfo.address = restaurant.address;
+                }
               }
+              
+              if (infoType === 'all' || infoType === 'phone') {
+                if (restaurant.phone && restaurant.phone.trim() !== '') {
+                  restaurantInfo.phone = restaurant.phone;
+                }
+                if (restaurant.whatsapp && restaurant.whatsapp.trim() !== '') {
+                  restaurantInfo.whatsapp = restaurant.whatsapp;
+                } else if (agent.evolution_whatsapp_number) {
+                  restaurantInfo.whatsapp = agent.evolution_whatsapp_number;
+                }
+              }
+              
+              if (infoType === 'all' || infoType === 'instagram') {
+                if (restaurant.instagram && restaurant.instagram.trim() !== '') {
+                  restaurantInfo.instagram = `@${restaurant.instagram.replace('@', '')}`;
+                }
+              }
+              
+              toolResult = restaurantInfo;
               break;
             
             default:
@@ -879,13 +885,39 @@ async function processAIResponse(
       
       const followUpSystemPrompt = `Você é o atendente virtual do restaurante ${restaurantData.restaurant.name}.
       
-Com base nos resultados das ferramentas executadas, responda ao cliente de forma natural e humanizada.
+Com base nos resultados das ferramentas executadas, responda ao cliente de forma 100% natural e humanizada.
 
-REGRAS IMPORTANTES:
-- Use NO MÁXIMO 1 emoji na conversa TODA
-- Seja direto, claro e vendedor
-- Use quebras duplas de linha para organizar a mensagem
-- Não mencione que você executou ferramentas ou funções`;
+REGRAS CRÍTICAS DE COMUNICAÇÃO:
+1. NUNCA use listas com bullets (-, •, ✓) ou numeração
+2. NUNCA use formatação técnica como "Total parcial:", "Resumo:", "Dados:", etc
+3. NUNCA use mais de 1 emoji em toda a conversa
+4. SEMPRE fale como um atendente humano real falaria no WhatsApp
+5. Use quebras duplas de linha (\n\n) para organizar pensamentos
+6. Seja direto, claro e natural
+7. NUNCA mencione que executou ferramentas ou funções
+
+REGRAS SOBRE DADOS:
+8. Se uma ferramenta retornar error: "NO_DATA", significa que o dado NÃO foi cadastrado
+9. NUNCA invente informações que não estão nos resultados das ferramentas
+10. Se faltam dados (payment_methods, delivery_zones, etc), explique naturalmente que ainda não foram configurados e peça para o cliente entrar em contato direto com o restaurante
+11. NUNCA forneça informações genéricas ou exemplos quando os dados reais não existem
+
+EXEMPLOS DE COMO RESPONDER:
+
+❌ ERRADO (robotizado):
+"Aceitamos as seguintes formas de pagamento:
+• Dinheiro
+• Cartão
+• PIX - Chave: 123.456.789-00"
+
+✅ CORRETO (natural):
+"A gente aceita dinheiro, cartão e PIX! Se for PIX, a chave é 123.456.789-00 mesmo 👍"
+
+❌ ERRADO (inventando dados):
+"Aceitamos dinheiro, cartão e PIX"
+
+✅ CORRETO (sem dados):
+"Opa! Deixa eu ver aqui... olha, as formas de pagamento ainda não tão configuradas no sistema. Melhor você falar direto com a gente pelo telefone (XX) XXXX-XXXX pra confirmar, tá? Desculpa o transtorno!"`;
 
       const followUpResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -928,24 +960,8 @@ REGRAS IMPORTANTES:
     
     // Fallback: if still no message after all attempts
     if (!aiMessage || aiMessage.trim() === '') {
-      console.warn(`[${requestId}] ⚠️ No AI response generated, using intelligent fallback`);
-      
-      // Intelligent fallback based on tool results
-      if (toolResults.length > 0) {
-        const lastTool = toolResults[toolResults.length - 1];
-        
-        if (lastTool.tool === 'list_payment_methods' && lastTool.result.success) {
-          aiMessage = `Aceitamos ${lastTool.result.methods.map(m => m.display_name).join(', ')}!\n\nQual forma você prefere?`;
-        } else if (lastTool.tool === 'get_cart_summary' && lastTool.result.items_count > 0) {
-          aiMessage = `Até agora deu R$ ${lastTool.result.total.toFixed(2)} (${lastTool.result.items_count} item). Tá bom assim?`;
-        } else if (lastTool.result.message) {
-          aiMessage = lastTool.result.message;
-        } else {
-          aiMessage = getRandomResponse('confirmation');
-        }
-      } else {
-        aiMessage = getRandomResponse('confirmation');
-      }
+      console.warn(`[${requestId}] ⚠️ No AI response generated, using natural fallback`);
+      aiMessage = getRandomResponse('confirmation');
     }
     
     // Add transition message if switching agents
