@@ -908,19 +908,39 @@ REGRAS IMPORTANTES:
         console.error(`[${requestId}] ❌ Follow-up API error: ${followUpResponse.status} - ${errorText}`);
       } else {
         const followUpData = await followUpResponse.json();
-        const followUpContent = followUpData.choices[0].message.content || '';
+        console.log(`[${requestId}] 📊 Follow-up raw response:`, JSON.stringify(followUpData, null, 2));
         
-        if (followUpContent) {
+        const followUpContent = followUpData.choices?.[0]?.message?.content || '';
+        
+        if (followUpContent && followUpContent.trim() !== '') {
           aiMessage = followUpContent;
           console.log(`[${requestId}] ✅ Follow-up response received (${aiMessage.length} chars)`);
+        } else {
+          console.warn(`[${requestId}] ⚠️ Follow-up returned empty content. Full response:`, followUpData);
         }
       }
     }
     
     // Fallback: if still no message after all attempts
     if (!aiMessage || aiMessage.trim() === '') {
-      console.warn(`[${requestId}] ⚠️ No AI response generated, using fallback`);
-      aiMessage = getRandomResponse('confirmation');
+      console.warn(`[${requestId}] ⚠️ No AI response generated, using intelligent fallback`);
+      
+      // Intelligent fallback based on tool results
+      if (toolResults.length > 0) {
+        const lastTool = toolResults[toolResults.length - 1];
+        
+        if (lastTool.tool === 'list_payment_methods' && lastTool.result.success) {
+          aiMessage = `Aceitamos ${lastTool.result.methods.map(m => m.display_name).join(', ')}! 💳\n\nQual forma de pagamento você prefere?`;
+        } else if (lastTool.tool === 'get_cart_summary' && lastTool.result.items_count > 0) {
+          aiMessage = `Seu carrinho tem ${lastTool.result.items_count} item(ns) no valor de R$ ${lastTool.result.total.toFixed(2)}. Tudo certo?`;
+        } else if (lastTool.result.message) {
+          aiMessage = lastTool.result.message;
+        } else {
+          aiMessage = getRandomResponse('confirmation');
+        }
+      } else {
+        aiMessage = getRandomResponse('confirmation');
+      }
     }
     
     // ========== CLEAN AI RESPONSE ==========
