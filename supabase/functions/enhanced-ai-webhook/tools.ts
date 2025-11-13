@@ -54,9 +54,7 @@ export async function executeCheckOrderPrerequisites(
       console.log('[CHECK_PREREQUISITES] ❌ Missing data:', missing);
       return {
         ready: false,
-        missing_data: missing,
-        message: `Faltam os seguintes dados para finalizar o pedido: ${missing.join(', ')}.`,
-        action: "Colete esses dados antes de mostrar o resumo ao cliente."
+        missing_data: missing
       };
     }
     
@@ -64,7 +62,6 @@ export async function executeCheckOrderPrerequisites(
     
     return {
       ready: true,
-      message: "Todos os dados necessários foram coletados. Pode mostrar o resumo.",
       customer_name: metadata.customer_name,
       delivery_type: args.delivery_type,
       delivery_address: metadata.delivery_address,
@@ -75,8 +72,7 @@ export async function executeCheckOrderPrerequisites(
     console.error('[CHECK_PREREQUISITES] ❌ Error:', error);
     return {
       ready: false,
-      error: 'validation_error',
-      message: 'Erro ao validar pré-requisitos do pedido.'
+      error: 'validation_error'
     };
   }
 }
@@ -501,7 +497,6 @@ export async function executeCheckAvailability(supabase: any, agent: any, args: 
       console.log('[CHECK_AVAILABILITY] Product not found');
       return {
         available: false,
-        message: `Produto "${args.product_name}" não encontrado no cardápio.`,
         suggestions: []
       };
     }
@@ -515,15 +510,13 @@ export async function executeCheckAvailability(supabase: any, agent: any, args: 
         name: p.name,
         price: p.price,
         description: p.description
-      })),
-      message: `${products.length} produto(s) encontrado(s) no cardápio`
+      }))
     };
   } catch (error) {
     console.error('[CHECK_AVAILABILITY] Error:', error);
     return {
       available: false,
-      error: error.message,
-      message: 'Não foi possível verificar disponibilidade do produto.'
+      error: error.message
     };
   }
 }
