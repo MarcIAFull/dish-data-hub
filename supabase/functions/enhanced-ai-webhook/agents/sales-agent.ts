@@ -86,6 +86,10 @@ export async function processSalesAgent(
 
   console.log(`[${requestId}] 🛒 Sales Agent activated`);
 
+  const systemPrompt = getSalesPrompt(context, agent.personality, agent.tone);
+
+  console.log(`[${requestId}] 🛒 Sales Agent activated`);
+
   const systemPrompt = getSalesPrompt(context);
   const tools = getSalesTools();
 
