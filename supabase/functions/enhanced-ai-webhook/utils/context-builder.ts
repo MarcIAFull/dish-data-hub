@@ -30,6 +30,8 @@ export interface MenuContext {
   restaurantName: string;
   categories: any[];
   productCount: number;
+  personality?: string;
+  tone?: string;
 }
 
 export interface SupportContext {
@@ -37,6 +39,8 @@ export interface SupportContext {
   phone: string;
   address: string;
   workingHours: any;
+  personality?: string;
+  tone?: string;
 }
 
 /**
@@ -72,34 +76,33 @@ export function buildSalesContext(
   restaurant: any,
   categories: any[],
   products: any[],
-  metadata: any
+  metadata: any,
+  agent?: any
 ): SalesContext {
-  const orderItems = metadata?.order_items || [];
-  const cartTotal = orderItems.reduce((sum: number, item: any) => 
-    sum + (item.quantity * item.unit_price), 0
-  );
-
-  // Get top 5 popular products (by category order and name)
+  // Get popular products (top 5 by display_order)
   const popularProducts = products
-    .sort((a, b) => {
-      const catA = categories.find(c => c.id === a.category_id);
-      const catB = categories.find(c => c.id === b.category_id);
-      return (catA?.display_order || 999) - (catB?.display_order || 999);
-    })
+    .filter(p => p.is_active)
+    .sort((a, b) => a.display_order - b.display_order)
     .slice(0, 5)
     .map(p => ({
       name: p.name,
-      description: p.description,
       price: p.price,
-      category: categories.find(c => c.id === p.category_id)?.name
+      category: categories.find(c => c.id === p.category_id)?.name || 'Outros'
     }));
+
+  // Current cart items
+  const currentCart = metadata.cart?.items || [];
+  const cartTotal = metadata.cart?.total || 0;
 
   return {
     restaurantName: restaurant.name,
-    categories: categories.map(c => ({ name: c.name, emoji: c.emoji })),
+    categories: categories.filter(c => c.is_active),
     popularProducts,
-    currentCart: orderItems,
-    cartTotal
+    currentCart,
+    cartTotal,
+    itemCount: metadata.cart?.items?.length || 0,
+    personality: agent?.personality,
+    tone: agent?.tone
   };
 }
 
@@ -110,26 +113,30 @@ export function buildCheckoutContext(
   restaurant: any,
   deliveryZones: any[],
   paymentMethods: any[],
-  metadata: any
+  metadata: any,
+  agent?: any
 ): CheckoutContext {
-  const orderItems = metadata?.order_items || [];
-  const cartTotal = orderItems.reduce((sum: number, item: any) => 
-    sum + (item.quantity * item.unit_price), 0
-  );
+  const cartItems = metadata.cart?.items || [];
+  const cartTotal = metadata.cart?.total || 0;
+  
+  // Map delivery zones to readable format
+  const zones = deliveryZones
+    .filter(z => z.is_active)
+    .map(z => ({
+      name: `${z.min_distance}km - ${z.max_distance}km`,
+      fee: z.fee,
+      minOrder: z.min_order || 0
+    }));
 
   return {
     restaurantName: restaurant.name,
-    cartItems: orderItems,
+    cartItems,
     cartTotal,
-    deliveryZones: (deliveryZones || []).map(z => ({
-      name: z.name,
-      fee: z.delivery_fee || 0,
-      minOrder: z.min_order_value || 0
-    })),
-    paymentMethods: (paymentMethods || [])
-      .filter(pm => pm.is_active)
-      .map(pm => pm.method_type),
-    minOrderValue: restaurant.min_order_value || 0
+    minOrderValue: restaurant.min_order_value || 20.0,
+    deliveryZones: zones,
+    paymentMethods: paymentMethods.filter(p => p.is_active).map(p => p.display_name),
+    personality: agent?.personality,
+    tone: agent?.tone
   };
 }
 
@@ -139,23 +146,28 @@ export function buildCheckoutContext(
 export function buildMenuContext(
   restaurant: any,
   categories: any[],
-  products: any[]
+  products: any[],
+  agent?: any
 ): MenuContext {
   return {
     restaurantName: restaurant.name,
     categories: categories.map(c => ({ name: c.name, emoji: c.emoji })),
-    productCount: products.length
+    productCount: products.length,
+    personality: agent?.personality,
+    tone: agent?.tone
   };
 }
 
 /**
  * Builds context for Support Agent
  */
-export function buildSupportContext(restaurant: any): SupportContext {
+export function buildSupportContext(restaurant: any, agent?: any): SupportContext {
   return {
     restaurantName: restaurant.name,
     phone: restaurant.phone || 'Não disponível',
     address: restaurant.address || 'Não disponível',
-    workingHours: restaurant.working_hours || {}
+    workingHours: restaurant.working_hours || {},
+    personality: agent?.personality,
+    tone: agent?.tone
   };
 }

@@ -124,6 +124,8 @@ export async function processCheckoutAgent(
 
   console.log(`[${requestId}] 💳 Checkout Agent activated`);
 
+  const systemPrompt = getCheckoutPrompt(context, agent.personality, agent.tone);
+
   const systemPrompt = getCheckoutPrompt(context);
   const tools = getCheckoutTools();
 

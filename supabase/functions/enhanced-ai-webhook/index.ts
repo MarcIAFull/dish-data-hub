@@ -640,7 +640,8 @@ async function processAIResponse(
         restaurantData.restaurant,
         restaurantData.categories || [],
         restaurantData.products || [],
-        chat.metadata
+        chat.metadata,
+        agent
       );
       
       const salesResult = await processSalesAgent(
@@ -676,7 +677,8 @@ async function processAIResponse(
         restaurantData.restaurant,
         deliveryZones || [],
         paymentMethods || [],
-        chat.metadata
+        chat.metadata,
+        agent
       );
       
       const checkoutResult = await processCheckoutAgent(
@@ -698,7 +700,8 @@ async function processAIResponse(
       const menuContext = buildMenuContext(
         restaurantData.restaurant,
         restaurantData.categories || [],
-        restaurantData.products || []
+        restaurantData.products || [],
+        agent
       );
       
       const menuResult = await processMenuAgent(
@@ -717,7 +720,7 @@ async function processAIResponse(
       
     } else if (targetAgent === 'SUPPORT') {
       // SUPPORT AGENT - Optimized for customer support
-      const supportContext = buildSupportContext(restaurantData.restaurant);
+      const supportContext = buildSupportContext(restaurantData.restaurant, agent);
       
       const supportResult = await processSupportAgent(
         supportContext,
@@ -725,6 +728,8 @@ async function processAIResponse(
         chatId,
         supabase,
         agent,
+        requestId
+      );
         requestId
       );
       
@@ -930,9 +935,9 @@ REGRAS IMPORTANTES:
         const lastTool = toolResults[toolResults.length - 1];
         
         if (lastTool.tool === 'list_payment_methods' && lastTool.result.success) {
-          aiMessage = `Aceitamos ${lastTool.result.methods.map(m => m.display_name).join(', ')}! 💳\n\nQual forma de pagamento você prefere?`;
+          aiMessage = `Aceitamos ${lastTool.result.methods.map(m => m.display_name).join(', ')}!\n\nQual forma você prefere?`;
         } else if (lastTool.tool === 'get_cart_summary' && lastTool.result.items_count > 0) {
-          aiMessage = `Seu carrinho tem ${lastTool.result.items_count} item(ns) no valor de R$ ${lastTool.result.total.toFixed(2)}. Tudo certo?`;
+          aiMessage = `Até agora deu R$ ${lastTool.result.total.toFixed(2)} (${lastTool.result.items_count} item). Tá bom assim?`;
         } else if (lastTool.result.message) {
           aiMessage = lastTool.result.message;
         } else {
@@ -941,6 +946,11 @@ REGRAS IMPORTANTES:
       } else {
         aiMessage = getRandomResponse('confirmation');
       }
+    }
+    
+    // Add transition message if switching agents
+    if (transitionMessage) {
+      aiMessage = transitionMessage + aiMessage;
     }
     
     // ========== CLEAN AI RESPONSE ==========
