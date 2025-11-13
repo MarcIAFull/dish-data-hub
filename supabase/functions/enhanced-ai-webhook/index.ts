@@ -589,10 +589,16 @@ async function processAIResponse(
       .from('messages')
       .select('sender_type, content, created_at')
       .eq('chat_id', chat.id)
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: true })  // ✅ Ordem cronológica
       .limit(15);
     
     console.log(`[${requestId}] Found ${messageHistory?.length || 0} previous messages`);
+    
+    // Converter para formato OpenAI
+    const conversationHistory = (messageHistory || []).map(msg => ({
+      role: msg.sender_type === 'user' ? 'user' : 'assistant',
+      content: msg.content
+    }));
     
     // Buscar dados do restaurante via edge function
     console.log(`[${requestId}] 🏪 Fetching restaurant data for slug: ${agent.restaurants.slug}`);

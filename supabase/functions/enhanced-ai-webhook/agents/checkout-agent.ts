@@ -58,6 +58,17 @@ export function getCheckoutTools() {
     {
       type: "function",
       function: {
+        name: "get_cart_summary",
+        description: "Retorna resumo completo do carrinho atual",
+        parameters: {
+          type: "object",
+          properties: {}
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
         name: "create_order",
         description: "Cria o pedido final com todos os dados coletados",
         parameters: {
@@ -89,17 +100,6 @@ export function getCheckoutTools() {
             }
           },
           required: ["customer_name", "customer_phone", "delivery_address", "payment_method"]
-        }
-      }
-    },
-    {
-      type: "function",
-      function: {
-        name: "get_cart_summary",
-        description: "Retorna resumo completo do carrinho atual",
-        parameters: {
-          type: "object",
-          properties: {}
         }
       }
     }
