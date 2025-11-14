@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { RefreshCw, Clock, Trash2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RefreshCw, Clock, Trash2, MessageSquare, Workflow, Wrench, Activity } from "lucide-react";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +24,8 @@ import { AgentFlowViewer } from "./AgentFlowViewer";
 import { ToolCallsViewer } from "./ToolCallsViewer";
 import { MetadataDiff } from "./MetadataDiff";
 import { ContextViewer } from "./ContextViewer";
+import { CommunicationViewer } from "./CommunicationViewer";
+import { TimelineViewer } from "./TimelineViewer";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -367,4 +370,63 @@ export function AIDebugDashboard() {
       </div>
     </div>
   );
+}
+
+// Helper function to build timeline events from log
+function buildTimelineEvents(log: any) {
+  const events: any[] = [];
+  let timestamp = 0;
+
+  // Intent detection
+  if (log.detected_intents && log.detected_intents.length > 0) {
+    events.push({
+      timestamp,
+      type: "intent",
+      title: `${log.detected_intents.length} Intent(s) Detectado(s)`,
+      description: log.detected_intents.map((i: any) => i.type).join(", "),
+      status: "success"
+    });
+    timestamp += 50;
+  }
+
+  // Agent calls
+  if (log.agents_called && log.agents_called.length > 0) {
+    log.agents_called.forEach((agent: any, idx: number) => {
+      events.push({
+        timestamp,
+        type: "agent",
+        title: `${agent.agent} - ${agent.action}`,
+        description: agent.output ? `Output: ${agent.output.substring(0, 100)}...` : undefined,
+        status: "success"
+      });
+      timestamp += 100;
+    });
+  }
+
+  // Tool executions
+  if (log.tools_executed && log.tools_executed.length > 0) {
+    log.tools_executed.forEach((tool: any, idx: number) => {
+      events.push({
+        timestamp,
+        type: "tool",
+        title: tool.toolName || `Tool ${idx + 1}`,
+        description: tool.success ? "Executado com sucesso" : "Falhou",
+        status: tool.success ? "success" : "error"
+      });
+      timestamp += 30;
+    });
+  }
+
+  // Final response
+  if (log.final_response) {
+    events.push({
+      timestamp,
+      type: "response",
+      title: "Resposta Final Gerada",
+      description: `${log.final_response.length} caracteres`,
+      status: "success"
+    });
+  }
+
+  return events;
 }
