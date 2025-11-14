@@ -84,13 +84,15 @@ export async function processSalesAgent(
     throw new Error('OPENAI_API_KEY not configured');
   }
 
-  console.log(`[${requestId}] 🛒 Sales Agent activated`);
+  console.log(`[${requestId}] 🛒 Sales Agent - Starting processing...`);
+  console.log(`[${requestId}] 📊 Context:`);
+  console.log(`  - Restaurant: ${context.restaurantName}`);
+  console.log(`  - Categories: ${context.categories?.length || 0}`);
+  console.log(`  - Popular products: ${context.popularProducts?.length || 0}`);
+  console.log(`  - Cart items: ${context.currentCart?.length || 0}`);
+  console.log(`  - Cart total: R$ ${context.cartTotal || 0}`);
 
-  const systemPrompt = getSalesPrompt(context, agent.personality, agent.tone);
-
-  console.log(`[${requestId}] 🛒 Sales Agent activated`);
-
-  const systemPrompt = getSalesPrompt(context);
+  const systemPrompt = getSalesPrompt(context, agent?.personality, agent?.tone);
   const tools = getSalesTools();
 
   // Usar histórico completo (não fazer slice)
@@ -99,8 +101,8 @@ export async function processSalesAgent(
     content: m.content
   }));
 
-  console.log(`[${requestId}] 📥 Sales Agent - ${conversationHistory.length} messages in context`);
-  console.log(`[${requestId}] 🤖 Calling OpenAI (Sales Agent)...`);
+  console.log(`[${requestId}] 📥 Conversation history: ${conversationHistory.length} messages`);
+  console.log(`[${requestId}] 🤖 Calling OpenAI (gpt-5-2025-08-07)...`);
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -109,14 +111,14 @@ export async function processSalesAgent(
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'gpt-5-mini-2025-08-07',
+      model: 'gpt-5-2025-08-07',
       messages: [
         { role: 'system', content: systemPrompt },
         ...conversationHistory
       ],
       tools,
       tool_choice: 'auto',
-      max_completion_tokens: 1000
+      max_completion_tokens: 500
     })
   });
 

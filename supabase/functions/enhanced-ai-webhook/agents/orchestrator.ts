@@ -28,8 +28,13 @@ export async function classifyIntent(
 
     const prompt = getOrchestratorPrompt(messagesText, conversationState);
 
-    console.log(`[${requestId}] 🎯 Classifying intent with orchestrator...`);
-    console.log(`[${requestId}] 📊 Total messages in context: ${lastMessages.length}`);
+    console.log(`[${requestId}] 🎯 Orchestrator - Starting classification...`);
+    console.log(`[${requestId}] 📊 Input:`);
+    console.log(`  - Total messages: ${lastMessages.length}`);
+    console.log(`  - Last message: "${lastMessages[lastMessages.length - 1]?.content?.substring(0, 100)}"`);
+    console.log(`  - Cart: ${conversationState.itemCount} items (R$ ${conversationState.cartTotal})`);
+    console.log(`  - Has greeted: ${conversationState.hasGreeted}`);
+    console.log(`[${requestId}] 🤖 Calling OpenAI (gpt-5-2025-08-07)...`);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -38,11 +43,11 @@ export async function classifyIntent(
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-5-2025-08-07',
         messages: [
           { role: 'system', content: prompt }
         ],
-        max_completion_tokens: 20
+        max_completion_tokens: 50
       })
     });
 
@@ -53,7 +58,12 @@ export async function classifyIntent(
     }
 
     const data = await response.json();
-    const intent = data.choices[0].message.content.trim().toUpperCase() as Intent;
+    const rawIntent = data.choices[0].message.content.trim().toUpperCase();
+    
+    console.log(`[${requestId}] 📥 OpenAI Response: "${rawIntent}"`);
+    console.log(`[${requestId}] 📊 Tokens used: ${data.usage?.total_tokens || 'N/A'}`);
+    
+    const intent = rawIntent as Intent;
 
     console.log(`[${requestId}] ✅ Intent classified: ${intent}`);
 
@@ -95,8 +105,7 @@ export function routeToAgent(
   }
 
   // CHECKOUT → Finalize order (CHECKOUT agent)
-  // Also route to CHECKOUT if has items and intent is CHECKOUT
-  if (intent === 'CHECKOUT' || (conversationState.hasItemsInCart && intent === 'UNCLEAR')) {
+  if (intent === 'CHECKOUT') {
     return 'CHECKOUT';
   }
 
@@ -107,18 +116,27 @@ export function routeToAgent(
 
   // UNCLEAR - route based on conversation state
   if (intent === 'UNCLEAR') {
-    // Has greeted but no items → probably wants menu
-    if (conversationState.hasGreeted && !conversationState.hasItemsInCart) {
-      return 'MENU';
-    }
-    // Has items → probably wants to continue shopping
-    if (conversationState.hasItemsInCart) {
-      return 'SALES';
-    }
     // First contact → welcome with menu
     if (!conversationState.hasGreeted) {
+      console.log(`[Routing] UNCLEAR + no greeting → MENU Agent`);
       return 'MENU';
     }
+    
+    // Cart empty → probably wants menu/order
+    if (!conversationState.hasItemsInCart) {
+      console.log(`[Routing] UNCLEAR + cart empty → MENU Agent`);
+      return 'MENU';
+    }
+    
+    // Has cart but not finalized → continue selling
+    if (conversationState.hasItemsInCart && !conversationState.hasValidatedAddress) {
+      console.log(`[Routing] UNCLEAR + cart not finalized → SALES Agent`);
+      return 'SALES';
+    }
+    
+    // Default safe option
+    console.log(`[Routing] UNCLEAR default → SALES Agent`);
+    return 'SALES';
   }
 
   // Default fallback (should rarely happen now)

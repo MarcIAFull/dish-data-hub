@@ -45,9 +45,13 @@ export async function processSupportAgent(
     throw new Error('OPENAI_API_KEY not configured');
   }
 
-  console.log(`[${requestId}] 🆘 Support Agent activated`);
+  console.log(`[${requestId}] 🆘 Support Agent - Starting processing...`);
+  console.log(`[${requestId}] 📊 Context:`);
+  console.log(`  - Restaurant: ${context.restaurantName}`);
+  console.log(`  - Phone: ${context.phone || 'N/A'}`);
+  console.log(`  - Address: ${context.address || 'N/A'}`);
 
-  const systemPrompt = getSupportPrompt(context);
+  const systemPrompt = getSupportPrompt(context, agent?.personality, agent?.tone);
   const tools = getSupportTools();
 
   // Usar histórico completo (não fazer slice)
@@ -56,8 +60,8 @@ export async function processSupportAgent(
     content: m.content
   }));
 
-  console.log(`[${requestId}] 📥 Support Agent - ${conversationHistory.length} messages in context`);
-  console.log(`[${requestId}] 🤖 Calling OpenAI (Support Agent)...`);
+  console.log(`[${requestId}] 📥 Conversation history: ${conversationHistory.length} messages`);
+  console.log(`[${requestId}] 🤖 Calling OpenAI (gpt-5-2025-08-07)...`);
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -66,14 +70,14 @@ export async function processSupportAgent(
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'gpt-5-mini-2025-08-07',
+      model: 'gpt-5-2025-08-07',
       messages: [
         { role: 'system', content: systemPrompt },
         ...conversationHistory
       ],
       tools,
       tool_choice: 'auto',
-      max_completion_tokens: 400
+      max_completion_tokens: 500
     })
   });
 

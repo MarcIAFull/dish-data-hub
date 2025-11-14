@@ -122,11 +122,15 @@ export async function processCheckoutAgent(
     throw new Error('OPENAI_API_KEY not configured');
   }
 
-  console.log(`[${requestId}] 💳 Checkout Agent activated`);
+  console.log(`[${requestId}] 💳 Checkout Agent - Starting processing...`);
+  console.log(`[${requestId}] 📊 Context:`);
+  console.log(`  - Restaurant: ${context.restaurantName}`);
+  console.log(`  - Cart items: ${context.currentCart?.length || 0}`);
+  console.log(`  - Cart total: R$ ${context.cartTotal || 0}`);
+  console.log(`  - Delivery zones: ${context.deliveryZones?.length || 0}`);
+  console.log(`  - Payment methods: ${context.paymentMethods?.length || 0}`);
 
-  const systemPrompt = getCheckoutPrompt(context, agent.personality, agent.tone);
-
-  const systemPrompt = getCheckoutPrompt(context);
+  const systemPrompt = getCheckoutPrompt(context, agent?.personality, agent?.tone);
   const tools = getCheckoutTools();
 
   // Usar histórico completo (não fazer slice)
@@ -135,8 +139,8 @@ export async function processCheckoutAgent(
     content: m.content
   }));
 
-  console.log(`[${requestId}] 📥 Checkout Agent - ${conversationHistory.length} messages in context`);
-  console.log(`[${requestId}] 🤖 Calling OpenAI (Checkout Agent)...`);
+  console.log(`[${requestId}] 📥 Conversation history: ${conversationHistory.length} messages`);
+  console.log(`[${requestId}] 🤖 Calling OpenAI (gpt-5-2025-08-07)...`);
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -145,14 +149,14 @@ export async function processCheckoutAgent(
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'gpt-5-mini-2025-08-07',
+      model: 'gpt-5-2025-08-07',
       messages: [
         { role: 'system', content: systemPrompt },
         ...conversationHistory
       ],
       tools,
       tool_choice: 'auto',
-      max_completion_tokens: 1500
+      max_completion_tokens: 500
     })
   });
 
