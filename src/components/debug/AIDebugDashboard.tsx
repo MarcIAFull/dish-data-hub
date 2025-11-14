@@ -1,13 +1,11 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Clock, Trash2, MessageSquare, Workflow, Wrench, Activity } from "lucide-react";
+import { RefreshCw, Clock, Trash2, MessageSquare, Workflow, Activity } from "lucide-react";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -57,8 +55,61 @@ interface Chat {
   created_at: string;
 }
 
+function buildTimelineEvents(log: AILog) {
+  const events: any[] = [];
+  let timestamp = 0;
+
+  if (log.detected_intents && log.detected_intents.length > 0) {
+    events.push({
+      timestamp,
+      type: "intent",
+      title: `${log.detected_intents.length} Intent(s)`,
+      description: log.detected_intents.map((i: any) => i.type).join(", "),
+      status: "success"
+    });
+    timestamp += 50;
+  }
+
+  if (log.agents_called && log.agents_called.length > 0) {
+    log.agents_called.forEach((agent: any) => {
+      events.push({
+        timestamp,
+        type: "agent",
+        title: `${agent.agent} - ${agent.action}`,
+        description: agent.output ? `Output: ${agent.output.substring(0, 100)}...` : undefined,
+        status: "success"
+      });
+      timestamp += 100;
+    });
+  }
+
+  if (log.tools_executed && log.tools_executed.length > 0) {
+    log.tools_executed.forEach((tool: any, idx: number) => {
+      events.push({
+        timestamp,
+        type: "tool",
+        title: tool.toolName || `Tool ${idx + 1}`,
+        description: tool.success ? "Executado" : "Falhou",
+        status: tool.success ? "success" : "error"
+      });
+      timestamp += 30;
+    });
+  }
+
+  if (log.final_response) {
+    events.push({
+      timestamp,
+      type: "response",
+      title: "Resposta Final",
+      description: `${log.final_response.length} chars`,
+      status: "success"
+    });
+  }
+
+  return events;
+}
+
 export function AIDebugDashboard() {
-  const { user } = useAuth();
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
   const [logs, setLogs] = useState<AILog[]>([]);
@@ -69,19 +120,14 @@ export function AIDebugDashboard() {
     setResetting(true);
     try {
       const { data, error } = await supabase.functions.invoke('reset-system');
-      
       if (error) throw error;
-      
       toast.success(data.message);
-      console.log('Reset result:', data);
-      
-      // Reload chats
       await loadChats();
       setSelectedChatId(null);
       setLogs([]);
     } catch (error) {
-      console.error('Error resetting system:', error);
-      toast.error('Erro ao resetar sistema');
+      console.error('Error:', error);
+      toast.error('Erro ao resetar');
     } finally {
       setResetting(false);
     }
@@ -95,11 +141,10 @@ export function AIDebugDashboard() {
         .select("id, phone, session_id, created_at")
         .order("created_at", { ascending: false })
         .limit(20);
-
       if (error) throw error;
       setChats(data || []);
     } catch (error) {
-      console.error("Error loading chats:", error);
+      console.error("Error:", error);
       toast.error("Erro ao carregar conversas");
     } finally {
       setLoading(false);
@@ -115,11 +160,10 @@ export function AIDebugDashboard() {
         .eq("chat_id", chatId)
         .order("created_at", { ascending: false })
         .limit(50);
-
       if (error) throw error;
       setLogs(data || []);
     } catch (error) {
-      console.error("Error loading logs:", error);
+      console.error("Error:", error);
       toast.error("Erro ao carregar logs");
     } finally {
       setLoading(false);
@@ -145,288 +189,232 @@ export function AIDebugDashboard() {
   };
 
   return (
-    <div className="h-screen flex">
-      {/* Left Column - Chats List */}
-      <div className="w-80 border-r bg-background">
-        <div className="p-4 border-b space-y-2">
-          <h2 className="text-lg font-semibold">Conversas Recentes</h2>
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">AI Debug Dashboard</h1>
+            <p className="text-muted-foreground">
+              Sistema completo de debug
+            </p>
+          </div>
           <div className="flex gap-2">
-            <Button
-              onClick={handleRefresh}
-              size="sm"
-              variant="outline"
-              className="flex-1"
-              disabled={loading}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <Button onClick={handleRefresh} disabled={loading} variant="outline" size="sm">
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
               Atualizar
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  disabled={resetting}
-                >
+                <Button variant="destructive" size="sm" disabled={resetting}>
                   <Trash2 className="h-4 w-4 mr-2" />
                   Resetar
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Resetar Sistema</AlertDialogTitle>
+                  <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Esta ação vai:
-                    <ul className="list-disc list-inside mt-2 space-y-1">
-                      <li>Arquivar todas as conversas ativas</li>
-                      <li>Cancelar todos os pedidos pendentes</li>
-                      <li>Limpar metadata das conversas</li>
-                    </ul>
-                    <p className="mt-3 font-semibold">
-                      Isso não deleta os dados, apenas os marca como encerrados.
-                    </p>
+                    Isso irá apagar todos os dados.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleResetSystem}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Confirmar Reset
+                  <AlertDialogAction onClick={handleResetSystem}>
+                    Resetar
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
           </div>
         </div>
-        <ScrollArea className="h-[calc(100vh-120px)]">
-          <div className="p-2 space-y-2">
-            {chats.map((chat) => (
-              <Card
-                key={chat.id}
-                className={`cursor-pointer transition-colors hover:bg-accent ${
-                  selectedChatId === chat.id ? 'border-primary bg-accent' : ''
-                }`}
-                onClick={() => setSelectedChatId(chat.id)}
-              >
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm">Chat #{chat.id}</CardTitle>
-                  <p className="text-xs text-muted-foreground">{chat.phone}</p>
-                </CardHeader>
-                <CardContent className="py-2 px-4">
-                  <p className="text-xs text-muted-foreground">
-                    {format(new Date(chat.created_at), "dd/MM/yyyy HH:mm")}
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <Card className="lg:col-span-1">
+            <CardHeader>
+              <CardTitle className="text-sm">Conversas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[calc(100vh-200px)]">
+                <div className="space-y-2">
+                  {chats.map((chat) => (
+                    <Card
+                      key={chat.id}
+                      className={`cursor-pointer transition-colors ${
+                        selectedChatId === chat.id
+                          ? "border-primary bg-primary/5"
+                          : "hover:bg-muted/50"
+                      }`}
+                      onClick={() => setSelectedChatId(chat.id)}
+                    >
+                      <CardContent className="p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{chat.phone}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(chat.created_at), "dd/MM HH:mm")}
+                            </p>
+                          </div>
+                          <Badge variant="outline">#{chat.id}</Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          <div className="lg:col-span-3">
+            {!selectedChatId ? (
+              <Card>
+                <CardContent className="py-24 text-center">
+                  <p className="text-muted-foreground">
+                    Selecione uma conversa
                   </p>
-                  {chat.session_id && (
-                    <Badge variant="outline" className="mt-1 text-xs">
-                      {chat.session_id.substring(0, 20)}...
-                    </Badge>
-                  )}
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        </ScrollArea>
-      </div>
-
-      {/* Right Column - Logs Timeline */}
-      <div className="flex-1 overflow-auto">
-        <div className="p-6">
-          {!selectedChatId ? (
-            <div className="flex items-center justify-center h-96">
-              <p className="text-muted-foreground">
-                Selecione uma conversa para ver os logs
-              </p>
-            </div>
-          ) : logs.length === 0 ? (
-            <div className="flex items-center justify-center h-96">
-              <p className="text-muted-foreground">
-                Nenhum log encontrado para esta conversa
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold">
-                Logs de Processamento AI - Chat #{selectedChatId}
-              </h2>
-              {logs.map((log) => (
-                <Card key={log.id} className="border-l-4 border-l-primary">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-sm font-mono">
-                          {log.request_id}
-                        </CardTitle>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {format(new Date(log.created_at), "dd/MM/yyyy HH:mm:ss")}
-                        </p>
+            ) : logs.length === 0 ? (
+              <Card>
+                <CardContent className="py-24 text-center">
+                  <p className="text-muted-foreground">Nenhum log encontrado</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {logs.map((log) => (
+                  <Card key={log.id} className="border-2">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Activity className="h-4 w-4" />
+                            Request: {log.request_id.substring(0, 8)}
+                          </CardTitle>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            {format(new Date(log.created_at), "dd/MM/yyyy HH:mm:ss")}
+                            <Badge variant="outline" className="ml-2">
+                              {log.processing_time_ms}ms
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          {log.current_state && <Badge variant="outline">{log.current_state}</Badge>}
+                          {log.new_state && log.new_state !== log.current_state && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs">→</span>
+                              <Badge>{log.new_state}</Badge>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <Badge variant="secondary" className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {log.processing_time_ms}ms
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <Accordion type="multiple" className="w-full">
-                      <AccordionItem value="input">
-                        <AccordionTrigger className="text-sm">
-                          📥 Input
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <div className="space-y-2">
-                            <div>
-                              <p className="text-xs font-semibold mb-1">Mensagens do Usuário:</p>
-                              <pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-32">
-                                {JSON.stringify(log.user_messages, null, 2)}
-                              </pre>
-                            </div>
-                            <div>
-                              <p className="text-xs font-semibold mb-1">Estado Atual:</p>
-                              <Badge>{log.current_state}</Badge>
-                            </div>
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
+                    </CardHeader>
 
-                      <AccordionItem value="orchestrator">
-                        <AccordionTrigger className="text-sm">
-                          🎯 Orchestrator
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <IntentsViewer intents={log.detected_intents} />
-                        </AccordionContent>
-                      </AccordionItem>
+                    <CardContent>
+                      <Tabs defaultValue="communication" className="w-full">
+                        <TabsList className="grid w-full grid-cols-6">
+                          <TabsTrigger value="communication" className="text-xs">
+                            <MessageSquare className="h-3 w-3 mr-1" />
+                            Comunicação
+                          </TabsTrigger>
+                          <TabsTrigger value="timeline" className="text-xs">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Timeline
+                          </TabsTrigger>
+                          <TabsTrigger value="intents" className="text-xs">
+                            Intents
+                          </TabsTrigger>
+                          <TabsTrigger value="agents" className="text-xs">
+                            <Workflow className="h-3 w-3 mr-1" />
+                            Agentes
+                          </TabsTrigger>
+                          <TabsTrigger value="context" className="text-xs">
+                            Contexto
+                          </TabsTrigger>
+                          <TabsTrigger value="metadata" className="text-xs">
+                            Metadata
+                          </TabsTrigger>
+                        </TabsList>
 
-                      <AccordionItem value="agents">
-                        <AccordionTrigger className="text-sm">
-                          🤖 Agents
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <AgentFlowViewer agents={log.agents_called} />
-                        </AccordionContent>
-                      </AccordionItem>
+                        <TabsContent value="communication" className="mt-4">
+                          <CommunicationViewer agents={log.agents_called || []} />
+                        </TabsContent>
 
-                      <AccordionItem value="tools">
-                        <AccordionTrigger className="text-sm">
-                          🔧 Tools
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <ToolCallsViewer tools={log.tools_executed} />
-                        </AccordionContent>
-                      </AccordionItem>
-
-                      <AccordionItem value="context">
-                        <AccordionTrigger className="text-sm">
-                          💭 Context
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <ContextViewer
-                            history={log.loaded_history}
-                            summaries={log.loaded_summaries}
+                        <TabsContent value="timeline" className="mt-4">
+                          <TimelineViewer 
+                            events={buildTimelineEvents(log)} 
+                            totalTime={log.processing_time_ms}
                           />
-                        </AccordionContent>
-                      </AccordionItem>
+                        </TabsContent>
 
-                      <AccordionItem value="output">
-                        <AccordionTrigger className="text-sm">
-                          📤 Output
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <div className="space-y-2">
-                            <div>
-                              <p className="text-xs font-semibold mb-1">Resposta Final:</p>
-                              <p className="text-sm bg-muted p-3 rounded">
-                                {log.final_response}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-xs font-semibold mb-1">Novo Estado:</p>
-                              <Badge variant="secondary">{log.new_state}</Badge>
-                            </div>
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
+                        <TabsContent value="intents" className="mt-4">
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-sm">Intenções</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <IntentsViewer intents={log.detected_intents || []} />
+                            </CardContent>
+                          </Card>
+                        </TabsContent>
 
-                      <AccordionItem value="metadata">
-                        <AccordionTrigger className="text-sm">
-                          🔄 Metadata Changes
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <MetadataDiff
-                            before={log.metadata_snapshot}
-                            after={log.updated_metadata}
-                          />
-                        </AccordionContent>
-                      </AccordionItem>
-                    </Accordion>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                        <TabsContent value="agents" className="mt-4">
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-sm">Fluxo de Agentes</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <AgentFlowViewer agents={log.agents_called || []} />
+                            </CardContent>
+                          </Card>
+                        </TabsContent>
+
+                        <TabsContent value="context" className="mt-4">
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-sm">Contexto</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <ContextViewer
+                                history={log.loaded_history}
+                                summaries={log.loaded_summaries}
+                              />
+                            </CardContent>
+                          </Card>
+                        </TabsContent>
+
+                        <TabsContent value="metadata" className="mt-4">
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-sm">Metadata</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <MetadataDiff
+                                before={log.metadata_snapshot}
+                                after={log.updated_metadata}
+                              />
+                            </CardContent>
+                          </Card>
+                        </TabsContent>
+                      </Tabs>
+
+                      {log.final_response && (
+                        <div className="mt-4 p-4 bg-muted/50 rounded-lg border-2 border-primary/20">
+                          <p className="text-xs font-semibold mb-2 flex items-center gap-2">
+                            <MessageSquare className="h-3 w-3" />
+                            Resposta Final:
+                          </p>
+                          <p className="text-sm whitespace-pre-wrap">{log.final_response}</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
-}
-
-// Helper function to build timeline events from log
-function buildTimelineEvents(log: any) {
-  const events: any[] = [];
-  let timestamp = 0;
-
-  // Intent detection
-  if (log.detected_intents && log.detected_intents.length > 0) {
-    events.push({
-      timestamp,
-      type: "intent",
-      title: `${log.detected_intents.length} Intent(s) Detectado(s)`,
-      description: log.detected_intents.map((i: any) => i.type).join(", "),
-      status: "success"
-    });
-    timestamp += 50;
-  }
-
-  // Agent calls
-  if (log.agents_called && log.agents_called.length > 0) {
-    log.agents_called.forEach((agent: any, idx: number) => {
-      events.push({
-        timestamp,
-        type: "agent",
-        title: `${agent.agent} - ${agent.action}`,
-        description: agent.output ? `Output: ${agent.output.substring(0, 100)}...` : undefined,
-        status: "success"
-      });
-      timestamp += 100;
-    });
-  }
-
-  // Tool executions
-  if (log.tools_executed && log.tools_executed.length > 0) {
-    log.tools_executed.forEach((tool: any, idx: number) => {
-      events.push({
-        timestamp,
-        type: "tool",
-        title: tool.toolName || `Tool ${idx + 1}`,
-        description: tool.success ? "Executado com sucesso" : "Falhou",
-        status: tool.success ? "success" : "error"
-      });
-      timestamp += 30;
-    });
-  }
-
-  // Final response
-  if (log.final_response) {
-    events.push({
-      timestamp,
-      type: "response",
-      title: "Resposta Final Gerada",
-      description: `${log.final_response.length} caracteres`,
-      status: "success"
-    });
-  }
-
-  return events;
 }
