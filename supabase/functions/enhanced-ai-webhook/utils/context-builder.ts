@@ -39,6 +39,8 @@ export interface SupportContext {
   phone: string;
   address: string;
   workingHours: any;
+  estimatedPrepTime?: number;
+  estimatedDeliveryTime?: number;
   personality?: string;
   tone?: string;
 }
@@ -182,6 +184,8 @@ export function buildSupportContext(restaurant: any, agent?: any): SupportContex
     phone: restaurant.phone || 'Não disponível',
     address: restaurant.address || 'Não disponível',
     workingHours: restaurant.working_hours || {},
+    estimatedPrepTime: restaurant.estimated_prep_time,
+    estimatedDeliveryTime: restaurant.estimated_delivery_time,
     personality: agent?.personality,
     tone: agent?.tone
   };

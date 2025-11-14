@@ -983,7 +983,7 @@ async function processAIResponse(
           }
           
           toolResults.push({
-            tool: toolName,
+            tool_name: toolName,
             result: toolResult
           });
           
@@ -992,11 +992,18 @@ async function processAIResponse(
         } catch (error) {
           console.error(`[${requestId}] ❌ Tool ${toolName} error:`, error);
           toolResults.push({
-            tool: toolName,
+            tool_name: toolName,
             result: { error: error.message }
           });
         }
       }
+      
+      // Debug: Log executed tools summary
+      console.log(`[${requestId}] 🛠️ Tools executed summary:`, toolResults.map(t => ({
+        tool: t.tool_name,
+        success: t.result?.success !== false,
+        has_data: !!t.result
+      })));
     }
     
     // ========== GET FINAL AI MESSAGE ==========

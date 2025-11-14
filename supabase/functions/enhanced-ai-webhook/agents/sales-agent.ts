@@ -29,7 +29,7 @@ export function getSalesTools() {
       type: "function",
       function: {
         name: "add_item_to_order",
-        description: "Adiciona um produto ao carrinho/pedido do cliente",
+        description: "SEMPRE use IMEDIATAMENTE após cliente confirmar que quer um produto (ex: 'quero', 'pode ser', 'sim', 'quero X', 'me manda'). Adiciona o produto ao carrinho/pedido. OBRIGATÓRIO para processar vendas. NÃO confirme vendas sem adicionar ao carrinho!",
         parameters: {
           type: "object",
           properties: {
