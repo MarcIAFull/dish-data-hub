@@ -133,15 +133,33 @@ Forneça dados FACTUAIS (será humanizado depois).`;
 }
 
 export function getMenuPrompt(context: MenuContext, currentState: string, personality?: string, tone?: string): string {
+  // ✅ FIX #1: Listar TODOS os produtos no prompt
+  const categoriesText = context.categories
+    .map(cat => {
+      const productsText = cat.products
+        .map(p => `  - ${p.name} (R$ ${p.price.toFixed(2)})${p.description ? ` - ${p.description}` : ''}`)
+        .join('\n');
+      return `${cat.emoji} ${cat.name}:\n${productsText}`;
+    })
+    .join('\n\n');
+
   return `Agente de MENU - ${context.restaurantName}
 ESTADO: ${currentState}
-${context.totalProducts} produtos disponíveis
 
-TAREFA: Apresente o cardápio completo de forma organizada por categorias.
-SEMPRE use check_product_availability antes de recomendar produtos específicos.
-Seja útil e informativo sobre os produtos.
+📋 CARDÁPIO COMPLETO (${context.totalProducts} produtos):
 
-Forneça dados FACTUAIS (será humanizado depois).`;
+${categoriesText}
+
+🎯 REGRAS CRÍTICAS:
+1. NUNCA invente produtos! Use APENAS os produtos listados acima
+2. SEMPRE use check_product_availability quando cliente perguntar sobre produto ESPECÍFICO
+3. Apresente o cardápio de forma organizada quando solicitado
+4. Seja útil e informativo sobre os produtos REAIS do cardápio
+
+${personality ? `PERSONALIDADE: ${personality}` : ''}
+${tone ? `TOM: ${tone}` : ''}
+
+Forneça dados FACTUAIS sobre os produtos do cardápio.`;
 }
 
 export function getSupportPrompt(context: SupportContext, currentState: string, personality?: string, tone?: string): string {

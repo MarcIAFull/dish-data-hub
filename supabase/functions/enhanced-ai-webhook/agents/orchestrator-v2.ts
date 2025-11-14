@@ -20,6 +20,17 @@ export async function classifyMultipleIntents(
   requestId: string
 ): Promise<DetectedIntent[]> {
   try {
+    // ✅ FIX #2: FORÇAR GREETING se não foi saudado
+    if (!conversationState.hasGreeted) {
+      console.log(`[${requestId}] 🎯 FORCING GREETING (hasGreeted=false)`);
+      return [{
+        type: 'GREETING',
+        confidence: 1.0,
+        extractedData: { reason: 'First interaction - no greeting yet' },
+        priority: 1
+      }];
+    }
+
     const openAIKey = Deno.env.get('OPENAI_API_KEY');
     if (!openAIKey) {
       console.error(`[${requestId}] ❌ OPENAI_API_KEY not configured`);

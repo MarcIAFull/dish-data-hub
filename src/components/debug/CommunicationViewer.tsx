@@ -87,10 +87,56 @@ export function CommunicationViewer({ agents }: CommunicationViewerProps) {
               </TabsList>
 
               <TabsContent value="input" className="mt-3">
-                {comm.input ? (
-                  <ScrollArea className="h-[300px] rounded-md border p-3">
-                    <pre className="text-xs">{JSON.stringify(comm.input, null, 2)}</pre>
-                  </ScrollArea>
+                {comm.input && Object.keys(comm.input).length > 0 ? (
+                  <div className="space-y-3">
+                    {/* ✅ FIX #3: Show context if available */}
+                    {comm.input.restaurantName && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-1">Restaurant Context:</p>
+                        <pre className="text-xs bg-muted p-2 rounded">
+{JSON.stringify({
+  restaurant: comm.input.restaurantName,
+  categories: comm.input.categories?.length || 0,
+  products: comm.input.totalProducts || comm.input.categories?.flatMap((c: any) => c.products || []).length || 0,
+  cartItems: comm.input.currentCart?.length || comm.input.cartItems?.length || 0,
+  cartTotal: comm.input.cartTotal || 0
+}, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                    
+                    {/* Show categories and products if Menu context */}
+                    {comm.input.categories && comm.input.categories.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-1">Menu Categories:</p>
+                        <ScrollArea className="h-[200px]">
+                          {comm.input.categories.map((cat: any, idx: number) => (
+                            <div key={idx} className="mb-2">
+                              <p className="text-xs font-medium">{cat.emoji} {cat.name} ({cat.products?.length || 0} produtos)</p>
+                              {cat.products && cat.products.length > 0 && (
+                                <ul className="text-xs text-muted-foreground ml-4 mt-1">
+                                  {cat.products.slice(0, 3).map((p: any, pidx: number) => (
+                                    <li key={pidx}>• {p.name} - R$ {p.price?.toFixed(2)}</li>
+                                  ))}
+                                  {cat.products.length > 3 && (
+                                    <li className="italic">... e mais {cat.products.length - 3} produtos</li>
+                                  )}
+                                </ul>
+                              )}
+                            </div>
+                          ))}
+                        </ScrollArea>
+                      </div>
+                    )}
+                    
+                    {/* Show full input as JSON */}
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-1">Full Input:</p>
+                      <ScrollArea className="h-[200px] rounded-md border p-3">
+                        <pre className="text-xs">{JSON.stringify(comm.input, null, 2)}</pre>
+                      </ScrollArea>
+                    </div>
+                  </div>
                 ) : (
                   <p className="text-xs text-muted-foreground py-4 text-center">Sem input registrado</p>
                 )}
