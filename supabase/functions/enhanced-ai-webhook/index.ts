@@ -1,4 +1,6 @@
-// Enhanced AI Webhook - V2.0 Humanized Service System - Force Deploy 2025-11-11
+// 🚀 Enhanced AI Webhook v3.0 - GPT-5 Multi-Agent + Static Imports
+// 📅 Last deployed: 2025-11-14
+// ✨ Features: Conversation Agent, Static Imports, Session Management
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -15,6 +17,7 @@ import { processSalesAgent } from './agents/sales-agent.ts';
 import { processCheckoutAgent } from './agents/checkout-agent.ts';
 import { processMenuAgent } from './agents/menu-agent.ts';
 import { processSupportAgent } from './agents/support-agent.ts';
+import { processConversationAgent } from './agents/conversation-agent.ts';
 import { 
   analyzeConversationState, 
   buildSalesContext,
@@ -22,7 +25,7 @@ import {
   buildMenuContext,
   buildSupportContext
 } from './utils/context-builder.ts';
-import { executeToolCalls, getFollowUpResponse } from './utils/tool-executor.ts';
+import { executeToolCalls } from './utils/tool-executor.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -914,32 +917,26 @@ async function processAIResponse(
               break;
             
             case 'check_product_availability':
-              const { executeCheckAvailability } = await import('./tools.ts');
               toolResult = await executeCheckAvailability(supabase, agent, toolArgs);
               break;
             
             case 'add_item_to_order':
-              const { executeAddItemToOrder } = await import('./cart-tools.ts');
               toolResult = await executeAddItemToOrder(supabase, chatId, toolArgs);
               break;
             
             case 'validate_delivery_address':
-              const { executeValidateAddress } = await import('./address-tools.ts');
               toolResult = await executeValidateAddress(supabase, agent, toolArgs);
               break;
             
             case 'list_payment_methods':
-              const { executeListPaymentMethods } = await import('./payment-tools.ts');
               toolResult = await executeListPaymentMethods(supabase, agent);
               break;
             
             case 'check_order_prerequisites':
-              const { executeCheckOrderPrerequisites } = await import('./tools.ts');
               toolResult = await executeCheckOrderPrerequisites(supabase, chatId);
               break;
             
             case 'create_order':
-              const { executeCreateOrder } = await import('./tools.ts');
               toolResult = await executeCreateOrder(supabase, agent, toolArgs, chatId, customerPhone);
               break;
             
@@ -1007,9 +1004,6 @@ async function processAIResponse(
       console.log(`[${requestId}] 💬 Sending to Conversation Agent for humanization...`);
       
       try {
-        // Import conversation agent
-        const { processConversationAgent } = await import('./agents/conversation-agent.ts');
-        
         const humanizedMessage = await processConversationAgent(
           assistantMessage.content || '',
           toolResults,
@@ -1083,6 +1077,8 @@ async function processAIResponse(
 
 serve(async (req) => {
   const requestId = crypto.randomUUID().substring(0, 8);
+  console.log('🚀 Enhanced AI Webhook v3.0 - GPT-5 Multi-Agent + Conversation Agent');
+  console.log('📅 Deployed:', new Date().toISOString());
   console.log(`[${requestId}] ============ NEW REQUEST ============`);
   console.log(`[${requestId}] Method: ${req.method}`);
   console.log(`[${requestId}] URL: ${req.url}`);
