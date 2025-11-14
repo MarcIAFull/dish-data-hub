@@ -706,11 +706,14 @@ async function processAIResponse(
       .from('messages')
       .select('sender_type, content, created_at')
       .eq('chat_id', chat.id)
+      .eq('session_id', currentSessionId || `temp_${chat.id}`) // Filtrar por sessão
       .order('created_at', { ascending: true })
-      .limit(50); // Reduzido de 15, mas filtrado por sessão
+      .limit(100); // Aumentado para cobrir sessão completa
     
-    console.log(`[${requestId}] 📝 Sessão atual: ${currentSessionId}`);
-    console.log(`[${requestId}] 📊 Histórico: ${messageHistory?.length || 0} mensagens da sessão atual`);
+    console.log(`[${requestId}] 📊 Session Info:`);
+    console.log(`  - Current session_id: ${currentSessionId || 'NONE (using temp)'}`);
+    console.log(`  - Messages in session: ${messageHistory?.length || 0}`);
+    console.log(`  - Session status: ${chat.session_status || 'N/A'}`);
     
     // Converter para formato OpenAI e incluir mensagem atual
     const conversationHistory = (messageHistory || []).map(msg => ({
@@ -999,88 +1002,29 @@ async function processAIResponse(
     
     let aiMessage = assistantMessage.content || '';
     
-    // If there were tool calls, always do a follow-up to get natural response
+    // If there were tool calls, use Conversation Agent to humanize
     if (toolResults.length > 0) {
-      console.log(`[${requestId}] 🔄 Getting AI response based on ${toolResults.length} tool results...`);
+      console.log(`[${requestId}] 💬 Sending to Conversation Agent for humanization...`);
       
-      // Format tool results as user message (simpler and more reliable)
-      const toolResultsText = toolResults.map(tr => {
-        const resultStr = typeof tr.result === 'object' ? JSON.stringify(tr.result, null, 2) : String(tr.result);
-        return `Ferramenta ${tr.tool} executada:\n${resultStr}`;
-      }).join('\n\n');
-      
-      const followUpSystemPrompt = `Você é o atendente virtual do restaurante ${restaurantData.restaurant.name}.
-      
-Com base nos resultados das ferramentas executadas, responda ao cliente de forma 100% natural e humanizada.
-
-REGRAS CRÍTICAS DE COMUNICAÇÃO:
-1. NUNCA use listas com bullets (-, •, ✓) ou numeração
-2. NUNCA use formatação técnica como "Total parcial:", "Resumo:", "Dados:", etc
-3. NUNCA use mais de 1 emoji em toda a conversa
-4. SEMPRE fale como um atendente humano real falaria no WhatsApp
-5. Use quebras duplas de linha (\n\n) para organizar pensamentos
-6. Seja direto, claro e natural
-7. NUNCA mencione que executou ferramentas ou funções
-
-REGRAS SOBRE DADOS:
-8. Se uma ferramenta retornar error: "NO_DATA", significa que o dado NÃO foi cadastrado
-9. NUNCA invente informações que não estão nos resultados das ferramentas
-10. Se faltam dados (payment_methods, delivery_zones, etc), explique naturalmente que ainda não foram configurados e peça para o cliente entrar em contato direto com o restaurante
-11. NUNCA forneça informações genéricas ou exemplos quando os dados reais não existem
-
-EXEMPLOS DE COMO RESPONDER:
-
-❌ ERRADO (robotizado):
-"Aceitamos as seguintes formas de pagamento:
-• Dinheiro
-• Cartão
-• PIX - Chave: 123.456.789-00"
-
-✅ CORRETO (natural):
-"A gente aceita dinheiro, cartão e PIX! Se for PIX, a chave é 123.456.789-00 mesmo 👍"
-
-❌ ERRADO (inventando dados):
-"Aceitamos dinheiro, cartão e PIX"
-
-✅ CORRETO (sem dados):
-"Opa! Deixa eu ver aqui... olha, as formas de pagamento ainda não tão configuradas no sistema. Melhor você falar direto com a gente pelo telefone (XX) XXXX-XXXX pra confirmar, tá? Desculpa o transtorno!"`;
-
-      const followUpResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openAIApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-5-mini-2025-08-07',
-          messages: [
-            { role: 'system', content: followUpSystemPrompt },
-            ...conversationHistory,
-            { role: 'user', content: messageContent },
-            { 
-              role: 'user', 
-              content: `[RESULTADOS DAS FERRAMENTAS EXECUTADAS]\n\n${toolResultsText}\n\n[FIM DOS RESULTADOS]`
-            }
-          ],
-          max_completion_tokens: 800
-        })
-      });
-      
-      if (!followUpResponse.ok) {
-        const errorText = await followUpResponse.text();
-        console.error(`[${requestId}] ❌ Follow-up API error: ${followUpResponse.status} - ${errorText}`);
-      } else {
-        const followUpData = await followUpResponse.json();
-        console.log(`[${requestId}] 📊 Follow-up raw response:`, JSON.stringify(followUpData, null, 2));
+      try {
+        // Import conversation agent
+        const { processConversationAgent } = await import('./agents/conversation-agent.ts');
         
-        const followUpContent = followUpData.choices?.[0]?.message?.content || '';
+        const humanizedMessage = await processConversationAgent(
+          assistantMessage.content || '',
+          toolResults,
+          restaurantData.restaurant.name,
+          messageHistory || [],
+          requestId
+        );
         
-        if (followUpContent && followUpContent.trim() !== '') {
-          aiMessage = followUpContent;
-          console.log(`[${requestId}] ✅ Follow-up response received (${aiMessage.length} chars)`);
-        } else {
-          console.warn(`[${requestId}] ⚠️ Follow-up returned empty content. Full response:`, followUpData);
-        }
+        console.log(`[${requestId}] ✅ Final humanized message ready (${humanizedMessage.length} chars)`);
+        aiMessage = humanizedMessage;
+        
+      } catch (error) {
+        console.error(`[${requestId}] ❌ Conversation Agent error:`, error);
+        console.log(`[${requestId}] ⚠️ Falling back to original agent response`);
+        // Keep original aiMessage as fallback
       }
     }
     

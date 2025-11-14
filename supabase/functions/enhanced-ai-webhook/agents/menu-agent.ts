@@ -55,9 +55,13 @@ export async function processMenuAgent(
     throw new Error('OPENAI_API_KEY not configured');
   }
 
-  console.log(`[${requestId}] 📋 Menu Agent activated`);
+  console.log(`[${requestId}] 📋 Menu Agent - Starting processing...`);
+  console.log(`[${requestId}] 📊 Context:`);
+  console.log(`  - Restaurant: ${context.restaurantName}`);
+  console.log(`  - Categories: ${context.categories?.length || 0}`);
+  console.log(`  - Total products: ${context.totalProducts || 0}`);
 
-  const systemPrompt = getMenuPrompt(context);
+  const systemPrompt = getMenuPrompt(context, agent?.personality, agent?.tone);
   const tools = getMenuTools();
 
   // Usar histórico completo (não fazer slice)
@@ -66,8 +70,8 @@ export async function processMenuAgent(
     content: m.content
   }));
 
-  console.log(`[${requestId}] 📥 Menu Agent - ${conversationHistory.length} messages in context`);
-  console.log(`[${requestId}] 🤖 Calling OpenAI (Menu Agent)...`);
+  console.log(`[${requestId}] 📥 Conversation history: ${conversationHistory.length} messages`);
+  console.log(`[${requestId}] 🤖 Calling OpenAI (gpt-5-2025-08-07)...`);
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -76,7 +80,7 @@ export async function processMenuAgent(
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'gpt-5-mini-2025-08-07',
+      model: 'gpt-5-2025-08-07',
       messages: [
         { role: 'system', content: systemPrompt },
         ...conversationHistory
