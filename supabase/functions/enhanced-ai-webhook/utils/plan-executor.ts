@@ -13,6 +13,7 @@ export interface ExecutionResult {
   stepId: string;
   agent: string;
   step: ExecutionStep;
+  context?: any;
   output: string;
   toolResults: any[];
   updatedMetadata: any;
@@ -96,7 +97,18 @@ export async function executePlan(
               }
             }
           }
-          break;
+
+          results.push({
+            stepId: step.stepId,
+            agent: step.agent,
+            step: step,
+            context: salesContext,
+            output: agentOutput,
+            toolResults,
+            updatedMetadata: workingMetadata
+          });
+
+          continue;
         }
 
         case 'CHECKOUT': {
@@ -131,7 +143,18 @@ export async function executePlan(
               requestId
             );
           }
-          break;
+
+          results.push({
+            stepId: step.stepId,
+            agent: step.agent,
+            step: step,
+            context: checkoutContext,
+            output: agentOutput,
+            toolResults,
+            updatedMetadata: workingMetadata
+          });
+
+          continue;
         }
 
         case 'MENU': {
@@ -165,7 +188,18 @@ export async function executePlan(
               requestId
             );
           }
-          break;
+
+          results.push({
+            stepId: step.stepId,
+            agent: step.agent,
+            step: step,
+            context: menuContext,
+            output: agentOutput,
+            toolResults,
+            updatedMetadata: workingMetadata
+          });
+
+          continue;
         }
 
         case 'SUPPORT': {
@@ -185,7 +219,18 @@ export async function executePlan(
           );
 
           agentOutput = result.content;
-          break;
+
+          results.push({
+            stepId: step.stepId,
+            agent: step.agent,
+            step: step,
+            context: supportContext,
+            output: agentOutput,
+            toolResults: [],
+            updatedMetadata: workingMetadata
+          });
+
+          continue;
         }
 
         case 'LOGISTICS_HANDLER': {
@@ -201,18 +246,20 @@ export async function executePlan(
           agentOutput = result.output;
           toolResults = result.toolResults;
           workingMetadata = result.updatedMetadata;
-          break;
+
+          results.push({
+            stepId: step.stepId,
+            agent: step.agent,
+            step: step,
+            context: step.parameters,
+            output: agentOutput,
+            toolResults,
+            updatedMetadata: workingMetadata
+          });
+
+          continue;
         }
       }
-
-      results.push({
-        stepId: step.stepId,
-        agent: step.agent,
-        step: step,
-        output: agentOutput,
-        toolResults,
-        updatedMetadata: workingMetadata
-      });
 
       console.log(`[${requestId}] ✅ Step ${step.stepId} completed`);
 

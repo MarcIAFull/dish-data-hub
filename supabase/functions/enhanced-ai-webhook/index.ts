@@ -1034,7 +1034,7 @@ async function processAIResponse(
     debugLog.agents_called = executionResults.map(r => ({
       agent: r.agent,
       action: r.step.action,
-      input: r.step.parameters,
+      input: r.context || r.step.parameters || {},
       output: r.output
     }));
     
