@@ -57,9 +57,17 @@ export function analyzeConversationState(
     sum + (item.quantity * item.unit_price), 0
   );
 
-  // Check if already greeted by looking at bot messages
-  const botMessages = messages.filter(m => m.sender_type === 'bot');
-  const hasGreeted = botMessages.length > 0;
+  // ✅ CORREÇÃO 5: Detecção melhorada - verificar se bot enviou saudação real
+  const botMessages = messages.filter(m => m.sender_type === 'bot' || m.sender_type === 'agent');
+  const hasGreeted = botMessages.some(m => {
+    const lowerContent = (m.content || '').toLowerCase();
+    return lowerContent.includes('olá') || 
+           lowerContent.includes('oi') || 
+           lowerContent.includes('bem-vind') ||
+           lowerContent.includes('bom dia') ||
+           lowerContent.includes('boa tarde') ||
+           lowerContent.includes('boa noite');
+  });
 
   return {
     hasGreeted,
@@ -92,17 +100,19 @@ export function buildSalesContext(
       category: categories.find(c => c.id === p.category_id)?.name || 'Outros'
     }));
 
-  // Current cart items
-  const currentCart = metadata.cart?.items || [];
-  const cartTotal = metadata.cart?.total || 0;
+  // ⚠️ CORREÇÃO 4: UNIFICAR - Usar sempre metadata.order_items (mesmo formato do ConversationState)
+  const orderItems = metadata?.order_items || [];
+  const cartTotal = orderItems.reduce((sum: number, item: any) => 
+    sum + (item.quantity * item.unit_price), 0
+  );
 
   return {
     restaurantName: restaurant.name,
     categories: categories.filter(c => c.is_active),
     popularProducts,
-    currentCart,
+    currentCart: orderItems,  // ✅ Agora usa order_items
     cartTotal,
-    itemCount: metadata.cart?.items?.length || 0,
+    itemCount: orderItems.length,
     personality: agent?.personality,
     tone: agent?.tone
   };
@@ -118,8 +128,11 @@ export function buildCheckoutContext(
   metadata: any,
   agent?: any
 ): CheckoutContext {
-  const cartItems = metadata.cart?.items || [];
-  const cartTotal = metadata.cart?.total || 0;
+  // ⚠️ CORREÇÃO 4: UNIFICAR - Usar sempre metadata.order_items
+  const orderItems = metadata?.order_items || [];
+  const cartTotal = orderItems.reduce((sum: number, item: any) => 
+    sum + (item.quantity * item.unit_price), 0
+  );
   
   // Map delivery zones to readable format
   const zones = deliveryZones
@@ -132,7 +145,7 @@ export function buildCheckoutContext(
 
   return {
     restaurantName: restaurant.name,
-    cartItems,
+    cartItems: orderItems,  // ✅ Agora usa order_items
     cartTotal,
     minOrderValue: restaurant.min_order_value || 20.0,
     deliveryZones: zones,
