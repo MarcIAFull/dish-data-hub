@@ -12,13 +12,13 @@ export function getSalesTools() {
       type: "function",
       function: {
         name: "check_product_availability",
-        description: "Verifica se um produto está disponível e retorna informações detalhadas (nome, preço, descrição)",
+        description: "SEMPRE use quando cliente perguntar sobre produto ESPECÍFICO (ex: 'quero pizza margherita', 'tem coca cola?', 'quanto custa X?', 'me fala do produto Y'). Busca dados atualizados do banco de dados: nome completo, preço, descrição detalhada, disponibilidade, modificadores disponíveis.",
         parameters: {
           type: "object",
           properties: {
             product_name: {
               type: "string",
-              description: "Nome do produto que o cliente quer verificar (ex: 'pizza margherita', 'coca cola')"
+              description: "Nome do produto que o cliente quer saber (ex: 'pizza margherita', 'coca cola')"
             }
           },
           required: ["product_name"]

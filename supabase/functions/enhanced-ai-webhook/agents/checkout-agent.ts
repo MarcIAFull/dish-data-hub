@@ -12,7 +12,7 @@ export function getCheckoutTools() {
       type: "function",
       function: {
         name: "validate_delivery_address",
-        description: "Valida endereço de entrega e calcula taxa baseado em zona de entrega",
+        description: "SEMPRE use quando cliente fornecer endereço de entrega (ex: 'Rua ABC 123', 'moro na rua X'). Valida o endereço e retorna taxa de entrega calculada baseada nas zonas de entrega cadastradas.",
         parameters: {
           type: "object",
           properties: {
@@ -37,7 +37,7 @@ export function getCheckoutTools() {
       type: "function",
       function: {
         name: "list_payment_methods",
-        description: "Lista formas de pagamento aceitas pelo restaurante",
+        description: "SEMPRE use quando cliente perguntar sobre pagamento (ex: 'como posso pagar?', 'aceita cartão?', 'formas de pagamento', 'qual o PIX?'). Busca métodos de pagamento atualizados do banco de dados.",
         parameters: {
           type: "object",
           properties: {}
@@ -48,7 +48,7 @@ export function getCheckoutTools() {
       type: "function",
       function: {
         name: "check_order_prerequisites",
-        description: "Verifica se todos os pré-requisitos foram atendidos antes de criar pedido (carrinho, endereço, pagamento)",
+        description: "SEMPRE use ANTES de create_order. Valida se todos os pré-requisitos foram atendidos: carrinho não vazio, endereço validado, forma de pagamento escolhida. Retorna status detalhado de cada requisito.",
         parameters: {
           type: "object",
           properties: {}
@@ -70,7 +70,7 @@ export function getCheckoutTools() {
       type: "function",
       function: {
         name: "create_order",
-        description: "Cria o pedido final com todos os dados coletados",
+        description: "Use APENAS quando check_order_prerequisites retornar sucesso. Cria o pedido final no sistema com todos os dados coletados (carrinho, endereço validado, pagamento escolhido).",
         parameters: {
           type: "object",
           properties: {

@@ -4,29 +4,11 @@ import { getSupportPrompt } from '../utils/prompt-templates.ts';
 import type { SupportContext } from '../utils/context-builder.ts';
 
 /**
- * Support Agent tools - focused on restaurant info
+ * Support Agent tools - removed, agent works better with context only
+ * Support data is static (hours, address) and doesn't need real-time DB queries
  */
 export function getSupportTools() {
-  return [
-    {
-      type: "function",
-      function: {
-        name: "get_restaurant_info",
-        description: "Retorna informações de contato e localização do restaurante",
-        parameters: {
-          type: "object",
-          properties: {
-            info_type: {
-              type: "string",
-              enum: ["address", "phone", "instagram", "all"],
-              description: "Tipo de informação solicitada"
-            }
-          },
-          required: ["info_type"]
-        }
-      }
-    }
-  ];
+  return [];
 }
 
 /**
@@ -75,8 +57,6 @@ export async function processSupportAgent(
         { role: 'system', content: systemPrompt },
         ...conversationHistory
       ],
-      tools,
-      tool_choice: 'auto',
       max_tokens: 1000
     })
   });
