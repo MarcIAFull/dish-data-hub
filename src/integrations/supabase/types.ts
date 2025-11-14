@@ -595,6 +595,7 @@ export type Database = {
           message_type: string | null
           metadata: Json | null
           sender_type: string
+          session_id: string | null
           whatsapp_message_id: string | null
         }
         Insert: {
@@ -605,6 +606,7 @@ export type Database = {
           message_type?: string | null
           metadata?: Json | null
           sender_type: string
+          session_id?: string | null
           whatsapp_message_id?: string | null
         }
         Update: {
@@ -615,6 +617,7 @@ export type Database = {
           message_type?: string | null
           metadata?: Json | null
           sender_type?: string
+          session_id?: string | null
           whatsapp_message_id?: string | null
         }
         Relationships: [
@@ -1100,6 +1103,56 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_summaries: {
+        Row: {
+          chat_id: number
+          completed_at: string | null
+          created_at: string | null
+          customer_preferences: Json | null
+          delivery_type: string | null
+          id: string
+          items_ordered: Json | null
+          order_total: number | null
+          payment_method: string | null
+          session_id: string
+          summary: string
+        }
+        Insert: {
+          chat_id: number
+          completed_at?: string | null
+          created_at?: string | null
+          customer_preferences?: Json | null
+          delivery_type?: string | null
+          id?: string
+          items_ordered?: Json | null
+          order_total?: number | null
+          payment_method?: string | null
+          session_id: string
+          summary: string
+        }
+        Update: {
+          chat_id?: number
+          completed_at?: string | null
+          created_at?: string | null
+          customer_preferences?: Json | null
+          delivery_type?: string | null
+          id?: string
+          items_ordered?: Json | null
+          order_total?: number | null
+          payment_method?: string | null
+          session_id?: string
+          summary?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_summaries_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
             referencedColumns: ["id"]
           },
         ]
