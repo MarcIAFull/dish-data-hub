@@ -760,8 +760,8 @@ async function processAIResponse(
     const conversationState = analyzeConversationState(chat.metadata, messageHistory || []);
     console.log(`[${requestId}] 📊 Conversation State:`, conversationState);
     
-    // Step 2: Classify intent
-    const intent = await classifyIntent(messageHistory || [], conversationState, requestId);
+    // Step 2: Classify intent (with current message)
+    const intent = await classifyIntent(conversationHistory, conversationState, requestId);
     console.log(`[${requestId}] 🎯 Classified Intent: ${intent}`);
     
     // Step 3: Route to appropriate agent
@@ -784,7 +784,7 @@ async function processAIResponse(
       
       const salesResult = await processSalesAgent(
         salesContext,
-        messageHistory || [],
+        conversationHistory,
         chatId,
         supabase,
         agent,
@@ -821,7 +821,7 @@ async function processAIResponse(
       
       const checkoutResult = await processCheckoutAgent(
         checkoutContext,
-        messageHistory || [],
+        conversationHistory,
         chatId,
         supabase,
         agent,
@@ -844,7 +844,7 @@ async function processAIResponse(
       
       const menuResult = await processMenuAgent(
         menuContext,
-        messageHistory || [],
+        conversationHistory,
         chatId,
         supabase,
         agent,
@@ -862,7 +862,7 @@ async function processAIResponse(
       
       const supportResult = await processSupportAgent(
         supportContext,
-        messageHistory || [],
+        conversationHistory,
         chatId,
         supabase,
         agent,
