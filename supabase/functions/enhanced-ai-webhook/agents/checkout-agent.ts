@@ -156,7 +156,8 @@ export async function processCheckoutAgent(
       ],
       tools,
       tool_choice: 'auto',
-      max_completion_tokens: 1500  // Increased for GPT-5 reasoning mode
+      max_completion_tokens: 1500,
+      reasoning_effort: 'minimal'  // CRITICAL: Disable reasoning mode for structured data agents
     })
   });
 
