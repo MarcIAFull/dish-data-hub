@@ -156,7 +156,7 @@ export function buildCheckoutContext(
 }
 
 /**
- * Builds context for Menu Agent
+ * Builds context for Menu Agent (FIX #2)
  */
 export function buildMenuContext(
   restaurant: any,
@@ -164,20 +164,33 @@ export function buildMenuContext(
   products: any[],
   agent?: any
 ): MenuContext {
-  // Group products by category
+  // ✅ FIX #2: Handle products from categories OR flat array
   const categoriesWithProducts = categories.map(category => {
-    const categoryProducts = products.filter(p => p.category_id === category.id);
+    // Option 1: Products already in category.products
+    let categoryProducts = category.products || [];
+    
+    // Option 2: Products as flat array (filter by category_id)
+    if (categoryProducts.length === 0 && products.length > 0) {
+      categoryProducts = products.filter(p => 
+        p.category_id === category.id || 
+        p.category === category.id ||
+        p.category?.id === category.id
+      );
+    }
+    
     return {
       name: category.name,
-      emoji: category.emoji,
-      products: categoryProducts.map(p => ({
-        name: p.name,
-        price: p.price,
-        description: p.description,
-        available: p.available
-      }))
+      emoji: category.emoji || '📦',
+      products: categoryProducts
+        .filter((p: any) => p.is_active !== false)
+        .map((p: any) => ({
+          name: p.name,
+          price: p.price,
+          description: p.description,
+          available: p.is_active !== false
+        }))
     };
-  });
+  }).filter(cat => cat.products.length > 0); // Remove empty categories
 
   return {
     restaurantName: restaurant.name,
