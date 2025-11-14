@@ -263,6 +263,9 @@ export type Database = {
           reopened_at: string | null
           reopened_count: number | null
           restaurant_id: string | null
+          session_created_at: string | null
+          session_id: string | null
+          session_status: string | null
           status: string
           updated_at: string | null
         }
@@ -283,6 +286,9 @@ export type Database = {
           reopened_at?: string | null
           reopened_count?: number | null
           restaurant_id?: string | null
+          session_created_at?: string | null
+          session_id?: string | null
+          session_status?: string | null
           status?: string
           updated_at?: string | null
         }
@@ -303,6 +309,9 @@ export type Database = {
           reopened_at?: string | null
           reopened_count?: number | null
           restaurant_id?: string | null
+          session_created_at?: string | null
+          session_id?: string | null
+          session_status?: string | null
           status?: string
           updated_at?: string | null
         }
@@ -1244,6 +1253,7 @@ export type Database = {
       }
     }
     Functions: {
+      generate_session_id: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

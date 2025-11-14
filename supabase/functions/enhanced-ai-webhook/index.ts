@@ -434,6 +434,64 @@ async function updateChatMetadata(
   return updatedMetadata;
 }
 
+// ============= SESSION MANAGEMENT =============
+
+/**
+ * Verifica se precisa criar uma nova sessão de pedido
+ */
+async function checkIfNeedNewSession(
+  supabase: any,
+  chat: any,
+  messageContent: string,
+  requestId: string
+): Promise<boolean> {
+  // 1. Se não tem session_id, precisa criar
+  if (!chat.session_id) {
+    console.log(`[${requestId}] 🆕 Chat sem session_id - criando primeira sessão`);
+    return true;
+  }
+  
+  // 2. Se sessão anterior está completada, criar nova
+  if (chat.session_status === 'completed') {
+    console.log(`[${requestId}] 🆕 Sessão anterior completada - criando nova`);
+    return true;
+  }
+  
+  // 3. Detectar keywords de "novo pedido"
+  const newOrderKeywords = [
+    /\bnovo pedido\b/i,
+    /\brecomeçar\b/i,
+    /\bcomeçar de novo\b/i,
+    /\bquero fazer outro pedido\b/i,
+    /\bfazer mais um pedido\b/i,
+    /\bpedir de novo\b/i,
+    /\boutro pedido\b/i
+  ];
+  
+  const hasNewOrderKeyword = newOrderKeywords.some(regex => regex.test(messageContent));
+  
+  if (hasNewOrderKeyword) {
+    console.log(`[${requestId}] 🆕 Detectada keyword de novo pedido`);
+    return true;
+  }
+  
+  // 4. Verificar gap de tempo (> 6 horas desde última mensagem)
+  if (chat.last_message_at) {
+    const lastMessageTime = new Date(chat.last_message_at).getTime();
+    const currentTime = Date.now();
+    const hoursSinceLastMessage = (currentTime - lastMessageTime) / (1000 * 60 * 60);
+    
+    if (hoursSinceLastMessage > 6) {
+      console.log(`[${requestId}] 🆕 Gap de ${hoursSinceLastMessage.toFixed(1)}h detectado - criando nova sessão`);
+      return true;
+    }
+  }
+  
+  // Manter sessão atual
+  return false;
+}
+
+
 // ============= DEBOUNCE SYSTEM =============
 
 /**
@@ -584,21 +642,89 @@ async function processAIResponse(
       return;
     }
     
-    // Buscar histórico de mensagens
+    // ========== SESSION MANAGEMENT ==========
+    // Verificar se precisa criar nova sessão
+    const shouldCreateNewSession = await checkIfNeedNewSession(
+      supabase,
+      chat,
+      messageContent,
+      requestId
+    );
+    
+    let currentSessionId = chat.session_id;
+    
+    if (shouldCreateNewSession) {
+      console.log(`[${requestId}] 🆕 Criando nova sessão de pedido`);
+      
+      // Finalizar sessão anterior se existir
+      if (chat.session_id) {
+        await supabase
+          .from('chats')
+          .update({ session_status: 'completed' })
+          .eq('id', chatId)
+          .eq('session_id', chat.session_id);
+      }
+      
+      // Gerar novo session_id
+      const { data: newSessionData } = await supabase
+        .rpc('generate_session_id');
+      
+      currentSessionId = newSessionData;
+      
+      // Atualizar chat com nova sessão
+      await supabase
+        .from('chats')
+        .update({
+          session_id: currentSessionId,
+          session_status: 'active',
+          session_created_at: new Date().toISOString()
+        })
+        .eq('id', chatId);
+      
+      console.log(`[${requestId}] ✅ Nova sessão criada: ${currentSessionId}`);
+    } else if (!currentSessionId) {
+      // Chat antigo sem session_id - criar primeira sessão
+      const { data: newSessionData } = await supabase
+        .rpc('generate_session_id');
+      
+      currentSessionId = newSessionData;
+      
+      await supabase
+        .from('chats')
+        .update({
+          session_id: currentSessionId,
+          session_status: 'active',
+          session_created_at: new Date().toISOString()
+        })
+        .eq('id', chatId);
+      
+      console.log(`[${requestId}] ✅ Primeira sessão criada para chat existente: ${currentSessionId}`);
+    }
+    
+    // Buscar histórico de mensagens APENAS da sessão atual
     const { data: messageHistory } = await supabase
       .from('messages')
       .select('sender_type, content, created_at')
       .eq('chat_id', chat.id)
-      .order('created_at', { ascending: true })  // ✅ Ordem cronológica
-      .limit(15);
+      .order('created_at', { ascending: true })
+      .limit(50); // Reduzido de 15, mas filtrado por sessão
     
-    console.log(`[${requestId}] Found ${messageHistory?.length || 0} previous messages`);
+    console.log(`[${requestId}] 📝 Sessão atual: ${currentSessionId}`);
+    console.log(`[${requestId}] 📊 Histórico: ${messageHistory?.length || 0} mensagens da sessão atual`);
     
-    // Converter para formato OpenAI
+    // Converter para formato OpenAI e incluir mensagem atual
     const conversationHistory = (messageHistory || []).map(msg => ({
       role: msg.sender_type === 'user' ? 'user' : 'assistant',
       content: msg.content
     }));
+    
+    // Adicionar mensagem agrupada atual ao histórico
+    conversationHistory.push({
+      role: 'user',
+      content: messageContent
+    });
+    
+    console.log(`[${requestId}] 📝 Total context: ${conversationHistory.length} mensagens (incluindo atual)`);
     
     // Buscar dados do restaurante via edge function
     console.log(`[${requestId}] 🏪 Fetching restaurant data for slug: ${agent.restaurants.slug}`);

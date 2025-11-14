@@ -60,13 +60,14 @@ export async function processMenuAgent(
   const systemPrompt = getMenuPrompt(context);
   const tools = getMenuTools();
 
-  // Prepare conversation history (last 5 messages)
-  const conversationHistory = messages.slice(-5).map(m => ({
+  // Usar histórico completo (não fazer slice)
+  const conversationHistory = messages.map(m => ({
     role: m.sender_type === 'user' ? 'user' : 'assistant',
     content: m.content
   }));
 
-  console.log(`[${requestId}] 🤖 Calling OpenAI (Menu Agent, ${conversationHistory.length} messages)...`);
+  console.log(`[${requestId}] 📥 Menu Agent - ${conversationHistory.length} messages in context`);
+  console.log(`[${requestId}] 🤖 Calling OpenAI (Menu Agent)...`);
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',

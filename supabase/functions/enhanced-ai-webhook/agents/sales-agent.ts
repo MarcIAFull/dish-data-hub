@@ -93,13 +93,14 @@ export async function processSalesAgent(
   const systemPrompt = getSalesPrompt(context);
   const tools = getSalesTools();
 
-  // Prepare conversation history (last 10 messages)
-  const conversationHistory = messages.slice(-10).map(m => ({
+  // Usar histórico completo (não fazer slice)
+  const conversationHistory = messages.map(m => ({
     role: m.sender_type === 'user' ? 'user' : 'assistant',
     content: m.content
   }));
 
-  console.log(`[${requestId}] 🤖 Calling OpenAI (Sales Agent, ${conversationHistory.length} messages)...`);
+  console.log(`[${requestId}] 📥 Sales Agent - ${conversationHistory.length} messages in context`);
+  console.log(`[${requestId}] 🤖 Calling OpenAI (Sales Agent)...`);
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
