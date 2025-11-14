@@ -23,13 +23,13 @@ export function getMenuTools() {
       type: "function",
       function: {
         name: "check_product_availability",
-        description: "Verifica disponibilidade de um produto. Use apenas se precisar confirmar estoque/disponibilidade em tempo real.",
+        description: "SEMPRE use esta tool quando o cliente perguntar sobre um produto ESPECÍFICO (ex: 'me fala da tapioca', 'quanto custa o X', 'tem Y?', 'quero saber do produto Z'). Retorna nome completo, preço atualizado e descrição detalhada do produto direto do banco de dados.",
         parameters: {
           type: "object",
           properties: {
             product_name: {
               type: "string",
-              description: "Nome do produto"
+              description: "Nome do produto que o cliente está perguntando"
             }
           },
           required: ["product_name"]
