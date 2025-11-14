@@ -1037,6 +1037,23 @@ serve(async (req) => {
       
       const { data, instance, key, event } = body;
       
+      // Filter events - only process user messages
+      console.log(`[${requestId}] 📌 Event type: ${event}`);
+      
+      if (event !== 'messages.upsert') {
+        console.log(`[${requestId}] ⏭️ Ignoring event type: ${event}`);
+        return new Response(JSON.stringify({ 
+          status: 'ignored', 
+          reason: 'not_user_message',
+          event_type: event,
+          requestId 
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      console.log(`[${requestId}] ✅ Processing user message event`);
+      
       // CRITICAL: Ignore messages sent by the bot itself to prevent infinite loops
       if (data?.key?.fromMe === true) {
         console.log(`[${requestId}] ⚠️ Ignoring message from bot (fromMe: true)`);
