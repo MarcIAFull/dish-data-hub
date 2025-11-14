@@ -7,7 +7,7 @@ import { processMenuAgent } from '../agents/menu-agent.ts';
 import { processSupportAgent } from '../agents/support-agent.ts';
 import { processLogisticsHandler } from '../agents/logistics-handler.ts';
 import { buildSalesContext, buildCheckoutContext, buildMenuContext, buildSupportContext } from './context-builder.ts';
-import { executeTools } from './tool-executor.ts';
+import { executeToolCalls } from './tool-executor.ts';
 
 export interface ExecutionResult {
   stepId: string;
@@ -78,12 +78,12 @@ export async function executePlan(
 
           // Execute tools
           if (toolCalls.length > 0) {
-            toolResults = await executeTools(
+            toolResults = await executeToolCalls(
               toolCalls,
               supabase,
               restaurantData.agent,
               chatId,
-              workingMetadata,
+              restaurantData.agent.restaurants?.phone || '',
               requestId
             );
 
@@ -121,12 +121,12 @@ export async function executePlan(
           toolCalls = result.toolCalls || [];
 
           if (toolCalls.length > 0) {
-            toolResults = await executeTools(
+            toolResults = await executeToolCalls(
               toolCalls,
               supabase,
               restaurantData.agent,
               chatId,
-              workingMetadata,
+              restaurantData.agent.restaurants?.phone || '',
               requestId
             );
           }
@@ -155,12 +155,12 @@ export async function executePlan(
           toolCalls = result.toolCalls || [];
 
           if (toolCalls.length > 0) {
-            toolResults = await executeTools(
+            toolResults = await executeToolCalls(
               toolCalls,
               supabase,
               restaurantData.agent,
               chatId,
-              workingMetadata,
+              restaurantData.agent.restaurants?.phone || '',
               requestId
             );
           }
