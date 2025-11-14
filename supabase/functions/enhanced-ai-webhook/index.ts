@@ -746,7 +746,12 @@ async function processAIResponse(
     }
     
     const restaurantData = restaurantDataResponse.data;
-    console.log(`[${requestId}] ✅ Restaurant data fetched - ${restaurantData.categories?.length || 0} categories`);
+    
+    // Extract categories and products from menu structure
+    const categories = restaurantData.menu?.categories || [];
+    const products = categories.flatMap(cat => cat.products || []);
+    
+    console.log(`[${requestId}] ✅ Restaurant data fetched - ${categories.length} categories, ${products.length} products`);
     
     // ========== MULTI-AGENT ORCHESTRATION (Complete) ==========
     console.log(`[${requestId}] 🎯 Starting Multi-Agent Orchestration...`);
@@ -771,8 +776,8 @@ async function processAIResponse(
       // SALES AGENT - Optimized for product sales
       const salesContext = buildSalesContext(
         restaurantData.restaurant,
-        restaurantData.categories || [],
-        restaurantData.products || [],
+        categories,
+        products,
         chat.metadata,
         agent
       );
@@ -832,8 +837,8 @@ async function processAIResponse(
       // MENU AGENT - Optimized for menu presentation
       const menuContext = buildMenuContext(
         restaurantData.restaurant,
-        restaurantData.categories || [],
-        restaurantData.products || [],
+        categories,
+        products,
         agent
       );
       
