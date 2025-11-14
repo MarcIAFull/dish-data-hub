@@ -875,6 +875,8 @@ async function processAIResponse(
       console.error(`[${requestId}] ❌ Error saving customer message:`, customerMessageError);
     } else {
       console.log(`[${requestId}] ✅ Customer message saved with session_id: ${currentSessionId}`);
+      // ✅ FIX #5: Pequeno delay para garantir que o DB comitou
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
     
     // ========== FIX #3: Load history (now includes current message) ==========
@@ -928,7 +930,7 @@ async function processAIResponse(
     
     const restaurantData = restaurantDataResponse.data;
     
-    // ========== FIX #5: Verify API structure ==========
+    // ========== FIX #4: Verify API structure & save to debug log ==========
     console.log(`[${requestId}] 🔍 DEBUG Restaurant Data Structure:`);
     
     const categories = restaurantData.menu?.categories || [];
@@ -958,6 +960,26 @@ async function processAIResponse(
         category: products[0].category
       });
     }
+    
+    // ✅ FIX #4: Save API structure to debug log
+    debugLog.api_structure = {
+      categories_count: categories.length,
+      categories_sample: categories.slice(0, 2).map(c => ({
+        id: c.id,
+        name: c.name,
+        products_in_category: (c.products || []).length
+      })),
+      products_from_categories: productsFromCategories.length,
+      products_flat: productsFlat.length,
+      products_final: products.length,
+      products_sample: products.slice(0, 3).map(p => ({
+        id: p.id,
+        name: p.name,
+        category_id: p.category_id,
+        category: p.category,
+        price: p.price
+      }))
+    };
     
     console.log(`[${requestId}] ✅ Restaurant data fetched - ${categories.length} categories, ${products.length} products`);
     
