@@ -12,6 +12,7 @@ import { executeToolCalls } from './tool-executor.ts';
 export interface ExecutionResult {
   stepId: string;
   agent: string;
+  step: ExecutionStep;
   output: string;
   toolResults: any[];
   updatedMetadata: any;
@@ -207,6 +208,7 @@ export async function executePlan(
       results.push({
         stepId: step.stepId,
         agent: step.agent,
+        step: step,
         output: agentOutput,
         toolResults,
         updatedMetadata: workingMetadata
@@ -220,6 +222,7 @@ export async function executePlan(
       results.push({
         stepId: step.stepId,
         agent: step.agent,
+        step: step,
         output: `Erro ao processar: ${error.message}`,
         toolResults: [],
         updatedMetadata: workingMetadata
