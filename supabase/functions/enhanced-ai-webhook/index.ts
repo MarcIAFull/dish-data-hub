@@ -856,28 +856,48 @@ async function processAIResponse(
     debugLog.current_state = chat.metadata?.conversation_state || 'STATE_1_GREETING';
     debugLog.metadata_snapshot = chat.metadata;
     
-    // ETAPA 5: Buscar histórico REDUZIDO da sessão atual (30 msgs) + resumos anteriores
+    // ========== FIX #1: Save customer message FIRST with session_id ==========
+    console.log(`[${requestId}] 💾 Saving customer message WITH session_id...`);
+    
+    const { data: customerMessage, error: customerMessageError } = await supabase
+      .from('messages')
+      .insert({
+        chat_id: chatId,
+        sender_type: 'user',
+        content: messageContent,
+        session_id: currentSessionId,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (customerMessageError) {
+      console.error(`[${requestId}] ❌ Error saving customer message:`, customerMessageError);
+    } else {
+      console.log(`[${requestId}] ✅ Customer message saved with session_id: ${currentSessionId}`);
+    }
+    
+    // ========== FIX #3: Load history (now includes current message) ==========
     const { data: messageHistory } = await supabase
       .from('messages')
       .select('sender_type, content, created_at')
       .eq('chat_id', chat.id)
-      .eq('session_id', currentSessionId || `temp_${chat.id}`) // Filtrar por sessão
-      .order('created_at', { ascending: false })
-      .limit(30); // REDUZIDO de 100 para 30
+      .eq('session_id', currentSessionId || `temp_${chat.id}`)
+      .order('created_at', { ascending: true })
+      .limit(30);
     
-    // Reverter ordem (estava DESC para pegar as mais recentes)
-    const recentMessages = (messageHistory || []).reverse();
+    const recentMessages = messageHistory || [];
     
     // Carregar resumos de sessões anteriores
     const sessionSummariesText = await loadSessionSummaries(supabase, chat.id, requestId);
     
     console.log(`[${requestId}] 📊 Context Info:`);
     console.log(`  - Current session_id: ${currentSessionId || 'NONE (using temp)'}`);
-    console.log(`  - Messages in session: ${recentMessages.length}/30`);
+    console.log(`  - Messages in session: ${recentMessages.length}/30 (includes current message)`);
     console.log(`  - Session summaries: ${sessionSummariesText ? 'Loaded' : 'None'}`);
     console.log(`  - Session status: ${chat.session_status || 'N/A'}`);
     
-    // Converter para formato OpenAI
+    // Converter para formato OpenAI (histórico JÁ inclui mensagem atual)
     const conversationHistory = recentMessages.map(msg => ({
       role: msg.sender_type === 'user' ? 'user' : 'assistant',
       content: msg.content
@@ -891,13 +911,8 @@ async function processAIResponse(
       });
     }
     
-    // Adicionar mensagem agrupada atual ao histórico
-    conversationHistory.push({
-      role: 'user',
-      content: messageContent
-    });
+    console.log(`[${requestId}] 📝 Total context: ${conversationHistory.length} mensagens`);
     
-    console.log(`[${requestId}] 📝 Total context: ${conversationHistory.length} mensagens (${recentMessages.length} sessão atual + ${sessionSummariesText ? '1 resumo' : '0 resumos'} + 1 atual)`);
     
     // Buscar dados do restaurante via edge function
     console.log(`[${requestId}] 🏪 Fetching restaurant data for slug: ${agent.restaurants.slug}`);
@@ -913,9 +928,36 @@ async function processAIResponse(
     
     const restaurantData = restaurantDataResponse.data;
     
-    // Extract categories and products from menu structure
+    // ========== FIX #5: Verify API structure ==========
+    console.log(`[${requestId}] 🔍 DEBUG Restaurant Data Structure:`);
+    
     const categories = restaurantData.menu?.categories || [];
-    const products = categories.flatMap(cat => cat.products || []);
+    const productsFromCategories = categories.flatMap(cat => cat.products || []);
+    const productsFlat = restaurantData.menu?.products || [];
+    const products = productsFlat.length > 0 ? productsFlat : productsFromCategories;
+    
+    console.log(`[${requestId}]   - Categories: ${categories.length}`);
+    console.log(`[${requestId}]   - Products from categories: ${productsFromCategories.length}`);
+    console.log(`[${requestId}]   - Products flat: ${productsFlat.length}`);
+    console.log(`[${requestId}]   - Using: ${products.length} products`);
+    
+    if (categories.length > 0) {
+      console.log(`[${requestId}]   - Sample category:`, {
+        id: categories[0].id,
+        name: categories[0].name,
+        hasProducts: !!categories[0].products,
+        productsCount: categories[0].products?.length || 0
+      });
+    }
+    
+    if (products.length > 0) {
+      console.log(`[${requestId}]   - Sample product:`, {
+        id: products[0].id,
+        name: products[0].name,
+        category_id: products[0].category_id,
+        category: products[0].category
+      });
+    }
     
     console.log(`[${requestId}] ✅ Restaurant data fetched - ${categories.length} categories, ${products.length} products`);
     

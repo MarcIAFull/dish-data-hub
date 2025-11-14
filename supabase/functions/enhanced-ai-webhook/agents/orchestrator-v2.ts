@@ -35,32 +35,42 @@ export async function classifyMultipleIntents(
 
     const systemPrompt = `Você é um classificador de intenções para pedidos de restaurante.
 
-CONTEXTO:
+CONTEXTO DA CONVERSA:
 ${messagesText}
 
-ESTADO ATUAL: ${conversationState}
+ESTADO ATUAL DO CLIENTE:
+- Já foi saudado? ${conversationState.hasGreeted ? 'SIM' : 'NÃO'}
+- Tem itens no carrinho? ${conversationState.hasItemsInCart ? `SIM (${conversationState.itemCount} itens)` : 'NÃO'}
+- Endereço validado? ${conversationState.hasValidatedAddress ? 'SIM' : 'NÃO'}
+- Total do carrinho: R$ ${conversationState.cartTotal.toFixed(2)}
 
-ANALISE a última mensagem do cliente e identifique TODAS as intenções presentes.
+🎯 REGRAS DE CONTEXTO (PRIORIDADE MÁXIMA):
+1. Se hasGreeted = false → SEMPRE classificar como GREETING (independente da mensagem)
+2. Se hasGreeted = true mas hasItemsInCart = false → MENU ou ORDER
+3. Se hasItemsInCart = true mas hasValidatedAddress = false → LOGISTICS
+4. Se tudo preenchido mas mensagem pede confirmação → CHECKOUT
+
+IMPORTANTE: O CONTEXTO DA CONVERSA tem prioridade sobre KEYWORDS!
 
 INTENÇÕES POSSÍVEIS:
-- GREETING: Saudações, "oi", "bom dia"
-- MENU: Pedir cardápio, ver produtos, "quais pizzas tem?"
-- ORDER: Adicionar produtos, "quero X", "me manda Y"
+- GREETING: Primeira interação, saudações, "oi", "bom dia", "olá", mensagens genéricas
+- MENU: Pedir cardápio, ver produtos, "quais pizzas tem?", "o que vocês vendem?"
+- ORDER: Adicionar produtos, "quero X", "me manda Y", menciona nome de produto
 - LOGISTICS: Definir entrega/retirada, endereço, "vou retirar", "entrega em X"
-- PAYMENT: Método de pagamento, "vou pagar com cartão"
-- CHECKOUT: Finalizar pedido, "confirma", "fechar pedido"
-- SUPPORT: Dúvidas, horário, telefone
+- PAYMENT: Método de pagamento, "vou pagar com cartão", "aceita pix?"
+- CHECKOUT: Finalizar pedido, "confirma", "fechar pedido", "é isso mesmo"
+- SUPPORT: Dúvidas, horário, telefone, "vocês abrem que horas?"
 
-REGRAS:
-1. Uma mensagem pode ter MÚLTIPLAS intenções
-2. Extraia dados específicos (nomes de produtos, endereço, etc)
-3. Prioridade: 1 (mais urgente) a 5 (menos urgente)
-4. Exemplos:
-   - "quero hambúrguer e coca, vou retirar" → [ORDER (produtos), LOGISTICS (retirada)]
-   - "me mostra as pizzas e já quero calabresa" → [MENU (pizzas), ORDER (calabresa)]
-   - "qual o endereço de vocês?" → [SUPPORT]
+EXEMPLOS DE CLASSIFICAÇÃO:
+- "Testando" (hasGreeted=false) → GREETING (primeira interação)
+- "Oi" (hasGreeted=false) → GREETING
+- "Quero uma tapioca" (hasGreeted=true, hasItemsInCart=false) → ORDER
+- "qual o cardápio?" (hasGreeted=true) → MENU
+- "confirma o pedido" (hasItemsInCart=true) → CHECKOUT
 
-ÚLTIMA MENSAGEM: "${lastUserMessage}"`;
+ÚLTIMA MENSAGEM: "${lastUserMessage}"
+
+ANALISE considerando o CONTEXTO e identifique TODAS as intenções presentes.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
