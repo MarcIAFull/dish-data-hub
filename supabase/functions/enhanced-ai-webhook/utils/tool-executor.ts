@@ -1,3 +1,13 @@
+// 🔧 Tool Executor v2.0 - Static Imports Only
+// 📅 Last updated: 2025-11-14
+// ✨ All imports are static - no dynamic imports allowed
+
+// Static imports for all tool functions
+import { executeCheckAvailability, executeCheckOrderPrerequisites, executeCreateOrder } from '../tools.ts';
+import { executeAddItemToOrder } from '../cart-tools.ts';
+import { executeValidateAddress } from '../address-tools.ts';
+import { executeListPaymentMethods } from '../payment-tools.ts';
+
 // Shared tool execution logic for all agents
 
 /**
@@ -11,6 +21,8 @@ export async function executeToolCalls(
   customerPhone: string,
   requestId: string
 ): Promise<any[]> {
+  console.log('🔧 Tool Executor v2.0 - Static Imports Deployed');
+  
   const toolResults = [];
   
   console.log(`[${requestId}] 🔧 Processing ${toolCalls.length} tool calls`);
@@ -34,12 +46,10 @@ export async function executeToolCalls(
           break;
         
         case 'check_product_availability':
-          const { executeCheckAvailability } = await import('./tools.ts');
           toolResult = await executeCheckAvailability(supabase, agent, toolArgs);
           break;
         
         case 'add_item_to_order':
-          const { executeAddItemToOrder } = await import('./cart-tools.ts');
           toolResult = await executeAddItemToOrder(supabase, chatId, toolArgs);
           break;
         
@@ -67,22 +77,18 @@ export async function executeToolCalls(
           break;
         
         case 'validate_delivery_address':
-          const { executeValidateAddress } = await import('./address-tools.ts');
           toolResult = await executeValidateAddress(supabase, agent, toolArgs);
           break;
         
         case 'list_payment_methods':
-          const { executeListPaymentMethods } = await import('./payment-tools.ts');
           toolResult = await executeListPaymentMethods(supabase, agent);
           break;
         
         case 'check_order_prerequisites':
-          const { executeCheckOrderPrerequisites } = await import('./tools.ts');
           toolResult = await executeCheckOrderPrerequisites(supabase, chatId);
           break;
         
         case 'create_order':
-          const { executeCreateOrder } = await import('./tools.ts');
           toolResult = await executeCreateOrder(supabase, agent, toolArgs, chatId, customerPhone);
           break;
         
