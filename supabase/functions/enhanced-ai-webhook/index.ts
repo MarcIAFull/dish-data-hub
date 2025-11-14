@@ -1,6 +1,7 @@
-// 🚀 Enhanced AI Webhook v3.0 - GPT-5 Multi-Agent + Static Imports
-// 📅 Last deployed: 2025-11-14
-// ✨ Features: Conversation Agent, Static Imports, Session Management
+// 🚀 Enhanced AI Webhook v3.1 - FORCE DEPLOY - Multi-Agent System
+// 📅 Last deployed: 2025-11-14 13:23 UTC
+// ✨ Features: Orchestrator → Specialized Agents → Conversation Agent Humanization
+// 🔧 All static imports, GPT-5 (gpt-5-2025-08-07), Session Management
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -1077,8 +1078,14 @@ async function processAIResponse(
 
 serve(async (req) => {
   const requestId = crypto.randomUUID().substring(0, 8);
-  console.log('🚀 Enhanced AI Webhook v3.0 - GPT-5 Multi-Agent + Conversation Agent');
+  
+  // VERSION CONFIRMATION LOG (v3.1)
+  console.log('═══════════════════════════════════════════════════════════');
+  console.log('🚀 Enhanced AI Webhook v3.1 - FORCE DEPLOY');
   console.log('📅 Deployed:', new Date().toISOString());
+  console.log('🎯 Multi-Agent: Orchestrator → Sales/Checkout/Menu/Support → Conversation');
+  console.log('🔧 Static Imports: ✅ | GPT-5: ✅ | Session System: ✅');
+  console.log('═══════════════════════════════════════════════════════════');
   console.log(`[${requestId}] ============ NEW REQUEST ============`);
   console.log(`[${requestId}] Method: ${req.method}`);
   console.log(`[${requestId}] URL: ${req.url}`);
