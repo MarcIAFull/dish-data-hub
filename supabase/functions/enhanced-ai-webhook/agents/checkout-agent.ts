@@ -156,7 +156,7 @@ export async function processCheckoutAgent(
       ],
       tools,
       tool_choice: 'auto',
-      max_completion_tokens: 500
+      max_completion_tokens: 1500  // Increased for GPT-5 reasoning mode
     })
   });
 
