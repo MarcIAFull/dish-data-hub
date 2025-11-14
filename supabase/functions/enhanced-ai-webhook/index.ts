@@ -1027,11 +1027,6 @@ async function processAIResponse(
       aiMessage = getRandomResponse('confirmation');
     }
     
-    // Add transition message if switching agents
-    if (transitionMessage) {
-      aiMessage = transitionMessage + aiMessage;
-    }
-    
     // ========== CLEAN AI RESPONSE ==========
     
     aiMessage = cleanAIResponse(aiMessage);
