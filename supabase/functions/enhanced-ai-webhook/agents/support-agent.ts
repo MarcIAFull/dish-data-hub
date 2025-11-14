@@ -20,6 +20,7 @@ export async function processSupportAgent(
   chatId: number,
   supabase: any,
   agent: any,
+  currentState: string,
   requestId: string
 ): Promise<{ content: string; toolCalls?: any[] }> {
   const openAIKey = Deno.env.get('OPENAI_API_KEY');
@@ -33,7 +34,7 @@ export async function processSupportAgent(
   console.log(`  - Phone: ${context.phone || 'N/A'}`);
   console.log(`  - Address: ${context.address || 'N/A'}`);
 
-  const systemPrompt = getSupportPrompt(context, agent?.personality, agent?.tone);
+  const systemPrompt = getSupportPrompt(context, currentState, agent?.personality, agent?.tone);
   const tools = getSupportTools();
 
   // Usar histórico completo (não fazer slice)

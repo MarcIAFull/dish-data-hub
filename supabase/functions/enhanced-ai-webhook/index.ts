@@ -871,12 +871,15 @@ async function processAIResponse(
       // SUPPORT AGENT - Optimized for customer support
       const supportContext = buildSupportContext(restaurantData.restaurant, agent);
       
+      const currentState: ConversationState = (chat.metadata?.conversation_state as ConversationState) || 'STATE_2_DISCOVERY';
+      
       const supportResult = await processSupportAgent(
         supportContext,
         conversationHistory,
         chatId,
         supabase,
         agent,
+        currentState,
         requestId
       );
       
