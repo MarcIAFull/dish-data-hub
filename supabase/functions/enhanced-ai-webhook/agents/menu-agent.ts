@@ -71,7 +71,7 @@ export async function processMenuAgent(
   }));
 
   console.log(`[${requestId}] 📥 Conversation history: ${conversationHistory.length} messages`);
-  console.log(`[${requestId}] 🤖 Calling OpenAI (gpt-5-2025-08-07)...`);
+  console.log(`[${requestId}] 🤖 Calling OpenAI (gpt-4o)...`);
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -80,15 +80,14 @@ export async function processMenuAgent(
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'gpt-5-2025-08-07',
+      model: 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
         ...conversationHistory
       ],
       tools,
       tool_choice: 'auto',
-      max_completion_tokens: 1500,
-      reasoning_effort: 'minimal'  // CRITICAL: Disable reasoning mode for structured data agents
+      max_tokens: 1000
     })
   });
 

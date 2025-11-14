@@ -34,7 +34,7 @@ export async function classifyIntent(
     console.log(`  - Last message: "${lastMessages[lastMessages.length - 1]?.content?.substring(0, 100)}"`);
     console.log(`  - Cart: ${conversationState.itemCount} items (R$ ${conversationState.cartTotal})`);
     console.log(`  - Has greeted: ${conversationState.hasGreeted}`);
-    console.log(`[${requestId}] 🤖 Calling OpenAI (gpt-5-2025-08-07)...`);
+    console.log(`[${requestId}] 🤖 Calling OpenAI (gpt-4o)...`);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -43,11 +43,11 @@ export async function classifyIntent(
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-5-2025-08-07',
+        model: 'gpt-4o',
         messages: [
           { role: 'system', content: prompt }
         ],
-        max_completion_tokens: 50
+        max_tokens: 50
       })
     });
 

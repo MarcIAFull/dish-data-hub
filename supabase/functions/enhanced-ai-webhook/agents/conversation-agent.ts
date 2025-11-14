@@ -109,7 +109,7 @@ Agora, pegue a resposta abaixo e humanize ela:`;
     content: m.content
   }));
   
-  console.log(`[${requestId}] 🤖 Calling OpenAI (gpt-5-2025-08-07) for humanization...`);
+  console.log(`[${requestId}] 🤖 Calling OpenAI (gpt-4o) for humanization...`);
   
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -118,7 +118,7 @@ Agora, pegue a resposta abaixo e humanize ela:`;
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-5-2025-08-07',
+      model: 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
         ...conversationHistory,
@@ -127,7 +127,7 @@ Agora, pegue a resposta abaixo e humanize ela:`;
           content: `[RESPOSTA BRUTA DO SISTEMA]\n${agentResponse}\n\n[RESULTADOS DAS FERRAMENTAS]\n${toolResultsText}\n\n[FIM]\n\nHumanize a resposta acima mantendo a mesma informação mas com tom natural de WhatsApp.` 
         }
       ],
-      max_completion_tokens: 1000
+      max_tokens: 1000
     })
   });
   
