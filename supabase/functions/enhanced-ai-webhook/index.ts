@@ -863,8 +863,6 @@ async function processAIResponse(
         agent,
         requestId
       );
-        requestId
-      );
       
       assistantMessage = {
         content: supportResult.content,
