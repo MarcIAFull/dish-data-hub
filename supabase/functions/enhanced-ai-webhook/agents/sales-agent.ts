@@ -77,6 +77,7 @@ export async function processSalesAgent(
   chatId: number,
   supabase: any,
   agent: any,
+  currentState: string,
   requestId: string
 ): Promise<{ content: string; toolCalls?: any[] }> {
   const openAIKey = Deno.env.get('OPENAI_API_KEY');
@@ -92,7 +93,7 @@ export async function processSalesAgent(
   console.log(`  - Cart items: ${context.currentCart?.length || 0}`);
   console.log(`  - Cart total: R$ ${context.cartTotal || 0}`);
 
-  const systemPrompt = getSalesPrompt(context, agent?.personality, agent?.tone);
+  const systemPrompt = getSalesPrompt(context, currentState, agent?.personality, agent?.tone);
   const tools = getSalesTools();
 
   // Usar histórico completo (não fazer slice)

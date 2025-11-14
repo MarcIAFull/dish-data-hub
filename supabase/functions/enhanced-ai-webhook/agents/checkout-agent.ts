@@ -115,6 +115,7 @@ export async function processCheckoutAgent(
   chatId: number,
   supabase: any,
   agent: any,
+  currentState: string,
   requestId: string
 ): Promise<{ content: string; toolCalls?: any[] }> {
   const openAIKey = Deno.env.get('OPENAI_API_KEY');
@@ -130,7 +131,7 @@ export async function processCheckoutAgent(
   console.log(`  - Delivery zones: ${context.deliveryZones?.length || 0}`);
   console.log(`  - Payment methods: ${context.paymentMethods?.length || 0}`);
 
-  const systemPrompt = getCheckoutPrompt(context, agent?.personality, agent?.tone);
+  const systemPrompt = getCheckoutPrompt(context, currentState, agent?.personality, agent?.tone);
   const tools = getCheckoutTools();
 
   // Usar histórico completo (não fazer slice)

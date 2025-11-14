@@ -27,6 +27,8 @@ import {
   buildSupportContext
 } from './utils/context-builder.ts';
 import { executeToolCalls } from './utils/tool-executor.ts';
+import { getNextState, type ConversationState } from './utils/state-machine.ts';
+import { validateResponse } from './utils/response-validator.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -782,12 +784,15 @@ async function processAIResponse(
         agent
       );
       
+      const currentState: ConversationState = (chat.metadata?.conversation_state as ConversationState) || 'STATE_1_GREETING';
+      
       const salesResult = await processSalesAgent(
         salesContext,
         conversationHistory,
         chatId,
         supabase,
         agent,
+        currentState,
         requestId
       );
       
@@ -819,12 +824,15 @@ async function processAIResponse(
         agent
       );
       
+      const currentState: ConversationState = (chat.metadata?.conversation_state as ConversationState) || 'STATE_5_LOGISTICS';
+      
       const checkoutResult = await processCheckoutAgent(
         checkoutContext,
         conversationHistory,
         chatId,
         supabase,
         agent,
+        currentState,
         requestId
       );
       
@@ -842,12 +850,15 @@ async function processAIResponse(
         agent
       );
       
+      const currentState: ConversationState = (chat.metadata?.conversation_state as ConversationState) || 'STATE_2_DISCOVERY';
+      
       const menuResult = await processMenuAgent(
         menuContext,
         conversationHistory,
         chatId,
         supabase,
         agent,
+        currentState,
         requestId
       );
       
@@ -1027,13 +1038,49 @@ async function processAIResponse(
       console.log(`[${requestId}] 💬 Humanizing response (content: ${aiMessage.length} chars, tools: ${toolResults.length})...`);
       
       try {
+        const currentState: ConversationState = (chat.metadata?.conversation_state as ConversationState) || 'STATE_1_GREETING';
+        
         const humanizedMessage = await processConversationAgent(
           assistantMessage.content || '',
           toolResults,
           restaurantData.restaurant.name,
           messageHistory || [],
+          currentState,
           requestId
         );
+        
+        // Validate response before sending
+        const validation = validateResponse(
+          humanizedMessage,
+          currentState,
+          toolResults,
+          messageContent,
+          chat.metadata
+        );
+        
+        if (!validation.valid) {
+          console.error(`[${requestId}] ❌ Response validation failed:`, validation.errors);
+        }
+        if (validation.warnings.length > 0) {
+          console.warn(`[${requestId}] ⚠️ Response warnings:`, validation.warnings);
+        }
+        
+        // Calculate next state
+        const nextState = getNextState(currentState, messageContent, toolResults, chat.metadata);
+        
+        // Update metadata with new state
+        await supabase
+          .from('chats')
+          .update({ 
+            metadata: {
+              ...chat.metadata,
+              conversation_state: nextState,
+              last_state_change: new Date().toISOString()
+            }
+          })
+          .eq('id', chatId);
+        
+        console.log(`[${requestId}] 🔄 State transition: ${currentState} → ${nextState}`);
         
         console.log(`[${requestId}] ✅ Humanized message ready (${humanizedMessage.length} chars)`);
         aiMessage = humanizedMessage;

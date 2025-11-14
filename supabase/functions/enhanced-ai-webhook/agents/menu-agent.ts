@@ -48,6 +48,7 @@ export async function processMenuAgent(
   chatId: number,
   supabase: any,
   agent: any,
+  currentState: string,
   requestId: string
 ): Promise<{ content: string; toolCalls?: any[] }> {
   const openAIKey = Deno.env.get('OPENAI_API_KEY');
@@ -61,7 +62,7 @@ export async function processMenuAgent(
   console.log(`  - Categories: ${context.categories?.length || 0}`);
   console.log(`  - Total products: ${context.totalProducts || 0}`);
 
-  const systemPrompt = getMenuPrompt(context, agent?.personality, agent?.tone);
+  const systemPrompt = getMenuPrompt(context, currentState, agent?.personality, agent?.tone);
   const tools = getMenuTools();
 
   // Usar histórico completo (não fazer slice)
