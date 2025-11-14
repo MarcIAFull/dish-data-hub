@@ -752,6 +752,14 @@ async function processAIResponse(
 ) {
   console.log(`[${requestId}] 🤖 Processando mensagem com IA`);
   
+  // Initialize debug log
+  const processingStart = Date.now();
+  const debugLog: any = {
+    chat_id: chatId,
+    request_id: requestId,
+    user_messages: [{ content: messageContent }]
+  };
+  
   if (!openAIApiKey) {
     console.error(`[${requestId}] ❌ OpenAI API key não configurada`);
     return;
@@ -843,6 +851,11 @@ async function processAIResponse(
       console.log(`[${requestId}] ✅ Nova sessão criada com metadata limpo: ${currentSessionId}`);
     }
     
+    // Add session_id and metadata snapshot to debug log
+    debugLog.session_id = currentSessionId;
+    debugLog.current_state = chat.metadata?.conversation_state || 'STATE_1_GREETING';
+    debugLog.metadata_snapshot = chat.metadata;
+    
     // ETAPA 5: Buscar histórico REDUZIDO da sessão atual (30 msgs) + resumos anteriores
     const { data: messageHistory } = await supabase
       .from('messages')
@@ -917,6 +930,9 @@ async function processAIResponse(
     const detectedIntents = await classifyMultipleIntents(conversationHistory, conversationState, requestId);
     console.log(`[${requestId}] 🎯 Detected ${detectedIntents.length} intents:`, detectedIntents.map(i => i.type).join(', '));
     
+    // Add detected intents to debug log
+    debugLog.detected_intents = detectedIntents;
+    
     // Step 3: Create execution plan
     const currentStateForPlan: ConversationState = (chat.metadata?.conversation_state as ConversationState) || 'STATE_2_DISCOVERY';
     
@@ -928,6 +944,9 @@ async function processAIResponse(
     );
     
     console.log(`[${requestId}] 📋 Execution Plan created: ${executionPlan.length} steps`);
+    
+    // Add execution plan to debug log
+    debugLog.execution_plan = executionPlan;
     
     // Fetch delivery zones and payment methods (needed for checkout/logistics)
     const { data: deliveryZones } = await supabase
@@ -1011,6 +1030,19 @@ async function processAIResponse(
       });
     }
     
+    // Add agents called and tools executed to debug log
+    debugLog.agents_called = executionResults.map(r => ({
+      agent: r.agent,
+      action: r.step.action,
+      input: r.step.parameters,
+      output: r.output
+    }));
+    
+    debugLog.tools_executed = allToolResults;
+    debugLog.loaded_history = conversationHistory;
+    debugLog.loaded_summaries = sessionSummariesText ? [{ summary: sessionSummariesText }] : [];
+    }
+    
     // ========== GET FINAL AI MESSAGE ==========
     
     let aiMessage = assistantMessage.content || '';
@@ -1067,6 +1099,16 @@ async function processAIResponse(
         
         console.log(`[${requestId}] 🔄 State transition: ${currentStateForPlan} → ${nextState}`);
         
+        // Add output to debug log
+        debugLog.final_response = humanizedMessage;
+        debugLog.new_state = nextState;
+        debugLog.updated_metadata = {
+          ...finalMetadata,
+          conversation_state: nextState,
+          last_state_change: new Date().toISOString(),
+          completion_criteria: completionCriteria
+        };
+        
         console.log(`[${requestId}] ✅ Humanized message ready (${humanizedMessage.length} chars)`);
         aiMessage = humanizedMessage;
         
@@ -1122,6 +1164,19 @@ async function processAIResponse(
       console.log(`[${requestId}] ✅ Message sent via WhatsApp (${chunks.length} chunks)`);
     } else {
       console.warn(`[${requestId}] ⚠️ Evolution API credentials missing - message not sent`);
+    }
+    
+    // Calculate processing time and save debug log
+    debugLog.processing_time_ms = Date.now() - processingStart;
+    
+    try {
+      await supabase
+        .from('ai_processing_logs')
+        .insert(debugLog);
+      
+      console.log(`[${requestId}] 💾 Debug log saved`);
+    } catch (error) {
+      console.error(`[${requestId}] ❌ Failed to save debug log:`, error);
     }
     
   } catch (error) {

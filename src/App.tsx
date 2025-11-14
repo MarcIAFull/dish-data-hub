@@ -25,6 +25,7 @@ import Settings from "./pages/Settings";
 import RestaurantSettings from "./pages/RestaurantSettings";
 import NotFound from "./pages/NotFound";
 import WebhookDebug from "./pages/WebhookDebug";
+import AIDebug from "./pages/AIDebug";
 
 const queryClient = new QueryClient();
 
@@ -100,6 +101,11 @@ const App = () => (
                       <ProtectedAdminRoute>
                         <Admin />
                       </ProtectedAdminRoute>
+                    } />
+                    <Route path="/ai-debug" element={
+                      <ProtectedRoute>
+                        <AIDebug />
+                      </ProtectedRoute>
                     } />
                     <Route path="/webhook-debug" element={
                       <ProtectedAdminRoute>
