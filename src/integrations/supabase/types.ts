@@ -88,6 +88,77 @@ export type Database = {
           },
         ]
       }
+      ai_processing_logs: {
+        Row: {
+          agents_called: Json | null
+          chat_id: number
+          created_at: string | null
+          current_state: string | null
+          detected_intents: Json | null
+          execution_plan: Json | null
+          final_response: string | null
+          id: string
+          loaded_history: Json | null
+          loaded_summaries: Json | null
+          metadata_snapshot: Json | null
+          new_state: string | null
+          processing_time_ms: number | null
+          request_id: string
+          session_id: string | null
+          tools_executed: Json | null
+          updated_metadata: Json | null
+          user_messages: Json | null
+        }
+        Insert: {
+          agents_called?: Json | null
+          chat_id: number
+          created_at?: string | null
+          current_state?: string | null
+          detected_intents?: Json | null
+          execution_plan?: Json | null
+          final_response?: string | null
+          id?: string
+          loaded_history?: Json | null
+          loaded_summaries?: Json | null
+          metadata_snapshot?: Json | null
+          new_state?: string | null
+          processing_time_ms?: number | null
+          request_id: string
+          session_id?: string | null
+          tools_executed?: Json | null
+          updated_metadata?: Json | null
+          user_messages?: Json | null
+        }
+        Update: {
+          agents_called?: Json | null
+          chat_id?: number
+          created_at?: string | null
+          current_state?: string | null
+          detected_intents?: Json | null
+          execution_plan?: Json | null
+          final_response?: string | null
+          id?: string
+          loaded_history?: Json | null
+          loaded_summaries?: Json | null
+          metadata_snapshot?: Json | null
+          new_state?: string | null
+          processing_time_ms?: number | null
+          request_id?: string
+          session_id?: string | null
+          tools_executed?: Json | null
+          updated_metadata?: Json | null
+          user_messages?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_processing_logs_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blocked_numbers: {
         Row: {
           alert_count: number | null
