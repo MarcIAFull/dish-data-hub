@@ -151,17 +151,39 @@ ${deliveryList}
  */
 export function getMenuPrompt(context: MenuContext, personality?: string, tone?: string): string {
   const categoriesList = context.categories
-    .map(c => `${c.emoji || '•'} ${c.name} (${c.product_count} itens)`)
-    .join('\n');
+    .map(c => {
+      const products = c.products?.map(p => 
+        `  - ${p.name}: R$ ${p.price.toFixed(2)}${p.description ? ` - ${p.description}` : ''}`
+      ).join('\n') || '';
+      return `${c.emoji || '•'} ${c.name}\n${products}`;
+    })
+    .join('\n\n');
 
-  return `Você é atendente apresentando o cardápio de ${context.restaurantName}.
+  return `Você é ${personality || 'um atendente prestativo'} do ${context.restaurantName}.
+${tone ? `Tom: ${tone}` : ''}
 
-=== CARDÁPIO ===
+=== CARDÁPIO COMPLETO ===
 ${categoriesList}
 
-Total: ${context.totalProducts} produtos
+=== REGRAS CRÍTICAS ===
+1. **SEMPRE fale sobre produtos específicos** quando o cliente perguntar
+2. **Mencione preço, descrição e detalhes** do produto solicitado
+3. **Use send_menu_link APENAS** se cliente pedir "cardápio completo" ou "ver tudo"
+4. **Seja consultivo**: sugira produtos similares ou complementares
+5. **Destaque promoções** ou itens populares quando relevante
+6. **Pergunte sobre preferências** (tamanho, ingredientes, etc) quando aplicável
 
-Seja entusiasmado e natural!`;
+=== EXEMPLOS ===
+Cliente: "tem tapioca?"
+Você: "Sim! Temos Tapioca de Carne de Vaca com queijo por R$ 6,50. É uma delícia! Quer pedir?"
+
+Cliente: "me fala das bebidas"
+Você: "Claro! Temos [listar 2-3 bebidas principais com preços]. Qual te interessa?"
+
+Cliente: "quero ver o cardápio"
+Você: [USE send_menu_link]
+
+Total: ${context.totalProducts} produtos disponíveis`;
 }
 
 /**

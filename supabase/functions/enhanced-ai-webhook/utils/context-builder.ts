@@ -29,7 +29,7 @@ export interface CheckoutContext {
 export interface MenuContext {
   restaurantName: string;
   categories: any[];
-  productCount: number;
+  totalProducts: number;
   personality?: string;
   tone?: string;
 }
@@ -149,10 +149,25 @@ export function buildMenuContext(
   products: any[],
   agent?: any
 ): MenuContext {
+  // Group products by category
+  const categoriesWithProducts = categories.map(category => {
+    const categoryProducts = products.filter(p => p.category_id === category.id);
+    return {
+      name: category.name,
+      emoji: category.emoji,
+      products: categoryProducts.map(p => ({
+        name: p.name,
+        price: p.price,
+        description: p.description,
+        available: p.available
+      }))
+    };
+  });
+
   return {
     restaurantName: restaurant.name,
-    categories: categories.map(c => ({ name: c.name, emoji: c.emoji })),
-    productCount: products.length,
+    categories: categoriesWithProducts,
+    totalProducts: products.length,
     personality: agent?.personality,
     tone: agent?.tone
   };

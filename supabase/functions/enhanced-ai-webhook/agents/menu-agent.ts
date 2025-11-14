@@ -12,7 +12,7 @@ export function getMenuTools() {
       type: "function",
       function: {
         name: "send_menu_link",
-        description: "Envia link do cardápio digital completo",
+        description: "Envia link do cardápio digital completo. USE APENAS quando cliente pedir explicitamente para 'ver o cardápio todo' ou 'quero o cardápio completo'. NÃO use para perguntas sobre produtos específicos.",
         parameters: {
           type: "object",
           properties: {}
@@ -23,7 +23,7 @@ export function getMenuTools() {
       type: "function",
       function: {
         name: "check_product_availability",
-        description: "Verifica se um produto está disponível e retorna informações detalhadas",
+        description: "Verifica disponibilidade de um produto. Use apenas se precisar confirmar estoque/disponibilidade em tempo real.",
         parameters: {
           type: "object",
           properties: {
