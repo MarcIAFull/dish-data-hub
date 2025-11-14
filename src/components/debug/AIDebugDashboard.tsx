@@ -6,7 +6,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { RefreshCw, Clock } from "lucide-react";
+import { RefreshCw, Clock, Trash2 } from "lucide-react";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { IntentsViewer } from "./IntentsViewer";
 import { AgentFlowViewer } from "./AgentFlowViewer";
 import { ToolCallsViewer } from "./ToolCallsViewer";
@@ -49,6 +60,29 @@ export function AIDebugDashboard() {
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
   const [logs, setLogs] = useState<AILog[]>([]);
   const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
+  const handleResetSystem = async () => {
+    setResetting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-system');
+      
+      if (error) throw error;
+      
+      toast.success(data.message);
+      console.log('Reset result:', data);
+      
+      // Reload chats
+      await loadChats();
+      setSelectedChatId(null);
+      setLogs([]);
+    } catch (error) {
+      console.error('Error resetting system:', error);
+      toast.error('Erro ao resetar sistema');
+    } finally {
+      setResetting(false);
+    }
+  };
 
   const loadChats = async () => {
     setLoading(true);
@@ -111,18 +145,57 @@ export function AIDebugDashboard() {
     <div className="h-screen flex">
       {/* Left Column - Chats List */}
       <div className="w-80 border-r bg-background">
-        <div className="p-4 border-b">
+        <div className="p-4 border-b space-y-2">
           <h2 className="text-lg font-semibold">Conversas Recentes</h2>
-          <Button
-            onClick={handleRefresh}
-            size="sm"
-            variant="outline"
-            className="mt-2 w-full"
-            disabled={loading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Atualizar
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleRefresh}
+              size="sm"
+              variant="outline"
+              className="flex-1"
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  disabled={resetting}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Resetar
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Resetar Sistema</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação vai:
+                    <ul className="list-disc list-inside mt-2 space-y-1">
+                      <li>Arquivar todas as conversas ativas</li>
+                      <li>Cancelar todos os pedidos pendentes</li>
+                      <li>Limpar metadata das conversas</li>
+                    </ul>
+                    <p className="mt-3 font-semibold">
+                      Isso não deleta os dados, apenas os marca como encerrados.
+                    </p>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleResetSystem}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Confirmar Reset
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
         <ScrollArea className="h-[calc(100vh-120px)]">
           <div className="p-2 space-y-2">
