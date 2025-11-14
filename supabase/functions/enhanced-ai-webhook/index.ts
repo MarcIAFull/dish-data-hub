@@ -1,7 +1,8 @@
-// 🚀 Enhanced AI Webhook v3.1 - FORCE DEPLOY - Multi-Agent System
-// 📅 Last deployed: 2025-11-14 13:23 UTC
-// ✨ Features: Orchestrator → Specialized Agents → Conversation Agent Humanization
-// 🔧 All static imports, GPT-5 (gpt-5-2025-08-07), Session Management
+// 🚀 Enhanced AI Webhook v4.0 - FORCE DEPLOY - Multi-Intent Architecture
+// 📅 Last deployed: 2025-11-14 16:00 UTC
+// ✨ Features: Multi-Intent Detection → Execution Planner → Multi-Agent → Smart State Machine → Response Combiner
+// 🔧 Supports parallel intent processing, dynamic agent routing, and non-linear state transitions
+// 🎯 Architecture: Orchestrator V2 → Plan Creator → Plan Executor → Logistics Handler → State Machine V2
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -12,8 +13,8 @@ import { executeListPaymentMethods } from './payment-tools.ts';
 import { executeListProductModifiers } from './modifier-tools.ts';
 import { executeAddItemToOrder } from './cart-tools.ts';
 
-// Multi-Agent Architecture (Complete - Phases 1-5)
-import { classifyIntent, routeToAgent } from './agents/orchestrator.ts';
+// Multi-Agent Architecture v2 - Multi-Intent Support
+import { classifyMultipleIntents } from './agents/orchestrator-v2.ts';
 import { processSalesAgent } from './agents/sales-agent.ts';
 import { processCheckoutAgent } from './agents/checkout-agent.ts';
 import { processMenuAgent } from './agents/menu-agent.ts';
@@ -27,8 +28,11 @@ import {
   buildSupportContext
 } from './utils/context-builder.ts';
 import { executeToolCalls } from './utils/tool-executor.ts';
-import { getNextState, type ConversationState } from './utils/state-machine.ts';
+import { calculateCompletionCriteria, getNextState, type ConversationState } from './utils/state-machine-v2.ts';
 import { validateResponse } from './utils/response-validator.ts';
+import { createExecutionPlan } from './utils/execution-planner.ts';
+import { executePlan } from './utils/plan-executor.ts';
+import { combineResponses, createExecutionSummary } from './utils/response-combiner.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -755,147 +759,80 @@ async function processAIResponse(
     
     console.log(`[${requestId}] ✅ Restaurant data fetched - ${categories.length} categories, ${products.length} products`);
     
-    // ========== MULTI-AGENT ORCHESTRATION (Complete) ==========
-    console.log(`[${requestId}] 🎯 Starting Multi-Agent Orchestration...`);
+    // ========== MULTI-INTENT ORCHESTRATION V2 ==========
+    console.log(`[${requestId}] 🎯 Starting Multi-Intent Orchestration V2...`);
     
     // Step 1: Analyze conversation state
     const conversationState = analyzeConversationState(chat.metadata, messageHistory || []);
     console.log(`[${requestId}] 📊 Conversation State:`, conversationState);
     
-    // Step 2: Classify intent (with current message)
-    const intent = await classifyIntent(conversationHistory, conversationState, requestId);
-    console.log(`[${requestId}] 🎯 Classified Intent: ${intent}`);
+    // Step 2: Classify MULTIPLE intents
+    const detectedIntents = await classifyMultipleIntents(conversationHistory, conversationState, requestId);
+    console.log(`[${requestId}] 🎯 Detected ${detectedIntents.length} intents:`, detectedIntents.map(i => i.type).join(', '));
     
-    // Step 3: Route to appropriate agent
-    const targetAgent = routeToAgent(intent, conversationState);
-    console.log(`[${requestId}] 🔀 Routing to: ${targetAgent} Agent`);
+    // Step 3: Create execution plan
+    const currentStateForPlan: ConversationState = (chat.metadata?.conversation_state as ConversationState) || 'STATE_2_DISCOVERY';
     
-    let assistantMessage: any;
-    let finalMessage = '';
+    const executionPlan = createExecutionPlan(
+      detectedIntents,
+      currentStateForPlan,
+      chat.metadata,
+      requestId
+    );
     
-    // Step 4: Process with specialized agent
-    if (targetAgent === 'SALES') {
-      // SALES AGENT - Optimized for product sales
-      const salesContext = buildSalesContext(
-        restaurantData.restaurant,
-        categories,
-        products,
-        chat.metadata,
-        agent
-      );
-      
-      const currentState: ConversationState = (chat.metadata?.conversation_state as ConversationState) || 'STATE_1_GREETING';
-      
-      const salesResult = await processSalesAgent(
-        salesContext,
-        conversationHistory,
-        chatId,
-        supabase,
-        agent,
-        currentState,
-        requestId
-      );
-      
-      assistantMessage = {
-        content: salesResult.content,
-        tool_calls: salesResult.toolCalls
-      };
-      
-    } else if (targetAgent === 'CHECKOUT') {
-      // CHECKOUT AGENT - Optimized for order finalization
-      
-      // Fetch delivery zones and payment methods
-      const { data: deliveryZones } = await supabase
-        .from('delivery_zones')
-        .select('*')
-        .eq('restaurant_id', agent.restaurants.id)
-        .eq('is_active', true);
-      
-      const { data: paymentMethods } = await supabase
-        .from('payment_methods')
-        .select('*')
-        .eq('restaurant_id', agent.restaurants.id);
-      
-      const checkoutContext = buildCheckoutContext(
-        restaurantData.restaurant,
-        deliveryZones || [],
-        paymentMethods || [],
-        chat.metadata,
-        agent
-      );
-      
-      const currentState: ConversationState = (chat.metadata?.conversation_state as ConversationState) || 'STATE_5_LOGISTICS';
-      
-      const checkoutResult = await processCheckoutAgent(
-        checkoutContext,
-        conversationHistory,
-        chatId,
-        supabase,
-        agent,
-        currentState,
-        requestId
-      );
-      
-      assistantMessage = {
-        content: checkoutResult.content,
-        tool_calls: checkoutResult.toolCalls
-      };
-      
-    } else if (targetAgent === 'MENU') {
-      // MENU AGENT - Optimized for menu presentation
-      const menuContext = buildMenuContext(
-        restaurantData.restaurant,
-        categories,
-        products,
-        agent
-      );
-      
-      const currentState: ConversationState = (chat.metadata?.conversation_state as ConversationState) || 'STATE_2_DISCOVERY';
-      
-      const menuResult = await processMenuAgent(
-        menuContext,
-        conversationHistory,
-        chatId,
-        supabase,
-        agent,
-        currentState,
-        requestId
-      );
-      
-      assistantMessage = {
-        content: menuResult.content,
-        tool_calls: menuResult.toolCalls
-      };
-      
-    } else if (targetAgent === 'SUPPORT') {
-      // SUPPORT AGENT - Optimized for customer support
-      const supportContext = buildSupportContext(restaurantData.restaurant, agent);
-      
-      const currentState: ConversationState = (chat.metadata?.conversation_state as ConversationState) || 'STATE_2_DISCOVERY';
-      
-      const supportResult = await processSupportAgent(
-        supportContext,
-        conversationHistory,
-        chatId,
-        supabase,
-        agent,
-        currentState,
-        requestId
-      );
-      
-      assistantMessage = {
-        content: supportResult.content,
-        tool_calls: supportResult.toolCalls
-      };
-      
-    } else {
-      // Should never happen with proper routing, but handle gracefully
-      console.error(`[${requestId}] ❌ Unknown agent type: ${targetAgent}`);
-      assistantMessage = {
-        content: 'Desculpe, houve um erro no atendimento. Por favor, reformule sua mensagem.',
-        tool_calls: []
-      };
-    }
+    console.log(`[${requestId}] 📋 Execution Plan created: ${executionPlan.length} steps`);
+    
+    // Fetch delivery zones and payment methods (needed for checkout/logistics)
+    const { data: deliveryZones } = await supabase
+      .from('delivery_zones')
+      .select('*')
+      .eq('restaurant_id', agent.restaurants.id)
+      .eq('is_active', true);
+    
+    const { data: paymentMethods } = await supabase
+      .from('payment_methods')
+      .select('*')
+      .eq('restaurant_id', agent.restaurants.id);
+    
+    // Prepare restaurant data for plan executor
+    const restaurantDataForPlan = {
+      restaurant: restaurantData.restaurant,
+      categories,
+      products,
+      deliveryZones: deliveryZones || [],
+      paymentMethods: paymentMethods || [],
+      agent
+    };
+    
+    // Step 4: Execute plan
+    const executionResults = await executePlan(
+      executionPlan,
+      chatId,
+      supabase,
+      restaurantDataForPlan,
+      conversationHistory,
+      chat.metadata,
+      currentStateForPlan,
+      requestId
+    );
+    
+    console.log(`[${requestId}] ✅ Plan execution completed: ${executionResults.length} results`);
+    
+    // Step 5: Combine responses
+    const { combinedOutput, allToolResults } = combineResponses(executionResults, requestId);
+    
+    // Get final metadata from last execution result
+    const finalMetadata = executionResults.length > 0 
+      ? executionResults[executionResults.length - 1].updatedMetadata 
+      : chat.metadata;
+    
+    // Create assistant message structure
+    const assistantMessage = {
+      content: combinedOutput,
+      tool_calls: [] // Tool calls already executed
+    };
+    
+    const toolResults = allToolResults;
     
     // ========== UNIFIED RESPONSE LOGGING ==========
     if (assistantMessage.content) {
@@ -1041,21 +978,19 @@ async function processAIResponse(
       console.log(`[${requestId}] 💬 Humanizing response (content: ${aiMessage.length} chars, tools: ${toolResults.length})...`);
       
       try {
-        const currentState: ConversationState = (chat.metadata?.conversation_state as ConversationState) || 'STATE_1_GREETING';
-        
         const humanizedMessage = await processConversationAgent(
           assistantMessage.content || '',
           toolResults,
           restaurantData.restaurant.name,
           messageHistory || [],
-          currentState,
+          currentStateForPlan,
           requestId
         );
         
         // Validate response before sending
         const validation = validateResponse(
           humanizedMessage,
-          currentState,
+          currentStateForPlan,
           toolResults,
           messageContent,
           chat.metadata
@@ -1068,22 +1003,26 @@ async function processAIResponse(
           console.warn(`[${requestId}] ⚠️ Response warnings:`, validation.warnings);
         }
         
-        // Calculate next state
-        const nextState = getNextState(currentState, messageContent, toolResults, chat.metadata);
+        // Calculate completion criteria and next state (Smart State Machine V2)
+        const completionCriteria = calculateCompletionCriteria(finalMetadata);
+        console.log(`[${requestId}] 📊 Completion Criteria:`, completionCriteria);
         
-        // Update metadata with new state
+        const nextState = getNextState(currentStateForPlan, completionCriteria, messageContent);
+        
+        // Update metadata with new state and completion data
         await supabase
           .from('chats')
           .update({ 
             metadata: {
-              ...chat.metadata,
+              ...finalMetadata,
               conversation_state: nextState,
-              last_state_change: new Date().toISOString()
+              last_state_change: new Date().toISOString(),
+              completion_criteria: completionCriteria
             }
           })
           .eq('id', chatId);
         
-        console.log(`[${requestId}] 🔄 State transition: ${currentState} → ${nextState}`);
+        console.log(`[${requestId}] 🔄 State transition: ${currentStateForPlan} → ${nextState}`);
         
         console.log(`[${requestId}] ✅ Humanized message ready (${humanizedMessage.length} chars)`);
         aiMessage = humanizedMessage;
@@ -1149,12 +1088,13 @@ async function processAIResponse(
 serve(async (req) => {
   const requestId = crypto.randomUUID().substring(0, 8);
   
-  // VERSION CONFIRMATION LOG (v3.1)
+  // VERSION CONFIRMATION LOG (v4.0)
   console.log('═══════════════════════════════════════════════════════════');
-  console.log('🚀 Enhanced AI Webhook v3.1 - FORCE DEPLOY');
+  console.log('🚀 Enhanced AI Webhook v4.0 - Multi-Intent Architecture');
   console.log('📅 Deployed:', new Date().toISOString());
-  console.log('🎯 Multi-Agent: Orchestrator → Sales/Checkout/Menu/Support → Conversation');
-  console.log('🔧 Static Imports: ✅ | GPT-5: ✅ | Session System: ✅');
+  console.log('🎯 Multi-Intent: Orchestrator V2 → Execution Planner → Multi-Agent');
+  console.log('🧠 Smart State Machine: Non-linear transitions, skip logic');
+  console.log('🔧 Logistics Handler: Metadata updates without GPT');
   console.log('═══════════════════════════════════════════════════════════');
   console.log(`[${requestId}] ============ NEW REQUEST ============`);
   console.log(`[${requestId}] Method: ${req.method}`);
