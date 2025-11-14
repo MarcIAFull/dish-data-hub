@@ -461,16 +461,20 @@ async function checkIfNeedNewSession(
     return true;
   }
   
-  // 2. Se sessão anterior está completada, criar nova
+  // 2. Se sessão anterior está completada, precisa salvar resumo e criar nova
   if (chat.session_status === 'completed') {
-    console.log(`[${requestId}] 🆕 Sessão anterior completada - criando nova`);
+    console.log(`[${requestId}] 🆕 Sessão anterior completada - salvando resumo e criando nova`);
+    
+    // ETAPA 3: Salvar resumo da sessão anterior antes de criar nova
+    await saveSessionSummary(supabase, chat, requestId);
+    
     return true;
   }
   
   // 3. Detectar keywords de "novo pedido"
   const newOrderKeywords = [
     /\bnovo pedido\b/i,
-    /\brecomeçar\b/i,
+    /\brecome çar\b/i,
     /\bcomeçar de novo\b/i,
     /\bquero fazer outro pedido\b/i,
     /\bfazer mais um pedido\b/i,
@@ -481,7 +485,8 @@ async function checkIfNeedNewSession(
   const hasNewOrderKeyword = newOrderKeywords.some(regex => regex.test(messageContent));
   
   if (hasNewOrderKeyword) {
-    console.log(`[${requestId}] 🆕 Detectada keyword de novo pedido`);
+    console.log(`[${requestId}] 🆕 Detectada keyword de novo pedido - salvando resumo`);
+    await saveSessionSummary(supabase, chat, requestId);
     return true;
   }
   
@@ -492,13 +497,126 @@ async function checkIfNeedNewSession(
     const hoursSinceLastMessage = (currentTime - lastMessageTime) / (1000 * 60 * 60);
     
     if (hoursSinceLastMessage > 6) {
-      console.log(`[${requestId}] 🆕 Gap de ${hoursSinceLastMessage.toFixed(1)}h detectado - criando nova sessão`);
+      console.log(`[${requestId}] 🆕 Gap de ${hoursSinceLastMessage.toFixed(1)}h detectado - salvando resumo e criando nova sessão`);
+      await saveSessionSummary(supabase, chat, requestId);
       return true;
     }
   }
   
   // Manter sessão atual
   return false;
+}
+
+/**
+ * ETAPA 4: Salva resumo compacto da sessão atual antes de criar nova
+ */
+async function saveSessionSummary(
+  supabase: any,
+  chat: any,
+  requestId: string
+): Promise<void> {
+  try {
+    const metadata = chat.metadata || {};
+    const orderItems = metadata.order_items || [];
+    const orderTotal = metadata.order_total || 0;
+    
+    // Se não há dados significativos, não salvar resumo
+    if (orderItems.length === 0 && !metadata.delivery_type && !metadata.payment_method) {
+      console.log(`[${requestId}] ℹ️ Sessão sem dados significativos - pulando resumo`);
+      return;
+    }
+    
+    // Gerar resumo compacto (~50 tokens)
+    let summary = '';
+    
+    if (orderItems.length > 0) {
+      const itemNames = orderItems.map((item: any) => 
+        `${item.quantity}x ${item.name}`
+      ).join(', ');
+      summary += `Pedido: ${itemNames}. `;
+    }
+    
+    if (metadata.delivery_type) {
+      summary += `${metadata.delivery_type === 'delivery' ? 'Entrega' : 'Retirada'}. `;
+    }
+    
+    if (metadata.payment_method) {
+      summary += `Pgto: ${metadata.payment_method}. `;
+    }
+    
+    if (metadata.address) {
+      summary += `End: ${metadata.address.substring(0, 30)}... `;
+    }
+    
+    const sessionStatus = chat.session_status || 'incomplete';
+    summary += `Status: ${sessionStatus}.`;
+    
+    // Salvar resumo na tabela
+    const { error } = await supabase
+      .from('session_summaries')
+      .insert({
+        chat_id: chat.id,
+        session_id: chat.session_id,
+        summary: summary.trim(),
+        order_total: orderTotal,
+        items_ordered: orderItems,
+        delivery_type: metadata.delivery_type || null,
+        payment_method: metadata.payment_method || null,
+        customer_preferences: {
+          customer_name: metadata.customer_name || null,
+          phone: chat.phone || null
+        }
+      });
+    
+    if (error) {
+      console.error(`[${requestId}] ❌ Erro ao salvar resumo da sessão:`, error);
+    } else {
+      console.log(`[${requestId}] ✅ Resumo da sessão salvo: ${summary.substring(0, 100)}`);
+    }
+  } catch (error) {
+    console.error(`[${requestId}] ❌ Erro ao salvar resumo da sessão:`, error);
+  }
+}
+
+/**
+ * ETAPA 4: Carrega resumos das últimas 5 sessões
+ */
+async function loadSessionSummaries(
+  supabase: any,
+  chatId: number,
+  requestId: string
+): Promise<string> {
+  try {
+    const { data: summaries, error } = await supabase
+      .from('session_summaries')
+      .select('summary, order_total, items_ordered, completed_at')
+      .eq('chat_id', chatId)
+      .order('completed_at', { ascending: false })
+      .limit(5);
+    
+    if (error) {
+      console.error(`[${requestId}] ❌ Erro ao carregar resumos:`, error);
+      return '';
+    }
+    
+    if (!summaries || summaries.length === 0) {
+      console.log(`[${requestId}] ℹ️ Nenhum resumo de sessão anterior encontrado`);
+      return '';
+    }
+    
+    console.log(`[${requestId}] 📚 Carregados ${summaries.length} resumos de sessões anteriores`);
+    
+    // Formatar resumos para contexto
+    const formattedSummaries = summaries.map((s: any, idx: number) => {
+      const daysAgo = Math.floor((Date.now() - new Date(s.completed_at).getTime()) / (1000 * 60 * 60 * 24));
+      return `[Sessão ${idx + 1} - ${daysAgo}d atrás] ${s.summary}`;
+    }).join('\n');
+    
+    return `\n=== HISTÓRICO DE PEDIDOS ANTERIORES ===\n${formattedSummaries}\n=== FIM DO HISTÓRICO ===\n`;
+  } catch (error) {
+    console.error(`[${requestId}] ❌ Erro ao carregar resumos:`, error);
+    return '';
+  }
 }
 
 
@@ -699,37 +817,66 @@ async function processAIResponse(
       
       currentSessionId = newSessionData;
       
+      // ETAPA 3: Limpar metadata ao criar nova sessão (manter apenas dados permanentes)
+      const cleanMetadata = {
+        customer_name: chat.metadata?.customer_name || null,
+        permanent_preferences: chat.metadata?.permanent_preferences || {},
+        // Resetar dados da sessão
+        order_items: [],
+        order_total: 0,
+        delivery_type: null,
+        payment_method: null,
+        address: null,
+        conversation_state: 'STATE_1_GREETING'
+      };
+      
       await supabase
         .from('chats')
         .update({
           session_id: currentSessionId,
           session_status: 'active',
-          session_created_at: new Date().toISOString()
+          session_created_at: new Date().toISOString(),
+          metadata: cleanMetadata
         })
         .eq('id', chatId);
       
-      console.log(`[${requestId}] ✅ Primeira sessão criada para chat existente: ${currentSessionId}`);
+      console.log(`[${requestId}] ✅ Nova sessão criada com metadata limpo: ${currentSessionId}`);
     }
     
-    // Buscar histórico de mensagens APENAS da sessão atual
+    // ETAPA 5: Buscar histórico REDUZIDO da sessão atual (30 msgs) + resumos anteriores
     const { data: messageHistory } = await supabase
       .from('messages')
       .select('sender_type, content, created_at')
       .eq('chat_id', chat.id)
       .eq('session_id', currentSessionId || `temp_${chat.id}`) // Filtrar por sessão
-      .order('created_at', { ascending: true })
-      .limit(100); // Aumentado para cobrir sessão completa
+      .order('created_at', { ascending: false })
+      .limit(30); // REDUZIDO de 100 para 30
     
-    console.log(`[${requestId}] 📊 Session Info:`);
+    // Reverter ordem (estava DESC para pegar as mais recentes)
+    const recentMessages = (messageHistory || []).reverse();
+    
+    // Carregar resumos de sessões anteriores
+    const sessionSummariesText = await loadSessionSummaries(supabase, chat.id, requestId);
+    
+    console.log(`[${requestId}] 📊 Context Info:`);
     console.log(`  - Current session_id: ${currentSessionId || 'NONE (using temp)'}`);
-    console.log(`  - Messages in session: ${messageHistory?.length || 0}`);
+    console.log(`  - Messages in session: ${recentMessages.length}/30`);
+    console.log(`  - Session summaries: ${sessionSummariesText ? 'Loaded' : 'None'}`);
     console.log(`  - Session status: ${chat.session_status || 'N/A'}`);
     
-    // Converter para formato OpenAI e incluir mensagem atual
-    const conversationHistory = (messageHistory || []).map(msg => ({
+    // Converter para formato OpenAI
+    const conversationHistory = recentMessages.map(msg => ({
       role: msg.sender_type === 'user' ? 'user' : 'assistant',
       content: msg.content
     }));
+    
+    // ETAPA 5: Injetar resumos como "system message" no início do contexto
+    if (sessionSummariesText) {
+      conversationHistory.unshift({
+        role: 'system',
+        content: sessionSummariesText
+      });
+    }
     
     // Adicionar mensagem agrupada atual ao histórico
     conversationHistory.push({
@@ -737,7 +884,7 @@ async function processAIResponse(
       content: messageContent
     });
     
-    console.log(`[${requestId}] 📝 Total context: ${conversationHistory.length} mensagens (incluindo atual)`);
+    console.log(`[${requestId}] 📝 Total context: ${conversationHistory.length} mensagens (${recentMessages.length} sessão atual + ${sessionSummariesText ? '1 resumo' : '0 resumos'} + 1 atual)`);
     
     // Buscar dados do restaurante via edge function
     console.log(`[${requestId}] 🏪 Fetching restaurant data for slug: ${agent.restaurants.slug}`);
@@ -947,13 +1094,15 @@ async function processAIResponse(
     
     // ========== SAVE TO DATABASE ==========
     
+    // Salvar com session_id
     await supabase
       .from('messages')
       .insert({
         chat_id: chat.id,
         sender_type: 'agent',
         content: aiMessage,
-        message_type: 'text'
+        message_type: 'text',
+        session_id: currentSessionId // Adicionar session_id
       });
     
     console.log(`[${requestId}] 💾 Message saved to database`);
