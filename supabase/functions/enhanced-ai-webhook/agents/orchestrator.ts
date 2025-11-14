@@ -20,8 +20,8 @@ export async function classifyIntent(
       return 'UNCLEAR';
     }
 
-    // Get last 3 messages for context
-    const recentMessages = lastMessages.slice(-3);
+    // Usar TODAS as mensagens (não fazer slice)
+    const recentMessages = lastMessages;
     const messagesText = recentMessages
       .map(m => `${m.sender_type === 'user' ? 'Cliente' : 'Bot'}: ${m.content}`)
       .join('\n');
@@ -29,6 +29,7 @@ export async function classifyIntent(
     const prompt = getOrchestratorPrompt(messagesText, conversationState);
 
     console.log(`[${requestId}] 🎯 Classifying intent with orchestrator...`);
+    console.log(`[${requestId}] 📊 Total messages in context: ${lastMessages.length}`);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -37,11 +38,11 @@ export async function classifyIntent(
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-5-nano-2025-08-07',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: prompt }
         ],
-        max_completion_tokens: 10
+        max_completion_tokens: 20
       })
     });
 
