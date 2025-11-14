@@ -846,118 +846,14 @@ async function processAIResponse(
       })));
     }
     
-    // ========== PROCESS TOOL CALLS ==========
+    // ========== TOOLS ALREADY EXECUTED BY EXECUTION PLAN ==========
+    // Tools executed in plan-executor.ts - results in allToolResults
     
-    let toolResults = [];
-    
-    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-      console.log(`[${requestId}] 🔧 Processing ${assistantMessage.tool_calls.length} tool calls`);
-      
-      // ✅ CORREÇÃO 7: Logging detalhado de execução de tools
-      console.log(`[${requestId}] 📋 Tools to execute:`, 
-        assistantMessage.tool_calls.map((tc: any) => tc.function.name).join(', ')
-      );
-      
-      for (const toolCall of assistantMessage.tool_calls) {
-        const toolName = toolCall.function.name;
-        const toolArgs = JSON.parse(toolCall.function.arguments);
-        
-        console.log(`[${requestId}] 🔨 Executing tool: ${toolName}`, toolArgs);
-        
-        let toolResult;
-        
-        try {
-          switch (toolName) {
-            case 'send_menu_link':
-              toolResult = {
-                success: true,
-                link: `https://ebbe56d2-234f-45f9-8d89-11b4c6add970.lovableproject.com/r/${agent.restaurants.slug}`,
-                message: 'Link do cardápio enviado'
-              };
-              break;
-            
-            case 'check_product_availability':
-              toolResult = await executeCheckAvailability(supabase, agent, toolArgs);
-              break;
-            
-            case 'add_item_to_order':
-              toolResult = await executeAddItemToOrder(supabase, chatId, toolArgs);
-              break;
-            
-            case 'validate_delivery_address':
-              toolResult = await executeValidateAddress(supabase, agent, toolArgs);
-              break;
-            
-            case 'list_payment_methods':
-              toolResult = await executeListPaymentMethods(supabase, agent);
-              break;
-            
-            case 'check_order_prerequisites':
-              toolResult = await executeCheckOrderPrerequisites(supabase, chatId);
-              break;
-            
-            case 'create_order':
-              toolResult = await executeCreateOrder(supabase, agent, toolArgs, chatId, customerPhone);
-              break;
-            
-            case 'get_restaurant_info':
-              // Get restaurant info from agent data - NEVER invent data
-              const restaurant = agent.restaurants;
-              const infoType = toolArgs.info_type;
-              
-              const restaurantInfo: any = {};
-              
-              if (infoType === 'all' || infoType === 'address') {
-                if (restaurant.address && restaurant.address.trim() !== '') {
-                  restaurantInfo.address = restaurant.address;
-                }
-              }
-              
-              if (infoType === 'all' || infoType === 'phone') {
-                if (restaurant.phone && restaurant.phone.trim() !== '') {
-                  restaurantInfo.phone = restaurant.phone;
-                }
-                if (restaurant.whatsapp && restaurant.whatsapp.trim() !== '') {
-                  restaurantInfo.whatsapp = restaurant.whatsapp;
-                } else if (agent.evolution_whatsapp_number) {
-                  restaurantInfo.whatsapp = agent.evolution_whatsapp_number;
-                }
-              }
-              
-              if (infoType === 'all' || infoType === 'instagram') {
-                if (restaurant.instagram && restaurant.instagram.trim() !== '') {
-                  restaurantInfo.instagram = `@${restaurant.instagram.replace('@', '')}`;
-                }
-              }
-              
-              toolResult = restaurantInfo;
-              break;
-            
-            default:
-              console.warn(`[${requestId}] ⚠️ Unknown tool: ${toolName}`);
-              toolResult = { error: 'Unknown tool' };
-          }
-          
-          toolResults.push({
-            tool_name: toolName,
-            result: toolResult
-          });
-          
-          console.log(`[${requestId}] ✅ Tool ${toolName} executed:`, toolResult);
-          
-        } catch (error) {
-          console.error(`[${requestId}] ❌ Tool ${toolName} error:`, error);
-          toolResults.push({
-            tool_name: toolName,
-            result: { error: error.message }
-          });
-        }
-      }
-      
-      // ✅ CORREÇÃO 7: Logging detalhado de execução de tools
-      console.log(`[${requestId}] 🛠️ Tools Execution Summary:`);
-      toolResults.forEach((result, idx) => {
-        console.log(`  ${idx + 1}. ${result.tool_name}:`);
+    // Log tool results summary
+    if (toolResults.length > 0) {
+      console.log(`[${requestId}] 📊 Tool Results Summary:`, toolResults.length);
+      toolResults.forEach((result: any, idx: number) => {
+        console.log(`  ${idx + 1}. ${result.tool_name || 'unknown'}:`);
         console.log(`     Success: ${result.result?.success !== false ? '✅' : '❌'}`);
         if (result.result?.error) {
           console.log(`     Error: ${result.result.error}`);
