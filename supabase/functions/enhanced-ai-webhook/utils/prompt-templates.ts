@@ -101,6 +101,7 @@ CARRINHO ATUAL: ${context.currentCart.length} itens - R$ ${context.cartTotal.toF
 REGRA CRÍTICA: SEMPRE use check_product_availability antes de falar de produto específico.
 Quando cliente confirmar → add_item_to_order imediatamente.
 Forneça dados FACTUAIS (será humanizado depois).`;
+}
 
 export function getCheckoutPrompt(context: CheckoutContext, currentState: string, personality?: string, tone?: string): string {
   let stateInstructions = '';
@@ -109,48 +110,54 @@ export function getCheckoutPrompt(context: CheckoutContext, currentState: string
     case 'STATE_5_ADDRESS':
     case 'STATE_6_DELIVERY_DETAILS':
       stateInstructions = `
-FOCO: Coletar e validar endereço de entrega (ou confirmar retirada).
-AÇÃO: Calcular taxa de entrega e tempo estimado.`;
+VOCÊ ESTÁ EM: Coleta de Endereço
+TAREFA: Coletar endereço completo para DELIVERY ou confirmar RETIRADA.
+AÇÃO: Usar validate_address para verificar se atendemos a região.`;
       break;
-      
     case 'STATE_7_PAYMENT':
       stateInstructions = `
-FOCO: Apresentar métodos de pagamento disponíveis e coletar escolha.
-IMPORTANTE: Confirmar se cliente precisa de troco (se dinheiro).`;
+VOCÊ ESTÁ EM: Escolha de Pagamento
+TAREFA: Apresentar formas de pagamento disponíveis.
+MÉTODOS: ${context.paymentMethods.map(pm => pm.display_name).join(', ')}`;
       break;
-      
-    case 'STATE_8_ORDER_CONFIRMATION':
-      stateInstructions = `
-FOCO: Mostrar resumo COMPLETO e pedir confirmação final.
-RESUMO: Itens, Endereço, Pagamento, Taxa, Total.`;
-      break;
-      
     default:
-      stateInstructions = `Continue o processo de checkout de forma natural.`;
+      stateInstructions = `VOCÊ ESTÁ EM: ${currentState}`;
   }
   
   return `Agente de CHECKOUT - ${context.restaurantName}
-ESTADO: ${currentState}
 ${stateInstructions}
 
 PEDIDO: ${context.orderSummary.itemCount} itens - R$ ${context.orderSummary.total.toFixed(2)}
 
 Forneça dados FACTUAIS (será humanizado depois).`;
+}
 
 export function getMenuPrompt(context: MenuContext, currentState: string, personality?: string, tone?: string): string {
   return `Agente de MENU - ${context.restaurantName}
 ESTADO: ${currentState}
 ${context.totalProducts} produtos disponíveis
 
-REGRA: Produto específico → check_product_availability
-FOCO: ${currentState === 'STATE_1_GREETING' ? 'Apresentar categorias disponíveis' : 'Ajudar cliente a navegar pelo cardápio'}
+TAREFA: Apresente o cardápio completo de forma organizada por categorias.
+SEMPRE use check_product_availability antes de recomendar produtos específicos.
+Seja útil e informativo sobre os produtos.
+
 Forneça dados FACTUAIS (será humanizado depois).`;
+}
 
 export function getSupportPrompt(context: SupportContext, currentState: string, personality?: string, tone?: string): string {
   return `Agente de SUPORTE - ${context.restaurantName}
 ESTADO: ${currentState}
-Telefone: ${context.phone || 'N/D'}
-Endereço: ${context.address || 'N/D'}
 
-FOCO: ${currentState === 'STATE_1_GREETING' ? 'Apresentar-se e perguntar como ajudar' : 'Responder dúvidas sobre horário, localização, etc'}
+INFORMAÇÕES DISPONÍVEIS:
+- Endereço: ${context.address}
+- WhatsApp: ${context.whatsapp}
+- Telefone: ${context.phone}
+- Horário: ${JSON.stringify(context.workingHours)}
+- Tempo de preparo: ${context.estimatedPrepTime} min
+- Tempo de entrega: ${context.estimatedDeliveryTime} min
+
+TAREFA: Responder perguntas sobre horários, contato, localização, tempo de entrega.
+Seja claro e preciso com as informações.
+
 Forneça dados FACTUAIS (será humanizado depois).`;
+}
