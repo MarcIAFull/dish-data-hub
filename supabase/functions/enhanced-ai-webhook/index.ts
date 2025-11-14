@@ -1003,14 +1003,15 @@ async function processAIResponse(
     
     let aiMessage = assistantMessage.content || '';
     
-    // ALWAYS use Conversation Agent to humanize (regardless of tool calls)
-    if (aiMessage && aiMessage.trim() !== '') {
-      console.log(`[${requestId}] 💬 Humanizing response (tools used: ${toolResults.length})...`);
+    // ALWAYS use Conversation Agent when there are tool results OR content
+    // Even if agent returned no content, tools results need to be humanized
+    if (toolResults.length > 0 || (aiMessage && aiMessage.trim() !== '')) {
+      console.log(`[${requestId}] 💬 Humanizing response (content: ${aiMessage.length} chars, tools: ${toolResults.length})...`);
       
       try {
         const humanizedMessage = await processConversationAgent(
           assistantMessage.content || '',
-          toolResults, // pode ser [] se não houve tools
+          toolResults,
           restaurantData.restaurant.name,
           messageHistory || [],
           requestId
@@ -1021,8 +1022,11 @@ async function processAIResponse(
         
       } catch (error) {
         console.error(`[${requestId}] ❌ Humanization failed:`, error);
-        console.log(`[${requestId}] ⚠️ Keeping original agent response as fallback`);
-        // Keep original aiMessage as fallback
+        console.log(`[${requestId}] ⚠️ Using fallback response`);
+        // If humanization fails and we have tool results, at least show them
+        if (toolResults.length > 0) {
+          aiMessage = toolResults.map(r => r.result).join('\n');
+        }
       }
     }
     
