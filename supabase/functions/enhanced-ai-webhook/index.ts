@@ -1041,7 +1041,6 @@ async function processAIResponse(
     debugLog.tools_executed = allToolResults;
     debugLog.loaded_history = conversationHistory;
     debugLog.loaded_summaries = sessionSummariesText ? [{ summary: sessionSummariesText }] : [];
-    }
     
     // ========== GET FINAL AI MESSAGE ==========
     
