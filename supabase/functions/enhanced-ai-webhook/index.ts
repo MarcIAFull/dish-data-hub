@@ -902,6 +902,11 @@ async function processAIResponse(
     if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
       console.log(`[${requestId}] 🔧 Processing ${assistantMessage.tool_calls.length} tool calls`);
       
+      // ✅ CORREÇÃO 7: Logging detalhado de execução de tools
+      console.log(`[${requestId}] 📋 Tools to execute:`, 
+        assistantMessage.tool_calls.map((tc: any) => tc.function.name).join(', ')
+      );
+      
       for (const toolCall of assistantMessage.tool_calls) {
         const toolName = toolCall.function.name;
         const toolArgs = JSON.parse(toolCall.function.arguments);
@@ -998,12 +1003,18 @@ async function processAIResponse(
         }
       }
       
-      // Debug: Log executed tools summary
-      console.log(`[${requestId}] 🛠️ Tools executed summary:`, toolResults.map(t => ({
-        tool: t.tool_name,
-        success: t.result?.success !== false,
-        has_data: !!t.result
-      })));
+      // ✅ CORREÇÃO 7: Logging detalhado de execução de tools
+      console.log(`[${requestId}] 🛠️ Tools Execution Summary:`);
+      toolResults.forEach((result, idx) => {
+        console.log(`  ${idx + 1}. ${result.tool_name}:`);
+        console.log(`     Success: ${result.result?.success !== false ? '✅' : '❌'}`);
+        if (result.result?.error) {
+          console.log(`     Error: ${result.result.error}`);
+        }
+        if (result.result?.message) {
+          console.log(`     Message: ${result.result.message}`);
+        }
+      });
     }
     
     // ========== GET FINAL AI MESSAGE ==========

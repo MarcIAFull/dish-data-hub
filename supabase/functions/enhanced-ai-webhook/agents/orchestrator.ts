@@ -20,8 +20,8 @@ export async function classifyIntent(
       return 'UNCLEAR';
     }
 
-    // Usar TODAS as mensagens (não fazer slice)
-    const recentMessages = lastMessages;
+    // ✅ CORREÇÃO 1: Usar apenas últimas 10 mensagens para evitar confusão contextual
+    const recentMessages = lastMessages.slice(-10);
     const messagesText = recentMessages
       .map(m => `${m.sender_type === 'user' ? 'Cliente' : 'Bot'}: ${m.content}`)
       .join('\n');
@@ -104,8 +104,13 @@ export function routeToAgent(
     return 'SALES';
   }
 
-  // CHECKOUT → Finalize order (CHECKOUT agent)
+  // CHECKOUT → Finalize order (ONLY if cart has items)
   if (intent === 'CHECKOUT') {
+    // ⚠️ CORREÇÃO 3: VALIDAÇÃO CRÍTICA - Redirecionar para SALES se carrinho vazio
+    if (!conversationState.hasItemsInCart) {
+      console.log(`[Routing] CHECKOUT com carrinho vazio → redirect to SALES Agent`);
+      return 'SALES';
+    }
     return 'CHECKOUT';
   }
 
