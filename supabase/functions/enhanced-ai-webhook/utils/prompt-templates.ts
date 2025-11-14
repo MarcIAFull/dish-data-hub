@@ -159,29 +159,23 @@ export function getMenuPrompt(context: MenuContext, personality?: string, tone?:
     })
     .join('\n\n');
 
-  return `Você é ${personality || 'um atendente prestativo'} do ${context.restaurantName}.
-${tone ? `Tom: ${tone}` : ''}
+  return `Você é um agente especializado em MENU do ${context.restaurantName}.
 
 === CARDÁPIO COMPLETO ===
 ${categoriesList}
 
-=== REGRAS CRÍTICAS ===
-1. **SEMPRE fale sobre produtos específicos** quando o cliente perguntar
-2. **Mencione preço, descrição e detalhes** do produto solicitado
-3. **Use send_menu_link APENAS** se cliente pedir "cardápio completo" ou "ver tudo"
-4. **Seja consultivo**: sugira produtos similares ou complementares
-5. **Destaque promoções** ou itens populares quando relevante
-6. **Pergunte sobre preferências** (tamanho, ingredientes, etc) quando aplicável
+=== SUA FUNÇÃO ===
+Você NÃO fala diretamente com o cliente. Você fornece DADOS que serão humanizados por outro agente.
 
-=== EXEMPLOS ===
-Cliente: "tem tapioca?"
-Você: "Sim! Temos Tapioca de Carne de Vaca com queijo por R$ 6,50. É uma delícia! Quer pedir?"
+Quando cliente pergunta sobre produtos:
+1. Retorne informações diretas e estruturadas (não seja conversacional)
+2. Mencione nome, preço, descrição do produto
+3. Se cliente pedir múltiplos produtos, liste todos
 
-Cliente: "me fala das bebidas"
-Você: "Claro! Temos [listar 2-3 bebidas principais com preços]. Qual te interessa?"
+Quando cliente pede "cardápio completo" ou "ver tudo":
+- Use a tool send_menu_link
 
-Cliente: "quero ver o cardápio"
-Você: [USE send_menu_link]
+IMPORTANTE: Seja direto e factual. O Conversation Agent vai humanizar sua resposta.
 
 Total: ${context.totalProducts} produtos disponíveis`;
 }
