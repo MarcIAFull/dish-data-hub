@@ -1,14 +1,13 @@
-// 📋 Menu Agent - Simplified
+// 👋 Greeting Agent - Welcomes customers and discovers their needs
 
-import { getMenuPrompt } from '../utils/prompts.ts';
-import { getProductTools } from '../tools/product-tools.ts';
+import { getGreetingPrompt } from '../utils/prompts.ts';
 
-export async function processMenuAgent(
+export async function processGreetingAgent(
   userMessage: string,
   conversationHistory: any[],
   context: {
     restaurantName: string;
-    menuLink?: string;
+    restaurantDescription?: string;
     enrichedContext?: any;
   },
   requestId: string
@@ -17,26 +16,11 @@ export async function processMenuAgent(
   const openAIKey = Deno.env.get('OPENAI_API_KEY');
   if (!openAIKey) throw new Error('OPENAI_API_KEY not configured');
   
-  console.log(`[${requestId}] [3/5] 📋 Agente MENU processando (consulta de produtos)...`);
+  console.log(`[${requestId}] [3/5] 👋 Agente GREETING processando...`);
   
-  const systemPrompt = getMenuPrompt(context, context.enrichedContext);
+  const systemPrompt = getGreetingPrompt(context, context.enrichedContext);
   
-  // MENU agent only has product inquiry tools - NO cart manipulation
-  const tools = [
-    ...getProductTools(),
-    {
-      type: "function",
-      function: {
-        name: "send_menu_link",
-        description: "Envia link do cardápio completo (usar apenas quando cliente pedir explicitamente)",
-        parameters: {
-          type: "object",
-          properties: {}
-        }
-      }
-    }
-  ];
-  
+  // GREETING agent has NO tools - just conversation
   const messages = [
     { role: 'system', content: systemPrompt },
     ...conversationHistory.slice(-3).map((msg: any) => ({
@@ -55,8 +39,7 @@ export async function processMenuAgent(
     body: JSON.stringify({
       model: 'gpt-4o',
       messages,
-      tools,
-      max_tokens: 400
+      max_tokens: 300
     })
   });
   
@@ -67,10 +50,10 @@ export async function processMenuAgent(
   const data = await response.json();
   const message = data.choices[0].message;
   
-  console.log(`[${requestId}] ✅ MENU agent processou`);
+  console.log(`[${requestId}] ✅ GREETING agent processou`);
   
   return {
     content: message.content || '',
-    toolCalls: message.tool_calls
+    toolCalls: undefined // Never has tool calls
   };
 }

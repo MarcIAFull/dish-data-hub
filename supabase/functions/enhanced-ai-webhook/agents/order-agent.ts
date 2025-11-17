@@ -1,14 +1,17 @@
-// 📋 Menu Agent - Simplified
+// 🛒 Order Agent - Builds the customer's cart
 
-import { getMenuPrompt } from '../utils/prompts.ts';
+import { getOrderPrompt } from '../utils/prompts.ts';
+import { getCartTools } from '../tools/cart-tools.ts';
 import { getProductTools } from '../tools/product-tools.ts';
 
-export async function processMenuAgent(
+export async function processOrderAgent(
   userMessage: string,
   conversationHistory: any[],
   context: {
     restaurantName: string;
-    menuLink?: string;
+    currentCart: any[];
+    cartTotal: number;
+    currentState: string;
     enrichedContext?: any;
   },
   requestId: string
@@ -17,29 +20,23 @@ export async function processMenuAgent(
   const openAIKey = Deno.env.get('OPENAI_API_KEY');
   if (!openAIKey) throw new Error('OPENAI_API_KEY not configured');
   
-  console.log(`[${requestId}] [3/5] 📋 Agente MENU processando (consulta de produtos)...`);
+  console.log(`[${requestId}] [3/5] 🛒 Agente ORDER processando:`, {
+    message: userMessage.substring(0, 50) + '...',
+    cartItems: context.currentCart.length,
+    cartTotal: context.cartTotal,
+    currentState: context.currentState
+  });
   
-  const systemPrompt = getMenuPrompt(context, context.enrichedContext);
+  const systemPrompt = getOrderPrompt(context, context.enrichedContext);
   
-  // MENU agent only has product inquiry tools - NO cart manipulation
   const tools = [
-    ...getProductTools(),
-    {
-      type: "function",
-      function: {
-        name: "send_menu_link",
-        description: "Envia link do cardápio completo (usar apenas quando cliente pedir explicitamente)",
-        parameters: {
-          type: "object",
-          properties: {}
-        }
-      }
-    }
+    ...getCartTools(),
+    ...getProductTools() // Para consultar preço se necessário
   ];
   
   const messages = [
     { role: 'system', content: systemPrompt },
-    ...conversationHistory.slice(-3).map((msg: any) => ({
+    ...conversationHistory.slice(-5).map((msg: any) => ({
       role: msg.sender_type === 'user' ? 'user' : 'assistant',
       content: msg.content
     })),
@@ -56,7 +53,7 @@ export async function processMenuAgent(
       model: 'gpt-4o',
       messages,
       tools,
-      max_tokens: 400
+      max_tokens: 500
     })
   });
   
@@ -67,7 +64,7 @@ export async function processMenuAgent(
   const data = await response.json();
   const message = data.choices[0].message;
   
-  console.log(`[${requestId}] ✅ MENU agent processou`);
+  console.log(`[${requestId}] ✅ ORDER agent processou`);
   
   return {
     content: message.content || '',

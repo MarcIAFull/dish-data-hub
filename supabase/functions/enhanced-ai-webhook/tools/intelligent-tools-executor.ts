@@ -15,6 +15,14 @@ import {
   executeGetDeliveryFeeEstimate
 } from './checkout-tools.ts';
 
+import {
+  executeAddItemToOrder,
+  executeRemoveItemFromOrder,
+  executeUpdateItemQuantity,
+  executeGetCartSummary,
+  executeClearCart
+} from './cart-tools.ts';
+
 /**
  * Executa uma ferramenta inteligente baseada no nome
  */
@@ -32,7 +40,23 @@ export async function executeIntelligentTool(
   
   try {
     switch (toolName) {
-      // Sales Tools
+      // Cart tools (ORDER agent)
+      case 'add_item_to_order':
+        return await executeAddItemToOrder(context.supabase, context.chatId, args);
+      
+      case 'remove_item_from_order':
+        return await executeRemoveItemFromOrder(context.supabase, context.chatId, args);
+      
+      case 'update_item_quantity':
+        return await executeUpdateItemQuantity(context.supabase, context.chatId, args);
+      
+      case 'get_cart_summary':
+        return await executeGetCartSummary(context.supabase, context.chatId);
+      
+      case 'clear_cart':
+        return await executeClearCart(context.supabase, context.chatId);
+      
+      // Sales tools (upsell suggestions)
       case 'suggest_upsell':
         return await executeSuggestUpsell(args, context);
       
@@ -45,7 +69,7 @@ export async function executeIntelligentTool(
       case 'get_customer_favorites':
         return await executeGetCustomerFavorites(args, context);
       
-      // Checkout Tools
+      // Checkout tools
       case 'get_customer_previous_addresses':
         return await executeGetCustomerPreviousAddresses(args, context);
       
@@ -81,10 +105,18 @@ export async function executeIntelligentTool(
  */
 export function isIntelligentTool(toolName: string): boolean {
   const intelligentTools = [
+    // Cart tools (ORDER agent)
+    'add_item_to_order',
+    'remove_item_from_order',
+    'update_item_quantity',
+    'get_cart_summary',
+    'clear_cart',
+    // Sales tools
     'suggest_upsell',
     'get_product_modifiers',
     'get_best_sellers',
     'get_customer_favorites',
+    // Checkout tools
     'get_customer_previous_addresses',
     'validate_restaurant_open',
     'calculate_estimated_time',
