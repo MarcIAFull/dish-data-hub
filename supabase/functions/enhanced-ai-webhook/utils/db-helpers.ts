@@ -46,7 +46,8 @@ export async function saveProcessingLog(
     loaded_summaries: any[];
     final_response: string;
     processing_time_ms: number;
-    enriched_context?: any; // ✅ NOVO: Contexto enriquecido
+    enriched_context?: any; // ✅ FASE 1: Contexto enriquecido
+    macro_guidance?: string; // ✅ FASE 2: Orientação macro
     agent_metrics?: {
       [agent: string]: {
         execution_time_ms: number;
@@ -82,12 +83,15 @@ export async function saveProcessingLog(
       new_state: logData.new_state,
       metadata_snapshot: {
         ...logData.metadata_snapshot,
+        current_state: logData.current_state,
+        macro_guidance: logData.macro_guidance,  // ✅ NOVO: FASE 2
+        enriched_context: logData.enriched_context,  // ✅ FASE 1
         loop_iterations: logData.loop_iterations,
         exit_reason: logData.exit_reason,
         state_transitions: logData.state_transitions,
         agent_metrics: logData.agent_metrics,
         tool_metrics: toolMetrics,
-        avg_agent_time_ms: logData.agent_metrics 
+        avg_agent_time_ms: logData.agent_metrics
           ? Object.values(logData.agent_metrics).reduce((sum, m) => sum + m.execution_time_ms, 0) / Object.keys(logData.agent_metrics).length
           : 0,
         enriched_context: logData.enriched_context // ✅ NOVO: Persistir contexto enriquecido
