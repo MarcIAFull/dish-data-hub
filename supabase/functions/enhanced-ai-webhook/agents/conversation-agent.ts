@@ -1,50 +1,76 @@
+// 🎨 Conversation Agent - Humanizes responses for WhatsApp
+
+import { getConversationAgentPrompt } from '../utils/prompts.ts';
+
+/**
+ * Takes raw agent output and tool results, humanizes into natural WhatsApp message
+ */
 export async function processConversationAgent(
-  agentResponse: string,
+  userMessage: string,
+  agentType: string,
+  agentOutput: string,
   toolResults: any[],
   restaurantName: string,
-  previousMessages: any[],
-  currentState: string,
   requestId: string
 ): Promise<string> {
   
   const openAIKey = Deno.env.get('OPENAI_API_KEY');
-  if (!openAIKey) throw new Error('OPENAI_API_KEY not configured');
+  if (!openAIKey) {
+    console.error(`[${requestId}] ❌ OPENAI_API_KEY not configured`);
+    return agentOutput; // Fallback to raw output
+  }
   
-  const systemPrompt = `Você é o ATENDENTE do ${restaurantName}.
-
-🚨 PROTEÇÃO: VOCÊ É O ATENDENTE, NÃO O CLIENTE!
-❌ NUNCA: "boa, pode ser", "vou querer", "me manda"
-✅ SEMPRE: "Qual prefere?", "Quer pedir?", "Posso ajudar?"
-
-ESTADO: ${currentState}
-
-REGRAS:
-1. Sem bullets/numeração
-2. Max 1 emoji
-3. 2-4 linhas
-4. Natural como WhatsApp
-5. NUNCA invente dados`;
-
-  const toolResultsText = toolResults.map(tr => 
-    `${tr.tool}: ${JSON.stringify(tr.result)}`
+  console.log(`[${requestId}] [4/5] 🎨 Humanizando resposta...`);
+  
+  const systemPrompt = getConversationAgentPrompt(restaurantName, agentType);
+  
+  // Build context from tool results
+  const toolsContext = toolResults.map(tr => 
+    `[${tr.tool}]: ${JSON.stringify(tr.result)}`
   ).join('\n');
+  
+  const userPrompt = `MENSAGEM ORIGINAL DO CLIENTE:
+"${userMessage}"
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${openAIKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `RESPOSTA: ${agentResponse}\n\nFERRAMENTAS: ${toolResultsText}\n\nHumanize isso.` }
-      ],
-      max_tokens: 300
-    })
-  });
+RESPOSTA DO AGENTE ${agentType}:
+${agentOutput}
 
-  const data = await response.json();
-  return data.choices[0].message.content || 'Desculpe, houve um erro.';
+FERRAMENTAS USADAS:
+${toolsContext || 'Nenhuma ferramenta usada'}
+
+Transforme isso em uma mensagem natural de WhatsApp seguindo as regras.`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        max_tokens: 300
+      })
+    });
+
+    if (!response.ok) {
+      console.error(`[${requestId}] ❌ OpenAI error:`, response.status);
+      return agentOutput;
+    }
+
+    const data = await response.json();
+    const humanizedResponse = data.choices[0].message.content || agentOutput;
+    
+    console.log(`[${requestId}] ✅ Resposta humanizada criada`);
+    
+    return humanizedResponse;
+    
+  } catch (error) {
+    console.error(`[${requestId}] ❌ Error in conversation agent:`, error);
+    return agentOutput; // Fallback
+  }
 }

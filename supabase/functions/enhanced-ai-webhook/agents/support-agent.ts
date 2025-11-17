@@ -1,51 +1,35 @@
-// Support Agent - Specialized in customer support
+// 🆘 Support Agent - Simplified
 
-import { getSupportPrompt } from '../utils/prompt-templates.ts';
-import type { SupportContext } from '../utils/context-builder.ts';
+import { getSupportPrompt } from '../utils/prompts.ts';
 
-/**
- * Support Agent tools - removed, agent works better with context only
- * Support data is static (hours, address) and doesn't need real-time DB queries
- */
-export function getSupportTools() {
-  return [];
-}
-
-/**
- * Process Support Agent response
- */
 export async function processSupportAgent(
-  context: SupportContext,
-  messages: any[],
-  chatId: number,
-  supabase: any,
-  agent: any,
-  currentState: string,
+  userMessage: string,
+  conversationHistory: any[],
+  context: {
+    restaurantName: string;
+    restaurantAddress?: string;
+    restaurantPhone?: string;
+    workingHours?: any;
+  },
   requestId: string
 ): Promise<{ content: string; toolCalls?: any[] }> {
+  
   const openAIKey = Deno.env.get('OPENAI_API_KEY');
-  if (!openAIKey) {
-    throw new Error('OPENAI_API_KEY not configured');
-  }
-
-  console.log(`[${requestId}] 🆘 Support Agent - Starting processing...`);
-  console.log(`[${requestId}] 📊 Context:`);
-  console.log(`  - Restaurant: ${context.restaurantName}`);
-  console.log(`  - Phone: ${context.phone || 'N/A'}`);
-  console.log(`  - Address: ${context.address || 'N/A'}`);
-
-  const systemPrompt = getSupportPrompt(context, currentState, agent?.personality, agent?.tone);
-  const tools = getSupportTools();
-
-  // Usar histórico completo (não fazer slice)
-  const conversationHistory = messages.map(m => ({
-    role: m.sender_type === 'user' ? 'user' : 'assistant',
-    content: m.content
-  }));
-
-  console.log(`[${requestId}] 📥 Conversation history: ${conversationHistory.length} messages`);
-  console.log(`[${requestId}] 🤖 Calling OpenAI (gpt-4o)...`);
-
+  if (!openAIKey) throw new Error('OPENAI_API_KEY not configured');
+  
+  console.log(`[${requestId}] [3/5] 🆘 Agente SUPPORT processando...`);
+  
+  const systemPrompt = getSupportPrompt(context);
+  
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...conversationHistory.slice(-3).map((msg: any) => ({
+      role: msg.sender_type === 'user' ? 'user' : 'assistant',
+      content: msg.content
+    })),
+    { role: 'user', content: userMessage }
+  ];
+  
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -54,34 +38,22 @@ export async function processSupportAgent(
     },
     body: JSON.stringify({
       model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...conversationHistory
-      ],
-      max_tokens: 1000
+      messages,
+      max_tokens: 400
     })
   });
-
+  
   if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`[${requestId}] ❌ OpenAI API error:`, response.status, errorText);
     throw new Error(`OpenAI API error: ${response.status}`);
   }
-
+  
   const data = await response.json();
-  const assistantMessage = data.choices[0].message;
-
-  console.log(`[${requestId}] 📊 Support Agent Response:`, {
-    has_content: !!assistantMessage.content,
-    content_length: assistantMessage.content?.length || 0,
-    has_tool_calls: !!assistantMessage.tool_calls,
-    tool_calls_count: assistantMessage.tool_calls?.length || 0,
-    finish_reason: data.choices[0].finish_reason,
-    tokens: data.usage
-  });
-
+  const message = data.choices[0].message;
+  
+  console.log(`[${requestId}] ✅ SUPPORT agent processou`);
+  
   return {
-    content: assistantMessage.content || '',
-    toolCalls: assistantMessage.tool_calls || []
+    content: message.content || '',
+    toolCalls: message.tool_calls
   };
 }
