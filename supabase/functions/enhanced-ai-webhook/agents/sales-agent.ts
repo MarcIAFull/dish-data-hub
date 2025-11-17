@@ -3,6 +3,7 @@
 import { getSalesPrompt } from '../utils/prompts.ts';
 import { getProductTools } from '../tools/product-tools.ts';
 import { getOrderTools } from '../tools/order-tools.ts';
+import { getSalesSpecificTools } from '../tools/sales-tools.ts'; // ✅ FASE 3
 
 export async function processSalesAgent(
   userMessage: string,
@@ -31,7 +32,8 @@ export async function processSalesAgent(
   
   const tools = [
     ...getProductTools(),
-    ...getOrderTools()
+    ...getOrderTools(),
+    ...getSalesSpecificTools() // ✅ FASE 3: Ferramentas inteligentes
   ];
   
   const messages = [

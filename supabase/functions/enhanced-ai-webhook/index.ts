@@ -28,6 +28,7 @@ import { executeCreateOrder } from './tools.ts';
 // Utils
 import { loadConversationHistory, saveProcessingLog, getCartFromMetadata } from './utils/db-helpers.ts';
 import { enrichConversationContext } from './utils/context-enricher.ts'; // ✅ NOVO: FASE 1
+import { executeIntelligentTool, isIntelligentTool } from './tools/intelligent-tools-executor.ts'; // ✅ NOVO: FASE 3
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -149,26 +150,77 @@ async function getOrCreateActiveChat(supabase: any, phone: string, requestId: st
   return newChat;
 }
 
-async function executeTools(toolCalls: any[], supabase: any, chatId: number, agent: any, restaurantId: string, requestId: string): Promise<any[]> {
+async function executeTools(
+  toolCalls: any[], 
+  supabase: any, 
+  chatId: number, 
+  agent: any, 
+  restaurantId: string, 
+  requestId: string,
+  enrichedContext?: any  // ✅ FASE 3: Passar contexto enriquecido
+): Promise<any[]> {
   const results: any[] = [];
+  
   for (const toolCall of toolCalls || []) {
     const toolName = toolCall.function.name;
     const args = JSON.parse(toolCall.function.arguments || '{}');
+    const toolStartTime = Date.now();
+    
     console.log(`[${requestId}] 🔧 Executing: ${toolName}`);
+    
     let result: any;
-    switch (toolName) {
-      case 'check_product_availability': result = await executeCheckProductAvailability(supabase, restaurantId, args); break;
-      case 'list_products_by_category': result = await executeListProductsByCategory(supabase, restaurantId, args); break;
-      case 'add_item_to_order': result = await executeAddItemToOrder(supabase, chatId, args); break;
-      case 'get_cart_summary': result = await executeGetCartSummary(supabase, chatId); break;
-      case 'validate_delivery_address': result = await executeValidateAddress(supabase, agent, args); break;
-      case 'list_payment_methods': result = await executeListPaymentMethods(supabase, agent); break;
-      case 'create_order': result = await executeCreateOrder(supabase, chatId, args); break;
-      case 'send_menu_link': result = { success: true, message: 'Link enviado' }; break;
-      default: result = { success: false, error: `Unknown: ${toolName}` };
+    
+    // ✅ FASE 3: Verificar se é ferramenta inteligente
+    if (isIntelligentTool(toolName)) {
+      console.log(`[${requestId}] 🧠 Ferramenta inteligente detectada: ${toolName}`);
+      result = await executeIntelligentTool(toolName, args, {
+        supabase,
+        restaurantId,
+        chatId,
+        enrichedContext
+      });
+    } else {
+      // Ferramentas legacy
+      switch (toolName) {
+        case 'check_product_availability': 
+          result = await executeCheckProductAvailability(supabase, restaurantId, args); 
+          break;
+        case 'list_products_by_category': 
+          result = await executeListProductsByCategory(supabase, restaurantId, args); 
+          break;
+        case 'add_item_to_order': 
+          result = await executeAddItemToOrder(supabase, chatId, args); 
+          break;
+        case 'get_cart_summary': 
+          result = await executeGetCartSummary(supabase, chatId); 
+          break;
+        case 'validate_delivery_address': 
+          result = await executeValidateAddress(supabase, agent, args); 
+          break;
+        case 'list_payment_methods': 
+          result = await executeListPaymentMethods(supabase, agent); 
+          break;
+        case 'create_order': 
+          result = await executeCreateOrder(supabase, chatId, args); 
+          break;
+        case 'send_menu_link': 
+          result = { success: true, message: 'Link enviado' }; 
+          break;
+        default: 
+          result = { success: false, error: `Unknown: ${toolName}` };
+      }
     }
-    results.push({ tool: toolName, arguments: args, result });
+    
+    const toolExecutionTime = Date.now() - toolStartTime;
+    
+    results.push({ 
+      tool: toolName, 
+      arguments: args, 
+      result,
+      execution_time_ms: result.execution_time_ms || toolExecutionTime  // ✅ FASE 3: Rastrear tempo
+    });
   }
+  
   return results;
 }
 
