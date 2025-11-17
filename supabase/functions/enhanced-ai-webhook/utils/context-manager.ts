@@ -56,22 +56,45 @@ export async function updateConversationContext(
   // 5. Avaliar transição de estado
   let newState = evaluateStateTransition(context);
   
-  // ✅ FALLBACK: Se estado não mudou e ferramentas foram executadas, inferir manualmente
+  // ✅ FALLBACK INTELIGENTE: Se estado não mudou e ferramentas foram executadas
   if (newState === currentState && toolsExecuted.length > 0) {
-    console.log(`[${requestId}] ⚠️ State machine não transitou. Aplicando fallback...`);
+    console.log(`[${requestId}] ⚠️ State machine não transitou. Aplicando fallback inteligente...`);
     
+    // Prioridade 1: Item adicionado ao carrinho
     if (toolsExecuted.includes('add_item_to_order')) {
       newState = ConversationState.BUILDING_ORDER;
       console.log(`[${requestId}] ✅ Fallback: add_item_to_order → BUILDING_ORDER`);
-    } else if (toolsExecuted.includes('create_order')) {
+    } 
+    // Prioridade 2: Pedido criado
+    else if (toolsExecuted.includes('create_order')) {
       newState = ConversationState.ORDER_PLACED;
       console.log(`[${requestId}] ✅ Fallback: create_order → ORDER_PLACED`);
-    } else if (toolsExecuted.includes('send_menu_link')) {
-      newState = ConversationState.BROWSING_MENU;
-      console.log(`[${requestId}] ✅ Fallback: send_menu_link → BROWSING_MENU`);
-    } else if (toolsExecuted.includes('validate_delivery_address') && metadata.address_validated) {
+    } 
+    // Prioridade 3: Endereço validado
+    else if (toolsExecuted.includes('validate_delivery_address') && metadata.address_validated) {
       newState = ConversationState.COLLECTING_PAYMENT;
       console.log(`[${requestId}] ✅ Fallback: validate_delivery_address → COLLECTING_PAYMENT`);
+    }
+    // Prioridade 4: Apenas consultou produto (sem adicionar)
+    else if (toolsExecuted.includes('check_product_availability') && !toolsExecuted.includes('add_item_to_order')) {
+      // Se carrinho está vazio, cliente está navegando
+      if (cartItems.length === 0) {
+        newState = ConversationState.BROWSING_MENU;
+        console.log(`[${requestId}] ✅ Fallback: check_product_availability (sem add) → BROWSING_MENU`);
+      } else {
+        // Se já tem itens, continua construindo pedido
+        newState = ConversationState.BUILDING_ORDER;
+        console.log(`[${requestId}] ✅ Fallback: check_product_availability (com carrinho) → BUILDING_ORDER`);
+      }
+    }
+    // Prioridade 5: Enviou menu
+    else if (toolsExecuted.includes('send_menu_link')) {
+      newState = ConversationState.BROWSING_MENU;
+      console.log(`[${requestId}] ✅ Fallback: send_menu_link → BROWSING_MENU`);
+    }
+    // Caso nenhum fallback se aplique
+    else {
+      console.log(`[${requestId}] ⚠️ Nenhum fallback aplicável. Mantendo estado: ${currentState}`);
     }
   }
   
