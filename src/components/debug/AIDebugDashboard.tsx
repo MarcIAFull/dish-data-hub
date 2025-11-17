@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { EnrichedContextViewer } from "./EnrichedContextViewer"; // ✅ NOVO: FASE 1
 import { MacroGuidanceViewer } from "./MacroGuidanceViewer"; // ✅ NOVO: FASE 2
+import { ToolCallsViewer } from "./ToolCallsViewer"; // ✅ NOVO: FASE 3
 
 interface AILog {
   id: string;
@@ -324,36 +325,7 @@ export function AIDebugDashboard() {
                 </TabsContent>
 
                 <TabsContent value="tools" className="space-y-3">
-                  <h3 className="font-semibold mb-2">
-                    Ferramentas Executadas ({selectedLog.tools_executed?.length || 0})
-                  </h3>
-                  {selectedLog.tools_executed?.length > 0 ? (
-                    selectedLog.tools_executed.map((tool: any, idx: number) => (
-                      <div key={idx} className="border rounded-lg p-3">
-                        <div className="font-medium mb-2">
-                          🔧 {typeof tool.tool === 'string' ? tool.tool : 'Ferramenta'}
-                        </div>
-                        <div className="text-sm space-y-1">
-                          <div>
-                            <span className="text-muted-foreground">Args: </span>
-                            <code className="text-xs bg-muted p-1 rounded">
-                              {JSON.stringify(tool.arguments || {})}
-                            </code>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Result: </span>
-                            <code className="text-xs bg-muted p-1 rounded">
-                              {typeof tool.result === 'string' 
-                                ? tool.result 
-                                : (tool.result?.message || JSON.stringify(tool.result || {}))}
-                            </code>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Nenhuma ferramenta usada</p>
-                  )}
+                  <ToolCallsViewer toolsExecuted={selectedLog.tools_executed || []} />
                 </TabsContent>
 
                 <TabsContent value="raw">

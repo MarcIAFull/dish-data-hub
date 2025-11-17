@@ -3,6 +3,7 @@
 import { getCheckoutPrompt } from '../utils/prompts.ts';
 import { getAddressTools } from '../tools/address-tools.ts';
 import { getPaymentTools } from '../tools/payment-tools.ts';
+import { getCheckoutSpecificTools } from '../tools/checkout-tools.ts'; // ✅ FASE 3
 
 export async function processCheckoutAgent(
   userMessage: string,
@@ -27,6 +28,7 @@ export async function processCheckoutAgent(
   const tools = [
     ...getAddressTools(),
     ...getPaymentTools(),
+    ...getCheckoutSpecificTools(), // ✅ FASE 3: Ferramentas inteligentes
     {
       type: "function",
       function: {

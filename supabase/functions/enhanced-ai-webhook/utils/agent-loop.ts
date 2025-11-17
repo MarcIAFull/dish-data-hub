@@ -83,7 +83,8 @@ export async function executeAgentLoop(
       context.chatId,
       currentAgent,
       context.restaurant.id,
-      context.requestId
+      context.requestId,
+      context.enrichedContext  // ✅ FASE 3: Passar contexto para ferramentas inteligentes
     );
     
     allToolResults.push(...toolResults);
