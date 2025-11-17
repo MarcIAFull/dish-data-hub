@@ -307,7 +307,7 @@ serve(async (req) => {
     const chat = await getOrCreateActiveChat(supabase, phone, evolutionInstance, requestId);
     
     // ⏱️ DEBOUNCE REAL COM SLEEP: SEMPRE acumular primeiro
-    const DEBOUNCE_MS = 3000;
+    const DEBOUNCE_MS = 5000; // 5 segundos fixo para evitar combinação de mensagens não relacionadas
     const metadata = chat.metadata || {};
     const pendingMessages = metadata.pending_messages || [];
 
