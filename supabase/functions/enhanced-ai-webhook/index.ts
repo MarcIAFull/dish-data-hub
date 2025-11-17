@@ -1,6 +1,6 @@
-// 🚀 Enhanced AI Webhook v5.0 - SIMPLIFIED ARCHITECTURE
+// 🚀 Enhanced AI Webhook v5.3 - SIMPLIFIED ARCHITECTURE
 // 📅 Refatorado: 2025-11-17
-// ✨ Arquitetura: 5 Etapas Lineares
+// ✨ Arquitetura: 5 Etapas Lineares + Context Enricher
 // 🎯 Fluxo: Webhook → Orchestrator → Agent → Conversation → WhatsApp
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";

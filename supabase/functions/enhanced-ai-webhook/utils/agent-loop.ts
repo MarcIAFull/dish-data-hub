@@ -243,7 +243,8 @@ async function callSpecializedAgent(
         restaurantName: context.restaurant.name,
         currentCart: cart.items,
         cartTotal: cart.total,
-        currentState: context.chat.conversation_state || 'initial'
+        currentState: context.chat.conversation_state || 'initial',
+        enrichedContext: context.enrichedContext  // ✅ FASE 5
       },
       context.requestId
     );
@@ -255,7 +256,8 @@ async function callSpecializedAgent(
         restaurantName: context.restaurant.name,
         currentCart: cart.items,
         cartTotal: cart.total,
-        deliveryFee: context.chat.metadata?.delivery_fee || 0
+        deliveryFee: context.chat.metadata?.delivery_fee || 0,
+        enrichedContext: context.enrichedContext  // ✅ FASE 5
       },
       context.requestId
     );
@@ -265,7 +267,8 @@ async function callSpecializedAgent(
       conversationHistory,
       {
         restaurantName: context.restaurant.name,
-        menuLink: `https://app.example.com/${context.restaurant.slug}`
+        menuLink: `https://app.example.com/${context.restaurant.slug}`,
+        enrichedContext: context.enrichedContext  // ✅ FASE 5
       },
       context.requestId
     );
@@ -277,7 +280,8 @@ async function callSpecializedAgent(
         restaurantName: context.restaurant.name,
         restaurantAddress: context.restaurant.address,
         restaurantPhone: context.restaurant.phone,
-        workingHours: context.restaurant.working_hours
+        workingHours: context.restaurant.working_hours,
+        enrichedContext: context.enrichedContext  // ✅ FASE 5
       },
       context.requestId
     );
