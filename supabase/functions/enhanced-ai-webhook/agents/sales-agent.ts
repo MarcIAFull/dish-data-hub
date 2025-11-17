@@ -19,7 +19,12 @@ export async function processSalesAgent(
   const openAIKey = Deno.env.get('OPENAI_API_KEY');
   if (!openAIKey) throw new Error('OPENAI_API_KEY not configured');
   
-  console.log(`[${requestId}] [3/5] 🛒 Agente SALES processando...`);
+  console.log(`[${requestId}] [3/5] 🛒 Agente SALES processando:`, {
+    message: userMessage.substring(0, 50) + '...',
+    cartItems: context.currentCart.length,
+    cartTotal: context.cartTotal,
+    currentState: context.currentState
+  });
   
   const systemPrompt = getSalesPrompt(context);
   

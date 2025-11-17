@@ -21,17 +21,20 @@ export const STATE_TRANSITION_RULES: StateTransitionRule[] = [
     }
   },
   
-  // Regra 2: Item adicionado ao carrinho
+  // Regra 2: Item adicionado ao carrinho (CORRIGIDA)
   {
-    from: [ConversationState.DISCOVERY, ConversationState.BROWSING_MENU, ConversationState.SELECTING_PRODUCTS],
+    from: [ConversationState.GREETING, ConversationState.DISCOVERY, ConversationState.BROWSING_MENU, ConversationState.SELECTING_PRODUCTS],
     to: ConversationState.BUILDING_ORDER,
     priority: 90,
     condition: (ctx) => {
+      // ✅ CORREÇÃO: Verificar se item foi adicionado OU se já tem itens no carrinho
       const hasAddItem = ctx.toolsExecuted.includes('add_item_to_order');
       const itemAdded = ctx.toolResults.some(
         r => r.tool === 'add_item_to_order' && r.result?.success === true
       );
-      return hasAddItem && itemAdded && ctx.cartItemCount > 0;
+      const hasItemsInCart = ctx.cartItemCount > 0;
+      
+      return (hasAddItem && itemAdded) || hasItemsInCart;
     }
   },
   
@@ -109,27 +112,46 @@ export const STATE_TRANSITION_RULES: StateTransitionRule[] = [
  * Aplica regras de transição e retorna novo estado
  */
 export function evaluateStateTransition(context: ConversationContext): ConversationState {
+  console.log(`[State Machine] 🔍 Avaliando transição:`, {
+    currentState: context.currentState,
+    cartItems: context.cartItemCount,
+    cartTotal: context.cartTotal,
+    hasAddress: context.hasAddress,
+    hasPayment: context.hasPaymentMethod,
+    lastAgent: context.lastAgentCalled,
+    toolsExecuted: context.toolsExecuted
+  });
+  
   // Ordenar regras por prioridade (maior primeiro)
   const sortedRules = [...STATE_TRANSITION_RULES].sort((a, b) => b.priority - a.priority);
   
   // Encontrar primeira regra que aplica
   for (const rule of sortedRules) {
     // Verificar se estado atual está na lista de estados "from"
-    if (!rule.from.includes(context.currentState)) {
+    const isFromMatch = rule.from.includes(context.currentState);
+    if (!isFromMatch) {
       continue;
     }
     
     // Verificar condição
     try {
-      if (rule.condition(context)) {
-        console.log(`✅ State transition: ${context.currentState} → ${rule.to} (priority: ${rule.priority})`);
+      const isConditionMet = rule.condition(context);
+      
+      if (isConditionMet) {
+        console.log(`[State Machine] ✅ Regra aplicada:`, {
+          from: rule.from,
+          to: rule.to,
+          priority: rule.priority,
+          currentState: context.currentState
+        });
         return rule.to;
       }
     } catch (error) {
-      console.error(`❌ Error evaluating rule ${rule.to}:`, error);
+      console.error(`[State Machine] ❌ Erro ao avaliar regra ${rule.to}:`, error);
     }
   }
   
   // Nenhuma regra aplicou, manter estado atual
+  console.log(`[State Machine] ⚠️ Nenhuma regra aplicada. Mantendo estado: ${context.currentState}`);
   return context.currentState;
 }
