@@ -21,20 +21,36 @@ export const STATE_TRANSITION_RULES: StateTransitionRule[] = [
     }
   },
   
-  // Regra 2: Item adicionado ao carrinho (CORRIGIDA)
+  // Regra 2: Descobrindo necessidades (GREETING agent ativo)
+  {
+    from: [ConversationState.GREETING],
+    to: ConversationState.DISCOVERY,
+    priority: 95,
+    condition: (ctx) => ctx.lastAgentCalled === 'GREETING'
+  },
+  
+  // Regra 3: Navegando catálogo (MENU agent ativo)
+  {
+    from: [ConversationState.GREETING, ConversationState.DISCOVERY],
+    to: ConversationState.BROWSING_MENU,
+    priority: 92,
+    condition: (ctx) => ctx.lastAgentCalled === 'MENU'
+  },
+  
+  // Regra 4: Item adicionado ao carrinho (ORDER agent ativo)
   {
     from: [ConversationState.GREETING, ConversationState.DISCOVERY, ConversationState.BROWSING_MENU, ConversationState.SELECTING_PRODUCTS],
     to: ConversationState.BUILDING_ORDER,
     priority: 90,
     condition: (ctx) => {
-      // ✅ CORREÇÃO: Verificar se item foi adicionado OU se já tem itens no carrinho
       const hasAddItem = ctx.toolsExecuted.includes('add_item_to_order');
       const itemAdded = ctx.toolResults.some(
         r => r.tool === 'add_item_to_order' && r.result?.success === true
       );
       const hasItemsInCart = ctx.cartItemCount > 0;
+      const orderAgentActive = ctx.lastAgentCalled === 'ORDER';
       
-      return (hasAddItem && itemAdded) || hasItemsInCart;
+      return orderAgentActive && ((hasAddItem && itemAdded) || hasItemsInCart);
     }
   },
   

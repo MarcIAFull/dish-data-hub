@@ -1,8 +1,9 @@
 // 🔄 Agent Loop Engine - Re-avaliação automática de agentes
 
-import { processSalesAgent } from '../agents/sales-agent.ts';
+import { processOrderAgent } from '../agents/order-agent.ts';
 import { processCheckoutAgent } from '../agents/checkout-agent.ts';
 import { processMenuAgent } from '../agents/menu-agent.ts';
+import { processGreetingAgent } from '../agents/greeting-agent.ts';
 import { processSupportAgent } from '../agents/support-agent.ts';
 import { processConversationAgent } from '../agents/conversation-agent.ts';
 import { updateConversationContext } from './context-manager.ts';

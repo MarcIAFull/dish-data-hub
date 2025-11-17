@@ -2,109 +2,78 @@
 // Decides which specialized agent should handle the user's message
 
 interface OrchestratorDecision {
-  agent: 'MENU' | 'SALES' | 'CHECKOUT' | 'SUPPORT';
+  agent: 'GREETING' | 'MENU' | 'ORDER' | 'CHECKOUT' | 'SUPPORT';
   reasoning: string;
 }
 
-/**
- * Decides which specialized agent should handle the message
- * Uses OpenAI to make intelligent routing decision based on:
- * - User message content
- * - Conversation context (cart, state)
- * - Restaurant information
- */
+import { ConversationState } from '../types/conversation-states.ts';
+
 export async function decideAgent(
   userMessage: string,
   conversationContext: {
     hasItemsInCart: boolean;
     itemCount: number;
     cartTotal: number;
-    currentState: ConversationState | string; // Aceitar enum ou string para compatibilidade
+    currentState: ConversationState | string;
     restaurantName: string;
+    messageCount: number;
   },
   requestId: string
 ): Promise<OrchestratorDecision> {
   
-  const openAIKey = Deno.env.get('OPENAI_API_KEY');
-  if (!openAIKey) {
-    console.error(`[${requestId}] ❌ OPENAI_API_KEY not configured`);
-    return { agent: 'MENU', reasoning: 'No API key - default to MENU' };
+  console.log(`[${requestId}] [2/5] 🤔 Orquestrador analisando mensagem...`);
+  
+  const msg = userMessage.toLowerCase();
+  
+  // 1. SUPPORT (prioridade ALTA - sempre que for dúvida geral)
+  if (msg.includes('horário') || msg.includes('onde fica') || 
+      msg.includes('telefone') || msg.includes('endereço do restaurante') ||
+      msg.includes('reclamação') || msg.includes('falar com atendente')) {
+    console.log(`[${requestId}] ✅ SUPPORT: Dúvida geral detectada`);
+    return { agent: 'SUPPORT', reasoning: 'Pergunta sobre horário/localização/contato' };
   }
-
-  const prompt = `Você é o Orquestrador do ${conversationContext.restaurantName}.
-
-CONTEXTO ATUAL:
-- Carrinho: ${conversationContext.hasItemsInCart ? `${conversationContext.itemCount} itens (R$ ${conversationContext.cartTotal.toFixed(2)})` : 'VAZIO'}
-- Estado: ${conversationContext.currentState}
-
-MENSAGEM DO CLIENTE:
-"${userMessage}"
-
-AGENTES DISPONÍVEIS:
-
-1. MENU - Quando cliente quer ver cardápio ou produtos disponíveis
-   Exemplos: "cardápio", "o que tem?", "quais os pratos?"
-
-2. SALES - Quando cliente quer fazer pedido, adicionar produtos
-   Exemplos: "quero X", "vou levar", "me traz", "adiciona"
-
-3. CHECKOUT - Quando cliente quer finalizar pedido (APENAS se carrinho NÃO está vazio)
-   Exemplos: "finalizar", "pagar", "qual o endereço?", "qual forma de pagamento?"
-
-4. SUPPORT - Quando cliente tem dúvidas gerais, horário, localização
-   Exemplos: "que horas abre?", "onde fica?", "como funciona?"
-
-REGRAS CRÍTICAS:
-- Se carrinho está VAZIO → NUNCA escolha CHECKOUT
-- Se cliente menciona produto específico → SALES
-- Se cliente pede cardápio → MENU
-- Se cliente quer finalizar mas carrinho vazio → SALES (ajudar a adicionar produtos primeiro)
-
-RESPONDA EM JSON:
-{
-  "agent": "MENU" | "SALES" | "CHECKOUT" | "SUPPORT",
-  "reasoning": "breve explicação da escolha"
-}`;
-
-  console.log(`[${requestId}] [2/5] 🎯 Orquestrador decidindo agente...`);
-
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          { role: 'system', content: prompt }
-        ],
-        response_format: { type: "json_object" },
-        max_tokens: 100
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[${requestId}] ❌ OpenAI API error:`, response.status, errorText);
-      return { agent: 'MENU', reasoning: 'API error - default to MENU' };
-    }
-
-    const data = await response.json();
-    const result = JSON.parse(data.choices[0].message.content);
-    
-    console.log(`[${requestId}] ✅ Agente escolhido: ${result.agent} (${result.reasoning})`);
-    
-    return {
-      agent: result.agent,
-      reasoning: result.reasoning
-    };
-
-  } catch (error) {
-    console.error(`[${requestId}] ❌ Error in orchestrator:`, error);
-    return { agent: 'MENU', reasoning: 'Error - default to MENU' };
+  
+  // 2. CHECKOUT (se carrinho não vazio + quer finalizar)
+  if (conversationContext.hasItemsInCart && 
+      (msg.includes('finalizar') || msg.includes('é só isso') || 
+       msg.includes('fechar pedido') || msg.includes('só isso') ||
+       msg.includes('pode finalizar'))) {
+    console.log(`[${requestId}] ✅ CHECKOUT: Cliente quer finalizar (${conversationContext.itemCount} itens)`);
+    return { agent: 'CHECKOUT', reasoning: 'Cliente quer finalizar pedido com itens no carrinho' };
   }
+  
+  // 3. ORDER (se cliente confirma ou pede diretamente)
+  const isConfirmation = /^(sim|quero|pode|ok|isso|confirma|pode ser)$/i.test(msg.trim());
+  const isDirectOrder = msg.includes('quero') || msg.includes('adiciona') || 
+                       msg.includes('me traz') || msg.match(/e uma?/) || 
+                       msg.includes('fecha com') || msg.includes('pede');
+  const wantsToModify = msg.includes('tira') || msg.includes('remove') || 
+                       msg.includes('aumenta') || msg.includes('diminui');
+  
+  if (isConfirmation || isDirectOrder || wantsToModify) {
+    console.log(`[${requestId}] ✅ ORDER: Cliente confirmando/pedindo/modificando`);
+    return { agent: 'ORDER', reasoning: 'Cliente confirmou produto, pediu diretamente ou quer modificar carrinho' };
+  }
+  
+  // 4. MENU (se pergunta sobre produtos)
+  if (msg.includes('quanto') || msg.includes('preço') || 
+      msg.includes('tem ') || msg.includes('quais') ||
+      msg.includes('cardápio') || msg.includes('sabores') ||
+      msg.includes('tamanhos') || msg.includes('opções')) {
+    console.log(`[${requestId}] ✅ MENU: Consulta de produtos`);
+    return { agent: 'MENU', reasoning: 'Cliente perguntando sobre produtos/preços/disponibilidade' };
+  }
+  
+  // 5. GREETING (primeiras mensagens ou saudações)
+  if (conversationContext.messageCount <= 2 || 
+      msg.match(/^(oi|olá|bom dia|boa tarde|boa noite)/i)) {
+    console.log(`[${requestId}] ✅ GREETING: Saudação ou início de conversa`);
+    return { agent: 'GREETING', reasoning: 'Saudação ou início de conversa' };
+  }
+  
+  // 6. Padrão: MENU (exploração de produtos)
+  console.log(`[${requestId}] ✅ MENU (padrão): Nenhum padrão específico detectado`);
+  return { agent: 'MENU', reasoning: 'Padrão - exploração de produtos' };
 }
 
 /**
