@@ -52,7 +52,11 @@ function buildSimplifiedTimeline(log: AILog) {
       name: "Orquestrador",
       icon: "🎯",
       description: `Agente escolhido: ${log.agents_called?.[0] || 'N/A'}`,
-      details: log.detected_intents?.[0]?.reasoning,
+      details: typeof log.detected_intents?.[0]?.reasoning === 'string' 
+        ? log.detected_intents[0].reasoning 
+        : (log.detected_intents?.[0]?.agent 
+            ? `Agente: ${log.detected_intents[0].agent}` 
+            : JSON.stringify(log.detected_intents?.[0] || '')),
       status: log.agents_called?.[0] ? "success" : "warning"
     },
     {
@@ -227,7 +231,9 @@ export function AIDebugDashboard() {
                           </p>
                           {step.details && (
                             <p className="text-xs text-muted-foreground italic">
-                              {step.details}
+                              {typeof step.details === 'string' 
+                                ? step.details 
+                                : JSON.stringify(step.details)}
                             </p>
                           )}
                         </div>
