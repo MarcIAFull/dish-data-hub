@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw, Clock, Trash2, MessageSquare, Activity } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { EnrichedContextViewer } from "./EnrichedContextViewer"; // ✅ NOVO: FASE 1
 
 interface AILog {
   id: string;
@@ -21,6 +22,7 @@ interface AILog {
   final_response: string;
   processing_time_ms: number;
   created_at: string;
+  metadata_snapshot?: any; // ✅ NOVO: FASE 1
 }
 
 function getAgentIcon(agent: string) {
@@ -271,8 +273,9 @@ export function AIDebugDashboard() {
           <CardContent>
             {selectedLog ? (
               <Tabs defaultValue="timeline">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                  <TabsTrigger value="context">Contexto</TabsTrigger>
                   <TabsTrigger value="tools">Ferramentas</TabsTrigger>
                   <TabsTrigger value="raw">Raw Data</TabsTrigger>
                 </TabsList>
@@ -303,6 +306,12 @@ export function AIDebugDashboard() {
                       </div>
                     </div>
                   ))}
+                </TabsContent>
+
+                <TabsContent value="context" className="space-y-3">
+                  <EnrichedContextViewer 
+                    context={selectedLog.metadata_snapshot?.enriched_context} 
+                  />
                 </TabsContent>
 
                 <TabsContent value="tools" className="space-y-3">
