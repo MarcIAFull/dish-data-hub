@@ -11,7 +11,8 @@ export async function processConversationAgent(
   agentOutput: string,
   toolResults: any[],
   restaurantName: string,
-  requestId: string
+  requestId: string,
+  conversationHistory: any[] = []
 ): Promise<string> {
   
   const openAIKey = Deno.env.get('OPENAI_API_KEY');
@@ -20,16 +21,27 @@ export async function processConversationAgent(
     return agentOutput; // Fallback to raw output
   }
   
-  console.log(`[${requestId}] [4/5] 🎨 Humanizando resposta...`);
+  console.log(`[${requestId}] [4/5] 🎨 Humanizando resposta com contexto de ${conversationHistory.length} msgs...`);
   
   const systemPrompt = getConversationAgentPrompt(restaurantName, agentType);
+  
+  // Build context from conversation history
+  const contextMessages = conversationHistory
+    .slice(-20)
+    .map((msg: any) => `${msg.sender_type === 'user' ? '👤 Cliente' : '🤖 Assistente'}: ${msg.content}`)
+    .join('\n');
   
   // Build context from tool results
   const toolsContext = toolResults.map(tr => 
     `[${tr.tool}]: ${JSON.stringify(tr.result)}`
   ).join('\n');
   
-  const userPrompt = `MENSAGEM ORIGINAL DO CLIENTE:
+  const userPrompt = `CONTEXTO DA CONVERSA (últimas 20 mensagens):
+${contextMessages || 'Primeira interação'}
+
+---
+
+MENSAGEM ATUAL DO CLIENTE:
 "${userMessage}"
 
 RESPOSTA DO AGENTE ${agentType}:
@@ -38,7 +50,9 @@ ${agentOutput}
 FERRAMENTAS USADAS:
 ${toolsContext || 'Nenhuma ferramenta usada'}
 
-Transforme isso em uma mensagem natural de WhatsApp seguindo as regras.`;
+---
+
+Transforme isso em uma mensagem natural de WhatsApp, levando em conta TODO o contexto da conversa acima para personalizar melhor a resposta.`;
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
