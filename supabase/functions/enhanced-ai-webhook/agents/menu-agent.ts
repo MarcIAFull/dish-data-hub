@@ -3,6 +3,17 @@
 import { getMenuPrompt } from '../utils/prompts.ts';
 import { getProductTools } from '../tools/product-tools.ts';
 
+// 🔍 FASE 1: Detectar perguntas sobre produtos para forçar check_product_availability
+function isProductInquiry(message: string): boolean {
+  const msg = message.toLowerCase();
+  const inquiryKeywords = [
+    /\b(quanto custa|qual o preço|preço|tem|quais|cardápio|menu)\b/,
+    /\bquanto (é|fica|sai|custa)\b/,
+    /\btem\s+\w+/  // "tem açaí", "tem tapioca"
+  ];
+  return inquiryKeywords.some(pattern => pattern.test(msg));
+}
+
 export async function processMenuAgent(
   userMessage: string,
   conversationHistory: any[],
@@ -19,7 +30,14 @@ export async function processMenuAgent(
   
   console.log(`[${requestId}] [3/5] 📋 Agente MENU processando (consulta de produtos)...`);
   
-  const systemPrompt = getMenuPrompt(context, context.enrichedContext);
+  // 🔍 FASE 2: Incluir produtos pendentes no prompt
+  const metadata = context.enrichedContext?.metadata || {};
+  const pendingProducts = metadata.pending_products || [];
+  const pendingProductsNote = pendingProducts.length > 0
+    ? `\n\n⚠️ PRODUTOS MENCIONADOS ANTERIORMENTE: ${pendingProducts.map((p: any) => `${p.name} (R$ ${p.price})`).join(', ')}\nSe o cliente perguntar sobre "esses produtos" ou usar pronomes, refira-se a esta lista.`
+    : '';
+  
+  const systemPrompt = getMenuPrompt(context, context.enrichedContext) + pendingProductsNote;
   
   // MENU agent only has product inquiry tools - NO cart manipulation
   const tools = [
@@ -46,18 +64,30 @@ export async function processMenuAgent(
     { role: 'user', content: userMessage }
   ];
   
+  // 🔍 FASE 1: Forçar check_product_availability em perguntas sobre produtos
+  const isInquiry = isProductInquiry(userMessage);
+  const requestBody: any = {
+    model: 'gpt-4o',
+    messages,
+    tools,
+    max_tokens: 400
+  };
+  
+  if (isInquiry) {
+    requestBody.tool_choice = {
+      type: "function",
+      function: { name: "check_product_availability" }
+    };
+    console.log(`[${requestId}] 🎯 MENU: Pergunta sobre produto detectada, forçando check_product_availability`);
+  }
+  
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${openAIKey}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      model: 'gpt-4o',
-      messages,
-      tools,
-      max_tokens: 400
-    })
+    body: JSON.stringify(requestBody)
   });
   
   if (!response.ok) {
