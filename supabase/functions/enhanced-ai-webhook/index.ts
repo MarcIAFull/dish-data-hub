@@ -230,34 +230,41 @@ serve(async (req) => {
     ];
 
     // DECISÃO: Acumular ou processar?
-    if (timeSinceLastMessage < DEBOUNCE_MS && pendingMessages.length > 0) {
+    // ⚠️ CORREÇÃO: Removido `&& pendingMessages.length > 0` para primeira mensagem também acumular
+    console.log(`[${requestId}] 🔍 Debounce check: timeSince=${timeSinceLastMessage}ms, threshold=${DEBOUNCE_MS}ms, pending=${pendingMessages.length}`);
+    
+    if (timeSinceLastMessage < DEBOUNCE_MS) {
       // ⏳ ACUMULAR - Ainda dentro da janela de debounce
-      console.log(`[${requestId}] ⏳ Acumulando mensagem (${newPendingMessages.length} total)`);
+      console.log(`[${requestId}] ⏳ ACUMULANDO mensagem (${newPendingMessages.length} total) - aguardando ${DEBOUNCE_MS - timeSinceLastMessage}ms`);
       
       await supabase.from('chats').update({
         metadata: {
           ...metadata,
           pending_messages: newPendingMessages,
-          last_message_timestamp: new Date().toISOString()
+          last_message_timestamp: new Date().toISOString(),
+          debounce_timer_active: true
         }
       }).eq('id', chat.id);
       
+      console.log(`[${requestId}] ✅ Mensagem acumulada. Total na fila: ${newPendingMessages.length}`);
+      
       return new Response(JSON.stringify({ 
         status: 'queued', 
-        count: newPendingMessages.length 
+        count: newPendingMessages.length,
+        will_process_in_ms: DEBOUNCE_MS - timeSinceLastMessage
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
       });
     }
 
-    // ✅ PROCESSAR - Janela expirou ou é primeira mensagem
-    console.log(`[${requestId}] ✅ Processando ${newPendingMessages.length} mensagem(s)`);
+    // ✅ PROCESSAR - Janela expirou
+    console.log(`[${requestId}] ✅ PROCESSANDO ${newPendingMessages.length} mensagem(s) - debounce expirado`);
 
     // Combinar todas as mensagens pendentes
     if (newPendingMessages.length > 1) {
       userMessage = newPendingMessages.map((m: any) => m.content).join('\n');
-      console.log(`[${requestId}] 📝 Mensagens combinadas: "${userMessage}"`);
+      console.log(`[${requestId}] 📝 Mensagens combinadas (${newPendingMessages.length} msgs): "${userMessage}"`);
     } else if (newPendingMessages.length === 1) {
       userMessage = newPendingMessages[0].content;
       console.log(`[${requestId}] 📝 Mensagem única: "${userMessage}"`);
@@ -268,9 +275,13 @@ serve(async (req) => {
       metadata: {
         ...metadata,
         pending_messages: [],
-        last_message_timestamp: new Date().toISOString()
+        last_message_timestamp: new Date().toISOString(),
+        debounce_timer_active: false,
+        last_processed_at: new Date().toISOString()
       }
     }).eq('id', chat.id);
+    
+    console.log(`[${requestId}] 🧹 Fila limpa, processamento iniciado`);
     
     // 📚 Load conversation context
     console.log(`[${requestId}] 📚 Carregando contexto...`);
