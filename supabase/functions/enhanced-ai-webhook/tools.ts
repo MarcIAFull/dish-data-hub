@@ -71,15 +71,21 @@ export async function executeCreateOrder(
       return { success: false, error: 'DB_ERROR', message: 'Erro ao criar pedido' };
     }
     
+    // 🆕 Arquivar chat após criar pedido
     await supabase.from('chats').update({
       metadata: {
         ...metadata,
         order_items: [],
-        last_order_id: order.id
-      }
+        last_order_id: order.id,
+        order_completed_at: new Date().toISOString()
+      },
+      status: 'archived',
+      archived_at: new Date().toISOString(),
+      session_status: 'completed',
+      conversation_state: 'completed'
     }).eq('id', chatId);
     
-    console.log('[CREATE_ORDER] ✅ Order created:', order.id);
+    console.log('[CREATE_ORDER] ✅ Order created and chat archived:', order.id);
     
     return {
       success: true,

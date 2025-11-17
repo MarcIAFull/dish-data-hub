@@ -39,6 +39,112 @@ function sanitizeInput(input: string): string {
   return sanitized.trim().substring(0, 10000);
 }
 
+// 🆕 Função para buscar ou criar chat ativo
+async function getOrCreateActiveChat(supabase: any, phone: string, requestId: string) {
+  console.log(`[${requestId}] 🔍 Buscando chat ativo para ${phone}...`);
+  
+  // 1. Buscar chat ativo
+  let { data: chat, error: chatError } = await supabase
+    .from('chats')
+    .select('*, agents!inner(*, restaurants!inner(*))')
+    .eq('phone', phone)
+    .eq('ai_enabled', true)
+    .eq('status', 'active')
+    .maybeSingle();
+  
+  if (chatError) {
+    console.error(`[${requestId}] ❌ Erro ao buscar chat:`, chatError);
+    throw new Error(`Chat query failed: ${chatError.message}`);
+  }
+  
+  if (chat) {
+    console.log(`[${requestId}] ✅ Chat ativo encontrado: ${chat.id}`);
+    return chat;
+  }
+  
+  console.log(`[${requestId}] 🔄 Verificando chats recentes...`);
+  
+  // 2. Buscar último chat arquivado (< 24h) para reabertura
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data: recentChat } = await supabase
+    .from('chats')
+    .select('*, agents!inner(*, restaurants!inner(*))')
+    .eq('phone', phone)
+    .eq('status', 'archived')
+    .gte('archived_at', oneDayAgo)
+    .order('archived_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  
+  if (recentChat) {
+    console.log(`[${requestId}] 🔄 Reabrindo chat recente: ${recentChat.id}`);
+    
+    const { data: reopenedChat } = await supabase
+      .from('chats')
+      .update({
+        status: 'active',
+        reopened_at: new Date().toISOString(),
+        reopened_count: (recentChat.reopened_count || 0) + 1,
+        archived_at: null,
+        session_status: 'active',
+        conversation_state: 'greeting',
+        metadata: {
+          ...recentChat.metadata,
+          order_items: [], // Limpar carrinho antigo
+          reopened_from: recentChat.id,
+          previous_order: recentChat.metadata?.last_order_id
+        }
+      })
+      .eq('id', recentChat.id)
+      .select('*, agents!inner(*, restaurants!inner(*))')
+      .single();
+    
+    return reopenedChat;
+  }
+  
+  console.log(`[${requestId}] 📝 Criando novo chat...`);
+  
+  // 3. Buscar agente padrão (primeiro agente ativo)
+  const { data: agent, error: agentError } = await supabase
+    .from('agents')
+    .select('*, restaurants!inner(*)')
+    .eq('is_active', true)
+    .limit(1)
+    .maybeSingle();
+  
+  if (agentError || !agent) {
+    console.error(`[${requestId}] ❌ Nenhum agente ativo:`, agentError);
+    throw new Error('Nenhum agente ativo configurado');
+  }
+  
+  // 4. Criar novo chat
+  const { data: newChat, error: createError } = await supabase
+    .from('chats')
+    .insert({
+      phone: phone,
+      agent_id: agent.id,
+      restaurant_id: agent.restaurant_id,
+      status: 'active',
+      ai_enabled: true,
+      conversation_state: 'greeting',
+      session_status: 'active',
+      metadata: {
+        created_by: 'auto_webhook',
+        created_at: new Date().toISOString()
+      }
+    })
+    .select('*, agents!inner(*, restaurants!inner(*))')
+    .single();
+  
+  if (createError) {
+    console.error(`[${requestId}] ❌ Erro ao criar chat:`, createError);
+    throw new Error(`Failed to create chat: ${createError.message}`);
+  }
+  
+  console.log(`[${requestId}] ✅ Novo chat criado: ${newChat.id}`);
+  return newChat;
+}
+
 async function executeTools(toolCalls: any[], supabase: any, chatId: number, agent: any, restaurantId: string, requestId: string): Promise<any[]> {
   const results: any[] = [];
   for (const toolCall of toolCalls || []) {
@@ -100,8 +206,8 @@ serve(async (req) => {
     
     console.log(`[${requestId}] 📱 ${phone}: "${sanitizedMessage}"`);
     
-    let { data: chat } = await supabase.from('chats').select('*, agents!inner(*, restaurants!inner(*))').eq('phone', phone).eq('ai_enabled', true).single();
-    if (!chat) return new Response(JSON.stringify({ error: 'No chat' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // 🆕 Buscar ou criar chat ativo automaticamente
+    const chat = await getOrCreateActiveChat(supabase, phone, requestId);
     
     const { id: chatId, agents: agent } = chat;
     const restaurant = agent.restaurants;
