@@ -141,15 +141,24 @@ export function AIDebugDashboard() {
   const loadChats = async () => {
     setLoading(true);
     try {
+      console.log("[DEBUG] Loading chats...");
+      
+      // Check authentication
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log("[DEBUG] Current user:", user?.email);
+      
       const { data, error } = await supabase
         .from("chats")
         .select("id, phone, session_id, created_at")
         .order("created_at", { ascending: false })
         .limit(20);
+      
+      console.log("[DEBUG] Chats loaded:", data?.length, "Error:", error);
+      
       if (error) throw error;
       setChats(data || []);
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error loading chats:", error);
       toast.error("Erro ao carregar conversas");
     } finally {
       setLoading(false);
@@ -159,16 +168,29 @@ export function AIDebugDashboard() {
   const loadLogs = async (chatId: number) => {
     setLoading(true);
     try {
+      console.log("[DEBUG] Loading logs for chat:", chatId);
+      
+      // Check authentication
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log("[DEBUG] Current user:", user?.email);
+      
       const { data, error } = await supabase
         .from("ai_processing_logs")
         .select("*")
         .eq("chat_id", chatId)
         .order("created_at", { ascending: false })
         .limit(50);
-      if (error) throw error;
+      
+      console.log("[DEBUG] Logs loaded:", data?.length, "Error:", error);
+      
+      if (error) {
+        console.error("[DEBUG] RLS Error:", error);
+        throw error;
+      }
+      
       setLogs(data || []);
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error loading logs:", error);
       toast.error("Erro ao carregar logs");
     } finally {
       setLoading(false);
@@ -176,10 +198,12 @@ export function AIDebugDashboard() {
   };
 
   useEffect(() => {
+    console.log("[DEBUG] AIDebugDashboard mounted");
     loadChats();
   }, []);
 
   useEffect(() => {
+    console.log("[DEBUG] selectedChatId changed:", selectedChatId);
     if (selectedChatId) {
       loadLogs(selectedChatId);
     }
@@ -365,10 +389,25 @@ export function AIDebugDashboard() {
                   </p>
                 </CardContent>
               </Card>
-            ) : logs.length === 0 ? (
+            ) : filteredLogs.length === 0 ? (
               <Card>
-                <CardContent className="py-24 text-center">
-                  <p className="text-muted-foreground">Nenhum log encontrado</p>
+                <CardContent className="py-24 text-center space-y-4">
+                  <p className="text-muted-foreground">
+                    {logs.length === 0 
+                      ? "Nenhum log encontrado para esta conversa" 
+                      : "Nenhum log corresponde aos filtros selecionados"}
+                  </p>
+                  {logs.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Total de logs no banco: {logs.length}
+                      <br />
+                      Chat ID selecionado: {selectedChatId}
+                    </p>
+                  )}
+                  <Button onClick={handleRefresh} variant="outline" size="sm">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Recarregar
+                  </Button>
                 </CardContent>
               </Card>
             ) : (
