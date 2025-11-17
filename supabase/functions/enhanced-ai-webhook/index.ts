@@ -779,99 +779,32 @@ async function processAIResponse(
     }
     
     // ========== SESSION MANAGEMENT ==========
-    // Verificar se precisa criar nova sessão
-    const shouldCreateNewSession = await checkIfNeedNewSession(
-      supabase,
-      chat,
-      messageContent,
-      requestId
-    );
-    
+    // Session já foi criado/validado ANTES de salvar mensagem do cliente
     let currentSessionId = chat.session_id;
     
-    if (shouldCreateNewSession) {
-      console.log(`[${requestId}] 🆕 Criando nova sessão de pedido`);
-      
-      // Finalizar sessão anterior se existir
-      if (chat.session_id) {
-        await supabase
-          .from('chats')
-          .update({ session_status: 'completed' })
-          .eq('id', chatId)
-          .eq('session_id', chat.session_id);
-      }
-      
-      // Gerar novo session_id
-      const { data: newSessionData } = await supabase
-        .rpc('generate_session_id');
-      
-      currentSessionId = newSessionData;
-      
-      // Atualizar chat com nova sessão
-      await supabase
-        .from('chats')
-        .update({
-          session_id: currentSessionId,
-          session_status: 'active',
-          session_created_at: new Date().toISOString()
-        })
-        .eq('id', chatId);
-      
-      console.log(`[${requestId}] ✅ Nova sessão criada: ${currentSessionId}`);
-    } else if (!currentSessionId) {
-      // ✅ PRIMEIRA MENSAGEM - Criar sessão inicial
+    console.log(`[${requestId}] 📋 Usando session_id do chat: ${currentSessionId}`);
+    
+    if (!currentSessionId) {
+      console.error(`[${requestId}] ❌ CRITICAL: session_id deveria existir mas está null!`);
+      // Fallback de emergência
       const { data: newSessionData } = await supabase.rpc('generate_session_id');
       currentSessionId = newSessionData;
       
-      // Inicializar metadata (não resetar, pois é primeiro contato)
-      const initialMetadata = {
-        customer_name: chat.metadata?.customer_name || null,
-        hasGreeted: false, // Será true após primeira resposta
-        conversation_state: 'STATE_1_GREETING',
-        order_items: [],
-        order_total: 0,
-        completion_criteria: {
-          hasGreeted: false,
-          hasProducts: false,
-          hasAddress: false,
-          hasDeliveryType: false,
-          hasPaymentMethod: false,
-          allRequirementsMet: false
-        }
-      };
+      await supabase
+        .from('chats')
+        .update({ session_id: currentSessionId, session_status: 'active' })
+        .eq('id', chatId);
       
-      await supabase.from('chats').update({
-        session_id: currentSessionId,
-        session_status: 'active',
-        session_created_at: new Date().toISOString(),
-        metadata: initialMetadata
-      }).eq('id', chatId);
-      
-      console.log(`[${requestId}] ✅ Primeira sessão criada: ${currentSessionId}`);
+      console.log(`[${requestId}] ⚠️ Session_id criado como fallback: ${currentSessionId}`);
     }
     
     // Add session_id and metadata snapshot to debug log
     debugLog.session_id = currentSessionId;
     debugLog.current_state = chat.metadata?.conversation_state || 'STATE_1_GREETING';
     
-    // ✅ Adicionar API structure dentro de metadata_snapshot
+    // ✅ Inicializar metadata_snapshot apenas com chat.metadata (api_structure virá depois)
     debugLog.metadata_snapshot = {
-      ...chat.metadata,
-      api_structure: {
-        categories_count: categories.length,
-        categories_sample: categories.slice(0, 2).map(c => ({
-          id: c.id,
-          name: c.name,
-          products_count: (c.products || []).length
-        })),
-        products_total: products.length,
-        products_sample: products.slice(0, 3).map(p => ({
-          id: p.id,
-          name: p.name,
-          category_id: p.category_id,
-          price: p.price
-        }))
-      }
+      ...chat.metadata
     };
     
     // ========== FIX #1: Save customer message FIRST with session_id ==========
@@ -954,6 +887,28 @@ async function processAIResponse(
     const categories = restaurantData.menu?.categories || [];
     const productsFromCategories = categories.flatMap(cat => cat.products || []);
     const productsFlat = restaurantData.menu?.products || [];
+    
+    // ✅ Adicionar API structure dentro de metadata_snapshot (APÓS ter categories e products)
+    debugLog.metadata_snapshot = {
+      ...debugLog.metadata_snapshot,
+      api_structure: {
+        categories_count: categories.length,
+        categories_sample: categories.slice(0, 2).map(c => ({
+          id: c.id,
+          name: c.name,
+          products_count: (c.products || []).length
+        })),
+        products_total: products.length,
+        products_sample: products.slice(0, 3).map(p => ({
+          id: p.id,
+          name: p.name,
+          category_id: p.category_id,
+          price: p.price
+        }))
+      }
+    };
+    
+    console.log(`[${requestId}] 📊 API structure adicionada ao debug log`);
     const products = productsFlat.length > 0 ? productsFlat : productsFromCategories;
     
     console.log(`[${requestId}]   - Categories: ${categories.length}`);
@@ -1670,6 +1625,118 @@ serve(async (req) => {
 
       console.log(`[${requestId}] Found ${messageHistory?.length || 0} previous messages`);
 
+      // ============= SESSION MANAGEMENT (MOVED UP) =============
+      // ✅ CRIAR/VALIDAR SESSION_ID **ANTES** DE SALVAR MENSAGEM DO CLIENTE
+      
+      console.log(`[${requestId}] 🔄 Verificando session_id do chat...`);
+      
+      // Verificar se precisa criar nova sessão
+      const shouldCreateNewSession = await checkIfNeedNewSession(
+        supabase,
+        chat,
+        messageContent,
+        requestId
+      );
+      
+      let currentSessionId = chat.session_id;
+      
+      if (shouldCreateNewSession) {
+        console.log(`[${requestId}] 🆕 Criando nova sessão de pedido`);
+        
+        // Finalizar sessão anterior se existir
+        if (chat.session_id) {
+          await supabase
+            .from('chats')
+            .update({ session_status: 'completed' })
+            .eq('id', chat.id)
+            .eq('session_id', chat.session_id);
+        }
+        
+        // Gerar novo session_id
+        const { data: newSessionData } = await supabase.rpc('generate_session_id');
+        currentSessionId = newSessionData;
+        
+        // Inicializar metadata para nova sessão
+        const initialMetadata = {
+          customer_name: chat.metadata?.customer_name || null,
+          hasGreeted: false,
+          conversation_state: 'STATE_1_GREETING',
+          order_items: [],
+          order_total: 0,
+          completion_criteria: {
+            hasGreeted: false,
+            hasProducts: false,
+            hasAddress: false,
+            hasDeliveryType: false,
+            hasPaymentMethod: false,
+            allRequirementsMet: false
+          }
+        };
+        
+        // Atualizar chat com nova sessão
+        await supabase
+          .from('chats')
+          .update({
+            session_id: currentSessionId,
+            session_status: 'active',
+            session_created_at: new Date().toISOString(),
+            metadata: initialMetadata,
+            conversation_state: 'STATE_1_GREETING'
+          })
+          .eq('id', chat.id);
+        
+        // Atualizar objeto chat local
+        chat.session_id = currentSessionId;
+        chat.metadata = initialMetadata;
+        
+        console.log(`[${requestId}] ✅ Nova sessão criada: ${currentSessionId}`);
+        
+      } else if (!currentSessionId) {
+        // ✅ PRIMEIRA MENSAGEM EVER - Criar sessão inicial
+        console.log(`[${requestId}] 🆕 Primeira mensagem do contato - criando session_id inicial`);
+        
+        const { data: newSessionData } = await supabase.rpc('generate_session_id');
+        currentSessionId = newSessionData;
+        
+        // Inicializar metadata
+        const initialMetadata = {
+          customer_name: chat.metadata?.customer_name || null,
+          hasGreeted: false,
+          conversation_state: 'STATE_1_GREETING',
+          order_items: [],
+          order_total: 0,
+          completion_criteria: {
+            hasGreeted: false,
+            hasProducts: false,
+            hasAddress: false,
+            hasDeliveryType: false,
+            hasPaymentMethod: false,
+            allRequirementsMet: false
+          }
+        };
+        
+        await supabase
+          .from('chats')
+          .update({
+            session_id: currentSessionId,
+            session_status: 'active',
+            session_created_at: new Date().toISOString(),
+            metadata: initialMetadata,
+            conversation_state: 'STATE_1_GREETING'
+          })
+          .eq('id', chat.id);
+        
+        // Atualizar objeto chat local
+        chat.session_id = currentSessionId;
+        chat.metadata = initialMetadata;
+        
+        console.log(`[${requestId}] ✅ Primeira sessão criada: ${currentSessionId}`);
+      } else {
+        console.log(`[${requestId}] ✅ Usando session_id existente: ${currentSessionId}`);
+      }
+      
+      console.log(`[${requestId}] 📋 Session_id confirmado: ${currentSessionId} (status: ${chat.session_status || 'active'})`);
+
       // ============= SECURITY LAYER 4: RATE LIMITING =============
       
       const RATE_LIMIT_WINDOW = 60; // 1 minute
@@ -1805,7 +1872,7 @@ serve(async (req) => {
         pendingMessages.splice(0, pendingMessages.length - MAX_PENDING_MESSAGES);
       }
       
-      // Salvar mensagem no banco de dados (para histórico)
+      // Salvar mensagem no banco de dados (para histórico) COM session_id
       const { error: msgError } = await supabase
         .from('messages')
         .insert({
@@ -1813,13 +1880,14 @@ serve(async (req) => {
           sender_type: 'customer',
           content: messageContent,
           message_type: 'text',
-          whatsapp_message_id: data.key.id
+          whatsapp_message_id: data.key.id,
+          session_id: currentSessionId  // ✅ AGORA SIM!
         });
       
       if (msgError) {
         console.error(`[${requestId}] ❌ Error saving message:`, msgError);
       } else {
-        console.log(`[${requestId}] ✅ Customer message saved to database`);
+        console.log(`[${requestId}] 💾 Mensagem do cliente salva com session_id: ${currentSessionId}`);
       }
       
       // Atualizar metadata com buffer
