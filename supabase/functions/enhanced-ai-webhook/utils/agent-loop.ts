@@ -101,7 +101,22 @@ export async function executeAgentLoop(
       }))
     });
     
-    // ✅ VALIDAÇÃO CRÍTICA: SALES Agent deve adicionar ao carrinho
+    // ✅ FASE 4: VALIDAÇÃO CRÍTICA - ORDER Agent deve adicionar ao carrinho em pedidos diretos
+    if (currentAgent === 'ORDER') {
+      const isDirect = agentResult.toolCalls?.some((call: any) => call.function?.name === 'add_item_to_order');
+      const hasToolResults = toolResults.length > 0;
+      
+      if (!hasToolResults && isDirect) {
+        console.warn(`[${context.requestId}] ⚠️ CRITICAL WARNING: ORDER agent não executou ferramentas em pedido direto!`, {
+          userMessage: userMessage.substring(0, 100),
+          toolCallsReceived: agentResult.toolCalls?.length || 0,
+          toolCallsExecuted: toolResults.length,
+          agentResponse: agentResult.content?.substring(0, 150)
+        });
+      }
+    }
+    
+    // ✅ VALIDAÇÃO CRÍTICA: SALES Agent deve adicionar ao carrinho (legacy)
     if (currentAgent === 'SALES' && toolResults.length > 0) {
       const checkedProduct = toolResults.find(t => t.tool === 'check_product_availability' && t.result?.success);
       const addedToCart = toolResults.some(t => t.tool === 'add_item_to_order');
