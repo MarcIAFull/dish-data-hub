@@ -657,6 +657,36 @@ export type Database = {
         }
         Relationships: []
       }
+      error_logs: {
+        Row: {
+          context: Json | null
+          created_at: string | null
+          error_message: string | null
+          error_stack: string | null
+          error_type: string
+          id: number
+          request_id: string
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string | null
+          error_message?: string | null
+          error_stack?: string | null
+          error_type: string
+          id?: number
+          request_id: string
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string | null
+          error_message?: string | null
+          error_stack?: string | null
+          error_type?: string
+          id?: number
+          request_id?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           chat_id: number | null
