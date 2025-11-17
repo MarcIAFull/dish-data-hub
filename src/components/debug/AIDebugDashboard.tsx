@@ -36,27 +36,26 @@ function getAgentIcon(agent: string) {
 function buildSimplifiedTimeline(log: AILog) {
   console.log('[DEBUG] Building timeline for log:', log);
   
-  // Safely extract all values and convert to strings
-  const userMessage = typeof log.user_messages?.[0] === 'string' 
-    ? log.user_messages[0] 
-    : (typeof log.user_messages?.[0] === 'object' 
-        ? (log.user_messages[0]?.content || JSON.stringify(log.user_messages[0]))
-        : 'N/A');
+  // Extract user message safely
+  const userMessageObj = log.user_messages?.[0];
+  const userMessage = typeof userMessageObj === 'string' 
+    ? userMessageObj 
+    : userMessageObj?.content || 'N/A';
   
-  const agentCalled = typeof log.agents_called?.[0] === 'string'
-    ? log.agents_called[0]
-    : (typeof log.agents_called?.[0] === 'object'
-        ? JSON.stringify(log.agents_called[0])
-        : 'N/A');
+  // Extract agent name safely
+  const agentObj = log.agents_called?.[0];
+  const agentCalled = typeof agentObj === 'string'
+    ? agentObj
+    : 'N/A';
   
-  // Safe details extraction
+  // Extract orchestrator details safely
+  const intent = log.detected_intents?.[0];
   let orchestratorDetails = '';
-  if (log.detected_intents?.[0]) {
-    const intent = log.detected_intents[0];
+  if (intent) {
     if (typeof intent === 'string') {
       orchestratorDetails = intent;
     } else if (typeof intent === 'object') {
-      orchestratorDetails = intent.reasoning || intent.agent || JSON.stringify(intent);
+      orchestratorDetails = intent.reasoning || JSON.stringify(intent);
     }
   }
   
@@ -201,9 +200,7 @@ export function AIDebugDashboard() {
                       <Badge variant="outline">
                         {typeof log.agents_called?.[0] === 'string' 
                           ? log.agents_called[0] 
-                          : (typeof log.agents_called?.[0] === 'object' 
-                              ? JSON.stringify(log.agents_called[0]) 
-                              : 'N/A')}
+                          : 'N/A'}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         {log.processing_time_ms}ms
@@ -212,9 +209,7 @@ export function AIDebugDashboard() {
                     <p className="text-sm line-clamp-2 mb-2">
                       {typeof log.user_messages?.[0] === 'string' 
                         ? log.user_messages[0] 
-                        : (typeof log.user_messages?.[0] === 'object'
-                            ? (log.user_messages[0]?.content || JSON.stringify(log.user_messages[0]))
-                            : 'Sem mensagem')}
+                        : log.user_messages?.[0]?.content || 'Sem mensagem'}
                     </p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Clock className="h-3 w-3" />
@@ -278,13 +273,13 @@ export function AIDebugDashboard() {
                     selectedLog.tools_executed.map((tool: any, idx: number) => (
                       <div key={idx} className="border rounded-lg p-3">
                         <div className="font-medium mb-2">
-                          🔧 {typeof tool.tool === 'string' ? tool.tool : JSON.stringify(tool.tool || 'unknown')}
+                          🔧 {typeof tool.tool === 'string' ? tool.tool : 'Ferramenta'}
                         </div>
                         <div className="text-sm space-y-1">
                           <div>
                             <span className="text-muted-foreground">Args: </span>
                             <code className="text-xs bg-muted p-1 rounded">
-                              {typeof tool.arguments === 'string' ? tool.arguments : JSON.stringify(tool.arguments || {})}
+                              {JSON.stringify(tool.arguments || {})}
                             </code>
                           </div>
                           <div>
