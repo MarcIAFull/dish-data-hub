@@ -100,6 +100,17 @@ export async function executeAgentLoop(
       }))
     });
     
+    // ✅ VALIDAÇÃO CRÍTICA: SALES Agent deve adicionar ao carrinho
+    if (currentAgent === 'SALES' && toolResults.length > 0) {
+      const checkedProduct = toolResults.find(t => t.tool === 'check_product_availability' && t.result?.success);
+      const addedToCart = toolResults.some(t => t.tool === 'add_item_to_order');
+      
+      if (checkedProduct && !addedToCart) {
+        console.log(`[${context.requestId}] ⚠️ ALERTA: SALES consultou "${checkedProduct.result?.product_name}" mas NÃO adicionou ao carrinho`);
+        console.log(`[${context.requestId}] 💡 Provável causa: Cliente confirmou mas agente não executou add_item_to_order`);
+      }
+    }
+    
     // ✅ VALIDAÇÃO: SALES Agent deve adicionar ao carrinho quando cliente pede produto
     if (currentAgent === 'SALES' && toolResults.length > 0) {
       const checkedAvailability = toolResults.some(t => t.tool === 'check_product_availability' && t.result?.success);
