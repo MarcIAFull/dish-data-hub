@@ -34,9 +34,13 @@ export async function saveProcessingLog(
     request_id: string;
     user_message: string;
     current_state: string;
+    new_state?: string;
     metadata_snapshot: any;
     orchestrator_decision: any;
-    agent_called: string;
+    agents_called: string[]; // 🆕 Array de agentes
+    loop_iterations?: number; // 🆕 Número de iterações
+    exit_reason?: string; // 🆕 Razão de saída do loop
+    state_transitions?: string[]; // 🆕 Histórico de transições
     tool_results: any[];
     loaded_history: any[];
     loaded_summaries: any[];
@@ -52,9 +56,15 @@ export async function saveProcessingLog(
       request_id: logData.request_id,
       user_messages: [{ content: logData.user_message }],
       current_state: logData.current_state,
-      metadata_snapshot: logData.metadata_snapshot,
+      new_state: logData.new_state,
+      metadata_snapshot: {
+        ...logData.metadata_snapshot,
+        loop_iterations: logData.loop_iterations,
+        exit_reason: logData.exit_reason,
+        state_transitions: logData.state_transitions
+      },
       detected_intents: [logData.orchestrator_decision],
-      agents_called: [logData.agent_called],
+      agents_called: logData.agents_called, // Agora é array
       tools_executed: logData.tool_results,
       loaded_history: logData.loaded_history,
       loaded_summaries: logData.loaded_summaries,

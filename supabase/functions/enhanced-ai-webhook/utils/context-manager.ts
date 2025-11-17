@@ -127,22 +127,39 @@ function shouldCallNextAgent(
   context: ConversationContext
 ): { shouldCall: boolean; nextAgent?: string } {
   
-  // Regra 1: Se chegou em READY_TO_CHECKOUT, sugerir CHECKOUT
+  // Regra 1: Estado terminal - não chamar mais ninguém
+  if ([ConversationState.ORDER_PLACED, ConversationState.ABANDONED].includes(newState)) {
+    return { shouldCall: false };
+  }
+  
+  // Regra 2: MENU → SALES quando cliente escolhe produto
+  if (newState === ConversationState.SELECTING_PRODUCTS && context.lastAgentCalled === 'MENU') {
+    return { shouldCall: true, nextAgent: 'SALES' };
+  }
+  
+  // Regra 3: SALES adicionou 3+ itens → Sugerir CHECKOUT
+  if (newState === ConversationState.READY_TO_CHECKOUT && 
+      context.cartItemCount >= 3 && 
+      context.lastAgentCalled !== 'CHECKOUT') {
+    return { shouldCall: true, nextAgent: 'CHECKOUT' };
+  }
+  
+  // Regra 4: Se chegou em READY_TO_CHECKOUT, sugerir CHECKOUT
   if (newState === ConversationState.READY_TO_CHECKOUT && context.lastAgentCalled !== 'CHECKOUT') {
     return { shouldCall: true, nextAgent: 'CHECKOUT' };
   }
   
-  // Regra 2: Se está em COLLECTING_ADDRESS mas não tem endereço, manter CHECKOUT
+  // Regra 5: CHECKOUT precisa de mais itens → Voltar para SALES
+  if (context.lastAgentCalled === 'CHECKOUT' && context.cartItemCount === 0) {
+    return { shouldCall: true, nextAgent: 'SALES' };
+  }
+  
+  // Regra 6: Se está em COLLECTING_ADDRESS mas não tem endereço, manter CHECKOUT
   if (newState === ConversationState.COLLECTING_ADDRESS && !context.hasAddress) {
     return { shouldCall: false }; // CHECKOUT já está lidando
   }
   
-  // Regra 3: Se pedido foi criado, não chamar mais ninguém
-  if (newState === ConversationState.ORDER_PLACED) {
-    return { shouldCall: false };
-  }
-  
-  // Regra 4: Se cliente está apenas navegando, não forçar
+  // Regra 7: Se cliente está apenas navegando, não forçar
   if ([ConversationState.BROWSING_MENU, ConversationState.ASKING_SUPPORT].includes(newState)) {
     return { shouldCall: false };
   }
