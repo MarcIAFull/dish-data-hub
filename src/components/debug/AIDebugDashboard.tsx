@@ -140,59 +140,33 @@ export function AIDebugDashboard() {
   };
 
   const clearLogs = async () => {
-    if (!confirm('⚠️ ATENÇÃO: Isso vai limpar TODOS os chats, mensagens e logs. Confirma?')) {
+    if (!confirm('⚠️ ATENÇÃO: Isso vai ARQUIVAR todos os chats ativos e cancelar pedidos pendentes. Confirma?')) {
       return;
     }
 
     try {
-      console.log('🗑️ Iniciando limpeza completa...');
+      toast.loading('Resetando sistema...');
 
-      // 1. Limpar mensagens
-      const { error: messagesError } = await supabase
-        .from('messages')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+      // Chamar edge function de reset que faz tudo atomicamente
+      const { data, error } = await supabase.functions.invoke('reset-system');
 
-      if (messagesError) {
-        console.error('Erro ao limpar mensagens:', messagesError);
-        throw messagesError;
+      if (error) {
+        console.error('Erro ao resetar sistema:', error);
+        toast.error('Erro ao resetar sistema');
+        return;
       }
 
-      // 2. Limpar logs de processamento AI
-      const { error: logsError } = await supabase
-        .from('ai_processing_logs')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
-
-      if (logsError) {
-        console.error('Erro ao limpar logs:', logsError);
-        throw logsError;
-      }
-
-      // 3. Resetar metadata dos chats (limpar carrinho, pending messages, etc)
-      const { error: chatsError } = await supabase
-        .from('chats')
-        .update({ 
-          metadata: {},
-          conversation_state: 'greeting',
-          status: 'archived',
-          archived_at: new Date().toISOString()
-        })
-        .neq('id', 0);
-
-      if (chatsError) {
-        console.error('Erro ao resetar chats:', chatsError);
-        throw chatsError;
-      }
-
+      console.log('✅ Sistema resetado:', data);
+      toast.success(data.message || 'Sistema resetado com sucesso!');
+      
+      // Recarregar logs
       setLogs([]);
       setSelectedLog(null);
+      loadLogs();
       
-      console.log('✅ Limpeza completa concluída');
-      toast.success('🧹 Sistema limpo: chats arquivados, mensagens e logs removidos');
     } catch (error) {
-      console.error('Error clearing system:', error);
-      toast.error('Erro ao limpar sistema. Veja o console.');
+      console.error('Error resetting system:', error);
+      toast.error('Erro ao resetar sistema. Veja o console.');
     }
   };
 
