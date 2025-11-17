@@ -45,8 +45,9 @@ function sanitizeInput(input: string): string {
 }
 
 // 🆕 Função para buscar ou criar chat ativo
-async function getOrCreateActiveChat(supabase: any, phone: string, requestId: string) {
+async function getOrCreateActiveChat(supabase: any, phone: string, evolutionInstance: string, requestId: string) {
   console.log(`[${requestId}] 🔍 Buscando chat ativo para ${phone}...`);
+  console.log(`[${requestId}] 🏢 Instância Evolution: ${evolutionInstance}`);
   
   // 1. Buscar chat ativo
   let { data: chat, error: chatError } = await supabase
@@ -88,6 +89,8 @@ async function getOrCreateActiveChat(supabase: any, phone: string, requestId: st
   
   if (recentChat && !wasSystemReset) {
     console.log(`[${requestId}] 🔄 Reabrindo chat recente: ${recentChat.id}`);
+    console.log(`[${requestId}] 🏪 Restaurante: ${recentChat.agents.restaurants.name}`);
+    console.log(`[${requestId}] 🤖 Agente: ${recentChat.agents.name}`);
     
     const { data: reopenedChat } = await supabase
       .from('chats')
@@ -118,18 +121,21 @@ async function getOrCreateActiveChat(supabase: any, phone: string, requestId: st
   
   console.log(`[${requestId}] 📝 Criando novo chat...`);
   
-  // 3. Buscar agente padrão (primeiro agente ativo)
+  // 3. Buscar agente pela Evolution API Instance
   const { data: agent, error: agentError } = await supabase
     .from('agents')
     .select('*, restaurants!inner(*)')
     .eq('is_active', true)
+    .eq('evolution_api_instance', evolutionInstance)
     .limit(1)
     .maybeSingle();
   
   if (agentError || !agent) {
-    console.error(`[${requestId}] ❌ Nenhum agente ativo:`, agentError);
-    throw new Error('Nenhum agente ativo configurado');
+    console.error(`[${requestId}] ❌ Nenhum agente ativo para instância ${evolutionInstance}:`, agentError);
+    throw new Error(`Nenhum agente configurado para a instância Evolution API "${evolutionInstance}"`);
   }
+  
+  console.log(`[${requestId}] ✅ Agente encontrado: ${agent.name} (${agent.restaurants.name})`);
   
   // 4. Criar novo chat
   const { data: newChat, error: createError } = await supabase
@@ -156,6 +162,9 @@ async function getOrCreateActiveChat(supabase: any, phone: string, requestId: st
   }
   
   console.log(`[${requestId}] ✅ Novo chat criado: ${newChat.id}`);
+  console.log(`[${requestId}] 🏪 Restaurante: ${agent.restaurants.name}`);
+  console.log(`[${requestId}] 🤖 Agente: ${agent.name}`);
+  console.log(`[${requestId}] 📡 Instância: ${agent.evolution_api_instance}`);
   return newChat;
 }
 
@@ -278,6 +287,10 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const body = await req.json();
     
+    // Extrair instância Evolution API do webhook
+    const evolutionInstance = body.instance;
+    console.log(`[${requestId}] 🏢 Instância Evolution recebida: ${evolutionInstance}`);
+    
     // [1/5] WEBHOOK
     console.log(`[${requestId}] [1/5] 📥 Recebendo mensagem...`);
     if (body.event !== 'messages.upsert' || !body.data?.message) {
@@ -291,7 +304,7 @@ serve(async (req) => {
     console.log(`[${requestId}] 📱 ${phone}: "${userMessage}"`);
     
     // Get or create active chat
-    const chat = await getOrCreateActiveChat(supabase, phone, requestId);
+    const chat = await getOrCreateActiveChat(supabase, phone, evolutionInstance, requestId);
     
     // ⏱️ DEBOUNCE REAL COM SLEEP: SEMPRE acumular primeiro
     const DEBOUNCE_MS = 3000;
