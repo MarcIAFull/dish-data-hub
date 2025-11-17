@@ -4,7 +4,7 @@ import { Clock, CheckCircle2, AlertCircle, Zap } from "lucide-react";
 
 interface TimelineEvent {
   timestamp: number;
-  type: "intent" | "agent" | "tool" | "response";
+  type: "webhook" | "message" | "context" | "state" | "intent" | "plan" | "agent" | "tool" | "response" | "metadata" | "whatsapp";
   title: string;
   description?: string;
   status?: "success" | "error" | "pending";
@@ -32,20 +32,34 @@ export function TimelineViewer({ events, totalTime }: TimelineViewerProps) {
     if (status === "success") return <CheckCircle2 className="h-4 w-4 text-green-500" />;
     
     const icons: Record<string, React.ReactNode> = {
+      webhook: <Zap className="h-4 w-4 text-blue-400" />,
+      message: <Clock className="h-4 w-4 text-cyan-500" />,
+      context: <Clock className="h-4 w-4 text-orange-500" />,
+      state: <Clock className="h-4 w-4 text-pink-500" />,
       intent: <Zap className="h-4 w-4 text-yellow-500" />,
+      plan: <Clock className="h-4 w-4 text-indigo-500" />,
       agent: <CheckCircle2 className="h-4 w-4 text-blue-500" />,
       tool: <CheckCircle2 className="h-4 w-4 text-purple-500" />,
       response: <CheckCircle2 className="h-4 w-4 text-green-500" />,
+      metadata: <Clock className="h-4 w-4 text-teal-500" />,
+      whatsapp: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
     };
     return icons[type] || <Clock className="h-4 w-4" />;
   };
 
   const getEventColor = (type: string) => {
     const colors: Record<string, string> = {
+      webhook: "border-l-blue-400",
+      message: "border-l-cyan-500",
+      context: "border-l-orange-500",
+      state: "border-l-pink-500",
       intent: "border-l-yellow-500",
+      plan: "border-l-indigo-500",
       agent: "border-l-blue-500",
       tool: "border-l-purple-500",
       response: "border-l-green-500",
+      metadata: "border-l-teal-500",
+      whatsapp: "border-l-emerald-500",
     };
     return colors[type] || "border-l-gray-500";
   };

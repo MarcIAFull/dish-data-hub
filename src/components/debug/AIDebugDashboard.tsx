@@ -60,52 +60,138 @@ function buildTimelineEvents(log: AILog) {
   const events: any[] = [];
   let timestamp = 0;
 
+  // 1. Webhook received
+  events.push({
+    timestamp: 0,
+    type: "webhook",
+    title: "Webhook Recebido",
+    description: `Request ID: ${log.request_id}`,
+    status: "success"
+  });
+  timestamp += 10;
+
+  // 2. User messages
+  if (log.user_messages && log.user_messages.length > 0) {
+    events.push({
+      timestamp,
+      type: "message",
+      title: "Mensagem do Usuário",
+      description: log.user_messages.map((m: any) => m.content || m).join(", ").substring(0, 100),
+      status: "success"
+    });
+    timestamp += 20;
+  }
+
+  // 3. Context loading
+  if (log.loaded_history || log.loaded_summaries) {
+    const historyCount = log.loaded_history?.length || 0;
+    const summaryCount = log.loaded_summaries?.length || 0;
+    events.push({
+      timestamp,
+      type: "context",
+      title: "Contexto Carregado",
+      description: `${historyCount} msgs histórico, ${summaryCount} resumos`,
+      status: "success"
+    });
+    timestamp += 30;
+  }
+
+  // 4. State detection
+  events.push({
+    timestamp,
+    type: "state",
+    title: "Estado Atual",
+    description: `${log.current_state} → ${log.new_state || log.current_state}`,
+    status: "success"
+  });
+  timestamp += 20;
+
+  // 5. Intent detection
   if (log.detected_intents && log.detected_intents.length > 0) {
     events.push({
       timestamp,
       type: "intent",
-      title: `${log.detected_intents.length} Intent(s)`,
-      description: log.detected_intents.map((i: any) => i.type).join(", "),
+      title: `${log.detected_intents.length} Intent(s) Detectado(s)`,
+      description: log.detected_intents.map((i: any) => i.type || i).join(", "),
       status: "success"
     });
     timestamp += 50;
   }
 
+  // 6. Execution plan
+  if (log.execution_plan && log.execution_plan.length > 0) {
+    events.push({
+      timestamp,
+      type: "plan",
+      title: "Plano de Execução",
+      description: `${log.execution_plan.length} passo(s) planejado(s)`,
+      status: "success"
+    });
+    timestamp += 40;
+  }
+
+  // 7. Agent calls
   if (log.agents_called && log.agents_called.length > 0) {
-    log.agents_called.forEach((agent: any) => {
+    log.agents_called.forEach((agent: any, idx: number) => {
       events.push({
         timestamp,
         type: "agent",
-        title: `${agent.agent} - ${agent.action}`,
-        description: agent.output ? `Output: ${agent.output.substring(0, 100)}...` : undefined,
-        status: "success"
+        title: `${agent.agent || `Agent ${idx + 1}`}`,
+        description: agent.action || "Processing",
+        status: agent.output ? "success" : "pending",
+        duration: agent.duration_ms
       });
       timestamp += 100;
     });
   }
 
+  // 8. Tool execution
   if (log.tools_executed && log.tools_executed.length > 0) {
     log.tools_executed.forEach((tool: any, idx: number) => {
       events.push({
         timestamp,
         type: "tool",
-        title: tool.toolName || `Tool ${idx + 1}`,
-        description: tool.success ? "Executado" : "Falhou",
-        status: tool.success ? "success" : "error"
+        title: tool.toolName || tool.name || `Tool ${idx + 1}`,
+        description: tool.success ? "Sucesso" : "Falhou",
+        status: tool.success ? "success" : "error",
+        duration: tool.duration_ms
       });
-      timestamp += 30;
+      timestamp += 50;
     });
   }
 
+  // 9. Response generation
   if (log.final_response) {
     events.push({
       timestamp,
       type: "response",
-      title: "Resposta Final",
-      description: `${log.final_response.length} chars`,
+      title: "Resposta Gerada",
+      description: `${log.final_response.length} caracteres`,
       status: "success"
     });
+    timestamp += 30;
   }
+
+  // 10. Metadata update
+  if (log.updated_metadata) {
+    events.push({
+      timestamp,
+      type: "metadata",
+      title: "Metadata Atualizado",
+      description: `State: ${log.new_state || log.current_state}`,
+      status: "success"
+    });
+    timestamp += 20;
+  }
+
+  // 11. WhatsApp sent
+  events.push({
+    timestamp,
+    type: "whatsapp",
+    title: "Enviado ao WhatsApp",
+    description: "Mensagem enviada ao cliente",
+    status: "success"
+  });
 
   return events;
 }
