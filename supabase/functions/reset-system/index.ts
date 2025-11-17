@@ -18,75 +18,119 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    console.log('🧹 Starting system reset...');
+    console.log('🧹 Starting FULL system reset - DELETING all data...');
 
-    // 1. Archive all active chats (force close)
-    const { data: archivedChats, error: chatError } = await supabaseClient
-      .from('chats')
-      .update({
-        status: 'archived',
-        archived_at: new Date().toISOString(),
-        session_status: 'completed',
-        ai_enabled: false, // Desabilitar AI para evitar processamento
-        metadata: {
-          archived_reason: 'system_reset',
-          archived_at: new Date().toISOString(),
-          pending_messages: [], // Limpar mensagens pendentes
-          order_items: [], // Limpar carrinho
-          debounce_timer_active: false
-        }
-      })
-      .eq('status', 'active') // Fechar apenas os ativos
-      .select('id, phone, restaurant_id');
+    // 1. Delete all AI processing logs
+    const { error: logsError } = await supabaseClient
+      .from('ai_processing_logs')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000');
 
-    if (chatError) {
-      console.error('Error archiving chats:', chatError);
-      throw chatError;
+    if (logsError) {
+      console.error('Error deleting AI logs:', logsError);
+    } else {
+      console.log('✅ Deleted all AI processing logs');
     }
 
-    console.log(`✅ Archived ${archivedChats?.length || 0} active chats`);
+    // 2. Delete all session summaries
+    const { error: summariesError } = await supabaseClient
+      .from('session_summaries')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000');
 
-    // 2. Cancel pending/preparing orders
-    const { data: cancelledOrders, error: orderError } = await supabaseClient
-      .from('pedidos')
-      .update({
-        order_status: 'cancelled',
-        cancelled_at: new Date().toISOString(),
-        cancellation_reason: 'Sistema resetado para testes'
-      })
-      .in('order_status', ['pending', 'confirmed', 'preparing', 'ready', 'in_delivery'])
-      .select('id, order_status');
-
-    if (orderError) {
-      console.error('Error cancelling orders:', orderError);
-      throw orderError;
+    if (summariesError) {
+      console.error('Error deleting session summaries:', summariesError);
+    } else {
+      console.log('✅ Deleted all session summaries');
     }
 
-    console.log(`✅ Cancelled ${cancelledOrders?.length || 0} orders`);
-
-    // 3. Get statistics
-    const { count: totalChats } = await supabaseClient
-      .from('chats')
-      .select('*', { count: 'exact', head: true });
-
-    const { count: totalMessages } = await supabaseClient
+    // 3. Delete all messages
+    const { error: messagesError } = await supabaseClient
       .from('messages')
-      .select('*', { count: 'exact', head: true });
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000');
 
-    const { count: totalOrders } = await supabaseClient
+    if (messagesError) {
+      console.error('Error deleting messages:', messagesError);
+    } else {
+      console.log('✅ Deleted all messages');
+    }
+
+    // 4. Delete all order status history
+    const { error: historyError } = await supabaseClient
+      .from('order_status_history')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000');
+
+    if (historyError) {
+      console.error('Error deleting order history:', historyError);
+    } else {
+      console.log('✅ Deleted all order status history');
+    }
+
+    // 5. Delete all orders (pedidos)
+    const { error: ordersError } = await supabaseClient
       .from('pedidos')
-      .select('*', { count: 'exact', head: true });
+      .delete()
+      .neq('id', 0);
+
+    if (ordersError) {
+      console.error('Error deleting orders:', ordersError);
+      throw ordersError;
+    }
+
+    console.log('✅ Deleted all orders');
+
+    // 6. Delete all chat tags
+    const { error: tagsError } = await supabaseClient
+      .from('chat_tags')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000');
+
+    if (tagsError) {
+      console.error('Error deleting chat tags:', tagsError);
+    } else {
+      console.log('✅ Deleted all chat tags');
+    }
+
+    // 7. Delete all conversation notes
+    const { error: notesError } = await supabaseClient
+      .from('conversation_notes')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000');
+
+    if (notesError) {
+      console.error('Error deleting conversation notes:', notesError);
+    } else {
+      console.log('✅ Deleted all conversation notes');
+    }
+
+    // 8. Delete all chats
+    const { error: chatsError } = await supabaseClient
+      .from('chats')
+      .delete()
+      .neq('id', 0);
+
+    if (chatsError) {
+      console.error('Error deleting chats:', chatsError);
+      throw chatsError;
+    }
+
+    console.log('✅ Deleted all chats');
 
     const result = {
       success: true,
-      archived_chats: archivedChats?.length || 0,
-      cancelled_orders: cancelledOrders?.length || 0,
-      statistics: {
-        total_chats: totalChats || 0,
-        total_messages: totalMessages || 0,
-        total_orders: totalOrders || 0
-      },
-      message: 'Sistema resetado com sucesso! Todas as conversas foram arquivadas e pedidos pendentes foram cancelados.'
+      message: '🧹 Sistema completamente limpo! Todos os chats, mensagens, pedidos e logs foram deletados.',
+      deleted: {
+        chats: 'all',
+        messages: 'all',
+        orders: 'all',
+        ai_logs: 'all',
+        session_summaries: 'all',
+        order_history: 'all',
+        chat_tags: 'all',
+        conversation_notes: 'all'
+      }
     };
 
     console.log('✅ System reset completed:', result);
