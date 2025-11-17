@@ -27,6 +27,7 @@ import { executeCreateOrder } from './tools.ts';
 
 // Utils
 import { loadConversationHistory, saveProcessingLog, getCartFromMetadata } from './utils/db-helpers.ts';
+import { enrichConversationContext } from './utils/context-enricher.ts'; // ✅ NOVO: FASE 1
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -308,10 +309,20 @@ const DEBOUNCE_MS = 3000;
     
     console.log(`[${requestId}] 🧹 Fila limpa, processamento iniciado`);
     
+    // 🧠 FASE 1: ENRIQUECER CONTEXTO
+    console.log(`[${requestId}] 🧠 Enriquecendo contexto da conversa...`);
+    const enrichedContext = await enrichConversationContext(supabase, chat, requestId);
+    console.log(`[${requestId}] ✅ Contexto enriquecido:`, {
+      customerOrders: enrichedContext.customer.totalOrders,
+      restaurantOpen: enrichedContext.restaurant.isOpen,
+      agentPersonality: enrichedContext.agent.personality,
+      sessionReopened: enrichedContext.session.reopenedCount
+    });
+    
     // 📚 Load conversation context
-    console.log(`[${requestId}] 📚 Carregando contexto...`);
+    console.log(`[${requestId}] 📚 Carregando histórico de mensagens...`);
     const conversationHistory = await loadConversationHistory(supabase, chat.id, 20);
-    console.log(`[${requestId}] ✅ Contexto carregado: ${conversationHistory.length} mensagens`);
+    console.log(`[${requestId}] ✅ Histórico carregado: ${conversationHistory.length} mensagens`);
     
     const { id: chatId, agents: agent } = chat;
     const restaurant = agent.restaurants;
@@ -385,6 +396,7 @@ const DEBOUNCE_MS = 3000;
       loaded_summaries: conversationHistory.slice(-5),
       final_response: loopResult.finalResponse,
       processing_time_ms: processingTime,
+      enriched_context: enrichedContext, // ✅ NOVO: FASE 1 - Persistir contexto enriquecido
       agent_metrics: loopResult.agentMetrics
     });
     
