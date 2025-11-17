@@ -80,17 +80,37 @@ export async function updateConversationContext(
   };
   
   // 8. Atualizar banco de dados com função SQL atômica
-  const { error } = await supabase.rpc('atomic_update_conversation_state', {
-    p_chat_id: chatId,
-    p_new_state: newState,
-    p_metadata_updates: contextUpdates.metadata,
-    p_agent_name: agentCalled
-  });
-  
-  if (error) {
-    console.error(`[${requestId}] ❌ Erro ao atualizar contexto:`, error);
-  } else {
-    console.log(`[${requestId}] ✅ Contexto atualizado: ${currentState} → ${newState}`);
+  try {
+    const { error } = await supabase.rpc('atomic_update_conversation_state', {
+      p_chat_id: chatId,
+      p_new_state: newState,
+      p_metadata_updates: contextUpdates.metadata,
+      p_agent_name: agentCalled
+    });
+    
+    if (error) {
+      console.error(`[${requestId}] ❌ Erro ao atualizar contexto via RPC:`, error);
+      // Fallback: tentar atualização direta
+      const { error: updateError } = await supabase
+        .from('chats')
+        .update({
+          conversation_state: newState,
+          metadata: contextUpdates.metadata,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', chatId);
+      
+      if (updateError) {
+        console.error(`[${requestId}] ❌ Fallback também falhou:`, updateError);
+        throw updateError;
+      }
+      console.log(`[${requestId}] ⚠️ Atualizado via fallback: ${currentState} → ${newState}`);
+    } else {
+      console.log(`[${requestId}] ✅ Contexto atualizado: ${currentState} → ${newState}`);
+    }
+  } catch (err) {
+    console.error(`[${requestId}] 💥 Falha crítica ao atualizar contexto:`, err);
+    // Não bloquear o fluxo do agente
   }
   
   return {

@@ -378,7 +378,7 @@ serve(async (req) => {
       state_transitions: loopResult.stateTransitions,
       tool_results: loopResult.allToolResults,
       loaded_history: conversationHistory,
-      loaded_summaries: summaries,
+      loaded_summaries: conversationHistory.slice(-5),
       final_response: loopResult.finalResponse,
       processing_time_ms: processingTime,
       agent_metrics: loopResult.agentMetrics
