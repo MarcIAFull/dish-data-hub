@@ -353,18 +353,19 @@ serve(async (req) => {
       console.log(`[${requestId}] 📝 Mensagem única: "${userMessage}"`);
     }
 
-    // Limpar fila e atualizar timestamp
+    // ✅ MARCAR como em processamento e limpar fila
     await supabase.from('chats').update({
       metadata: {
         ...metadata,
         pending_messages: [],
         last_message_timestamp: new Date().toISOString(),
-        debounce_timer_active: false,
-        last_processed_at: new Date().toISOString()
+        debounce_timer_active: true, // ✅ MANTER true durante processamento
+        last_processed_at: new Date().toISOString(),
+        processing_started_at: new Date().toISOString()
       }
     }).eq('id', chat.id);
     
-    console.log(`[${requestId}] 🧹 Fila limpa, processamento iniciado`);
+    console.log(`[${requestId}] 🔒 Chat ${chat.id} marcado como processando...`);
     
     // 🧠 FASE 1: ENRIQUECER CONTEXTO
     console.log(`[${requestId}] 🧠 Enriquecendo contexto da conversa...`);
@@ -471,6 +472,16 @@ serve(async (req) => {
     // [6/6] WHATSAPP
     await sendWhatsAppMessage(phone, loopResult.finalResponse, agent, requestId);
     
+    // ✅ LIBERAR LOCK - Processamento concluído
+    await supabase.from('chats').update({
+      metadata: {
+        ...metadata,
+        debounce_timer_active: false, // ✅ Liberar agora que terminou
+        processing_completed_at: new Date().toISOString()
+      }
+    }).eq('id', chat.id);
+    
+    console.log(`[${requestId}] 🔓 Chat ${chat.id} liberado, processamento concluído`);
     console.log(`\n${'='.repeat(80)}\n[${requestId}] ✅ COMPLETED - ${Date.now() - startTime}ms\n${'='.repeat(80)}\n`);
     return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     
