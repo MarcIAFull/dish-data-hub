@@ -188,7 +188,7 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   const startTime = Date.now();
   const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-  console.log(`\n${'='.repeat(80)}\n[${requestId}] 🚀 NEW REQUEST v5.0\n${'='.repeat(80)}\n`);
+  console.log(`\n${'='.repeat(80)}\n[${requestId}] 🚀 NEW REQUEST v5.1 (Context + Debounce)\n${'='.repeat(80)}\n`);
   
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -202,12 +202,71 @@ serve(async (req) => {
     
     const phone = body.data.key.remoteJid.replace('@s.whatsapp.net', '');
     const messageContent = body.data.message?.conversation || body.data.message?.extendedTextMessage?.text || '';
-    const sanitizedMessage = sanitizeInput(messageContent);
+    let userMessage = sanitizeInput(messageContent);
     
-    console.log(`[${requestId}] 📱 ${phone}: "${sanitizedMessage}"`);
+    console.log(`[${requestId}] 📱 ${phone}: "${userMessage}"`);
     
-    // 🆕 Buscar ou criar chat ativo automaticamente
+    // Get or create active chat
     const chat = await getOrCreateActiveChat(supabase, phone, requestId);
+    
+    // ⏳ DEBOUNCE: Check for rapid messages and accumulate them
+    const now = new Date().toISOString();
+    const metadata = chat.metadata || {};
+    const pendingMessages = metadata.pending_messages || [];
+    const lastMessageTime = metadata.last_message_timestamp;
+    
+    const timeSinceLastMessage = lastMessageTime 
+      ? Date.now() - new Date(lastMessageTime).getTime()
+      : 10000; // First message always processes
+    
+    // If message arrived < 8s after last one AND not forced, accumulate it
+    if (timeSinceLastMessage < 8000 && !body._force_process) {
+      console.log(`[${requestId}] ⏳ Mensagem rápida detectada (${timeSinceLastMessage}ms), acumulando...`);
+      
+      await supabase.from('chats').update({
+        metadata: {
+          ...metadata,
+          pending_messages: [...pendingMessages, { content: userMessage, received_at: now }],
+          last_message_timestamp: now,
+          debounce_timer_active: true
+        }
+      }).eq('id', chat.id);
+      
+      return new Response(JSON.stringify({ 
+        status: 'queued', 
+        message: 'Aguardando mais mensagens...' 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // 🔄 Process accumulated messages if any
+    if (pendingMessages.length > 0) {
+      console.log(`[${requestId}] 🔄 Processando ${pendingMessages.length + 1} mensagens acumuladas`);
+      userMessage = [...pendingMessages.map((m: any) => m.content), userMessage].join('\n');
+      
+      await supabase.from('chats').update({
+        metadata: {
+          ...metadata,
+          pending_messages: [],
+          last_message_timestamp: now,
+          debounce_timer_active: false
+        }
+      }).eq('id', chat.id);
+    } else {
+      // Update timestamp for single message
+      await supabase.from('chats').update({
+        metadata: {
+          ...metadata,
+          last_message_timestamp: now
+        }
+      }).eq('id', chat.id);
+    }
+    
+    // 📚 Load conversation context
+    console.log(`[${requestId}] 📚 Carregando contexto...`);
+    const conversationHistory = await loadConversationHistory(supabase, chat.id, 20);
+    console.log(`[${requestId}] ✅ Contexto carregado: ${conversationHistory.length} mensagens`);
     
     const { id: chatId, agents: agent } = chat;
     const restaurant = agent.restaurants;
@@ -218,36 +277,102 @@ serve(async (req) => {
       await supabase.from('chats').update({ session_id: sessionId }).eq('id', chatId);
     }
     
-    await supabase.from('messages').insert({ chat_id: chatId, session_id: sessionId, sender_type: 'user', content: sanitizedMessage });
-    const conversationHistory = await loadConversationHistory(supabase, chatId, 10);
-    const cart = getCartFromMetadata(chat.metadata);
+    await supabase.from('messages').insert({ chat_id: chatId, session_id: sessionId, sender_type: 'user', content: userMessage });
+    const cart = getCartFromMetadata(metadata);
     
     // [2/5] ORCHESTRATOR
-    const decision = await decideAgent(sanitizedMessage, {
-      hasItemsInCart: cart.count > 0,
-      itemCount: cart.count,
-      cartTotal: cart.total,
-      currentState: chat.metadata?.conversation_state || 'INIT',
-      restaurantName: restaurant.name
-    }, requestId);
+    console.log(`[${requestId}] [2/5] 🧠 Orquestrando...`);
+    const decision = await decideAgent(userMessage, cart, chat.conversation_state || 'initial', requestId);
+    console.log(`[${requestId}] ✅ Decisão: ${decision.agent} (razão: ${decision.reasoning})`);
     
-    // [3/5] AGENT
+    // [3/5] AGENT: Route to specialized agent with history
+    console.log(`[${requestId}] [3/5] 🤖 Chamando agente ${decision.agent}...`);
+    
     let agentResult: { content: string; toolCalls?: any[] };
-    switch (decision.agent) {
-      case 'SALES': agentResult = await processSalesAgent(sanitizedMessage, conversationHistory, { restaurantName: restaurant.name, currentCart: cart.items, cartTotal: cart.total, currentState: 'DISCOVERY' }, requestId); break;
-      case 'CHECKOUT': agentResult = await processCheckoutAgent(sanitizedMessage, conversationHistory, { restaurantName: restaurant.name, currentCart: cart.items, cartTotal: cart.total, deliveryFee: 0 }, requestId); break;
-      case 'MENU': agentResult = await processMenuAgent(sanitizedMessage, conversationHistory, { restaurantName: restaurant.name }, requestId); break;
-      case 'SUPPORT': agentResult = await processSupportAgent(sanitizedMessage, conversationHistory, { restaurantName: restaurant.name, restaurantAddress: restaurant.address }, requestId); break;
-      default: agentResult = { content: 'Como posso ajudar?' };
+    
+    if (decision.agent === 'SALES') {
+      agentResult = await processSalesAgent(
+        userMessage,
+        conversationHistory,
+        {
+          restaurantName: restaurant.name,
+          currentCart: cart.items,
+          cartTotal: cart.total,
+          currentState: chat.conversation_state || 'initial'
+        },
+        requestId
+      );
+    } else if (decision.agent === 'CHECKOUT') {
+      agentResult = await processCheckoutAgent(
+        userMessage,
+        conversationHistory,
+        {
+          restaurantName: restaurant.name,
+          currentCart: cart.items,
+          cartTotal: cart.total,
+          deliveryFee: metadata.delivery_fee || 0
+        },
+        requestId
+      );
+    } else if (decision.agent === 'MENU') {
+      agentResult = await processMenuAgent(
+        userMessage,
+        conversationHistory,
+        {
+          restaurantName: restaurant.name,
+          menuLink: `https://app.example.com/${restaurant.slug}`
+        },
+        requestId
+      );
+    } else {
+      agentResult = await processSupportAgent(
+        userMessage,
+        conversationHistory,
+        {
+          restaurantName: restaurant.name,
+          restaurantAddress: restaurant.address,
+          restaurantPhone: restaurant.phone,
+          workingHours: restaurant.working_hours
+        },
+        requestId
+      );
     }
     
     const toolResults = await executeTools(agentResult.toolCalls || [], supabase, chatId, agent, restaurant.id, requestId);
     
-    // [4/5] CONVERSATION
-    const finalResponse = await processConversationAgent(sanitizedMessage, decision.agent, agentResult.content, toolResults, restaurant.name, requestId);
+    // [4/5] CONVERSATION: Humanize response with context
+    const finalResponse = await processConversationAgent(
+      userMessage,
+      decision.agent,
+      agentResult.content,
+      toolResults,
+      restaurant.name,
+      requestId,
+      conversationHistory
+    );
     
     await supabase.from('messages').insert({ chat_id: chatId, session_id: sessionId, sender_type: 'assistant', content: finalResponse });
-    await saveProcessingLog(supabase, { chat_id: chatId, session_id: sessionId, request_id: requestId, user_message: sanitizedMessage, orchestrator_decision: decision, agent_called: decision.agent, tools_used: toolResults, final_response: finalResponse, processing_time_ms: Date.now() - startTime });
+    
+    const processingTime = Date.now() - startTime;
+    
+    // Save processing log with full context
+    await saveProcessingLog(supabase, {
+      chat_id: chat.id,
+      session_id: sessionId,
+      request_id: requestId,
+      user_message: userMessage,
+      current_state: chat.conversation_state || 'unknown',
+      metadata_snapshot: metadata,
+      orchestrator_decision: decision,
+      agent_called: decision.agent,
+      tool_results: toolResults,
+      loaded_history: conversationHistory,
+      loaded_summaries: [],
+      final_response: finalResponse,
+      processing_time_ms: processingTime
+    });
+    
+    console.log(`[${requestId}] ⚡ Total: ${processingTime}ms`);
     
     // [5/5] WHATSAPP
     await sendWhatsAppMessage(phone, finalResponse, agent, requestId);
