@@ -293,16 +293,10 @@ serve(async (req) => {
     // Get or create active chat
     const chat = await getOrCreateActiveChat(supabase, phone, requestId);
     
-    // ⏱️ DEBOUNCE: Verificar se deve acumular ou processar
+    // ⏱️ DEBOUNCE REAL COM SLEEP: SEMPRE acumular primeiro
     const DEBOUNCE_MS = 3000;
     const metadata = chat.metadata || {};
     const pendingMessages = metadata.pending_messages || [];
-    const lastMessageTime = metadata.last_message_timestamp;
-    const isProcessing = metadata.debounce_timer_active || false;
-
-    const timeSinceLastMessage = lastMessageTime 
-      ? Date.now() - new Date(lastMessageTime).getTime()
-      : 999999;
 
     // Adicionar mensagem atual à fila
     const newPendingMessages = [
@@ -310,62 +304,72 @@ serve(async (req) => {
       { content: userMessage, received_at: new Date().toISOString() }
     ];
 
-    // DECISÃO: Acumular ou processar?
-    console.log(`[${requestId}] 🔍 Debounce check: timeSince=${timeSinceLastMessage}ms, threshold=${DEBOUNCE_MS}ms, pending=${pendingMessages.length}, isProcessing=${isProcessing}`);
-    
-    // ✅ CORREÇÃO CRÍTICA: Acumular se:
-    // 1. Ainda dentro da janela de debounce (< 3s desde última mensagem)
-    // 2. OU já existe processamento em andamento
-    if (timeSinceLastMessage < DEBOUNCE_MS || isProcessing) {
-      const reason = isProcessing ? 'processamento em andamento' : `dentro da janela (${timeSinceLastMessage}ms < ${DEBOUNCE_MS}ms)`;
-      console.log(`[${requestId}] ⏳ ACUMULANDO mensagem (${newPendingMessages.length} total) - ${reason}`);
-      
-      await supabase.from('chats').update({
-        metadata: {
-          ...metadata,
-          pending_messages: newPendingMessages,
-          last_message_timestamp: new Date().toISOString(),
-          debounce_timer_active: true
-        }
-      }).eq('id', chat.id);
-      
-      console.log(`[${requestId}] ✅ Mensagem acumulada. Total na fila: ${newPendingMessages.length}`);
-      
+    // Atualizar fila no DB
+    await supabase.from('chats').update({
+      metadata: {
+        ...metadata,
+        pending_messages: newPendingMessages,
+        last_message_timestamp: new Date().toISOString(),
+        debounce_timer_active: true
+      }
+    }).eq('id', chat.id);
+
+    // VERIFICAR: Se NÃO sou a primeira mensagem, só acumular
+    const isFirstMessage = pendingMessages.length === 0;
+
+    if (!isFirstMessage) {
+      console.log(`[${requestId}] ⏳ Mensagem ${newPendingMessages.length} acumulada (timer já ativo)`);
       return new Response(JSON.stringify({ 
         status: 'queued', 
         count: newPendingMessages.length,
-        reason: reason
+        reason: 'debounce timer already running'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
       });
     }
 
-    // ✅ PROCESSAR - Janela expirou
-    console.log(`[${requestId}] ✅ PROCESSANDO ${newPendingMessages.length} mensagem(s) - debounce expirado`);
+    // SOU A PRIMEIRA - Iniciar debounce com sleep
+    console.log(`[${requestId}] ⏰ Primeira mensagem - iniciando debounce de ${DEBOUNCE_MS}ms`);
 
-    // Combinar todas as mensagens pendentes
-    if (newPendingMessages.length > 1) {
-      userMessage = newPendingMessages.map((m: any) => m.content).join('\n');
-      console.log(`[${requestId}] 📝 Mensagens combinadas (${newPendingMessages.length} msgs): "${userMessage}"`);
-    } else if (newPendingMessages.length === 1) {
-      userMessage = newPendingMessages[0].content;
-      console.log(`[${requestId}] 📝 Mensagem única: "${userMessage}"`);
+    // Sleep por 3 segundos
+    await new Promise(resolve => setTimeout(resolve, DEBOUNCE_MS));
+
+    // Buscar estado atualizado após sleep
+    const { data: chatUpdated, error: fetchError } = await supabase
+      .from('chats')
+      .select('metadata')
+      .eq('id', chat.id)
+      .single();
+
+    if (fetchError) {
+      console.error(`[${requestId}] ❌ Erro ao buscar chat após sleep:`, fetchError);
+      throw new Error(`Failed to fetch chat: ${fetchError.message}`);
     }
 
-    // ✅ MARCAR como em processamento e limpar fila
+    // Mensagens acumuladas durante o sleep
+    const finalMessages = chatUpdated.metadata?.pending_messages || [];
+
+    console.log(`[${requestId}] ✅ Debounce expirou - processando ${finalMessages.length} mensagem(s)`);
+
+    // Combinar mensagens
+    if (finalMessages.length > 1) {
+      userMessage = finalMessages.map((m: any) => m.content).join('\n');
+      console.log(`[${requestId}] 📝 Mensagens combinadas: "${userMessage}"`);
+    } else if (finalMessages.length === 1) {
+      userMessage = finalMessages[0].content;
+    }
+
+    // Limpar fila e marcar processamento
     await supabase.from('chats').update({
       metadata: {
-        ...metadata,
+        ...chatUpdated.metadata,
         pending_messages: [],
-        last_message_timestamp: new Date().toISOString(),
-        debounce_timer_active: true, // ✅ MANTER true durante processamento
-        last_processed_at: new Date().toISOString(),
         processing_started_at: new Date().toISOString()
       }
     }).eq('id', chat.id);
-    
-    console.log(`[${requestId}] 🔒 Chat ${chat.id} marcado como processando...`);
+
+    console.log(`[${requestId}] 🔒 Processamento iniciado`);
     
     // 🧠 FASE 1: ENRIQUECER CONTEXTO
     console.log(`[${requestId}] 🧠 Enriquecendo contexto da conversa...`);
