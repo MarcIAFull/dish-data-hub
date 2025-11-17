@@ -496,8 +496,8 @@ async function checkIfNeedNewSession(
     const currentTime = Date.now();
     const hoursSinceLastMessage = (currentTime - lastMessageTime) / (1000 * 60 * 60);
     
-    if (hoursSinceLastMessage > 6) {
-      console.log(`[${requestId}] 🆕 Gap de ${hoursSinceLastMessage.toFixed(1)}h detectado - salvando resumo e criando nova sessão`);
+    if (hoursSinceLastMessage > 12) {
+      console.log(`[${requestId}] 🆕 Gap de ${hoursSinceLastMessage.toFixed(1)}h detectado (>12h) - salvando resumo e criando nova sessão`);
       await saveSessionSummary(supabase, chat, requestId);
       return true;
     }
@@ -819,42 +819,60 @@ async function processAIResponse(
       
       console.log(`[${requestId}] ✅ Nova sessão criada: ${currentSessionId}`);
     } else if (!currentSessionId) {
-      // Chat antigo sem session_id - criar primeira sessão
-      const { data: newSessionData } = await supabase
-        .rpc('generate_session_id');
-      
+      // ✅ PRIMEIRA MENSAGEM - Criar sessão inicial
+      const { data: newSessionData } = await supabase.rpc('generate_session_id');
       currentSessionId = newSessionData;
       
-      // ETAPA 3: Limpar metadata ao criar nova sessão (manter apenas dados permanentes)
-      const cleanMetadata = {
+      // Inicializar metadata (não resetar, pois é primeiro contato)
+      const initialMetadata = {
         customer_name: chat.metadata?.customer_name || null,
-        permanent_preferences: chat.metadata?.permanent_preferences || {},
-        // Resetar dados da sessão
+        hasGreeted: false, // Será true após primeira resposta
+        conversation_state: 'STATE_1_GREETING',
         order_items: [],
         order_total: 0,
-        delivery_type: null,
-        payment_method: null,
-        address: null,
-        conversation_state: 'STATE_1_GREETING'
+        completion_criteria: {
+          hasGreeted: false,
+          hasProducts: false,
+          hasAddress: false,
+          hasDeliveryType: false,
+          hasPaymentMethod: false,
+          allRequirementsMet: false
+        }
       };
       
-      await supabase
-        .from('chats')
-        .update({
-          session_id: currentSessionId,
-          session_status: 'active',
-          session_created_at: new Date().toISOString(),
-          metadata: cleanMetadata
-        })
-        .eq('id', chatId);
+      await supabase.from('chats').update({
+        session_id: currentSessionId,
+        session_status: 'active',
+        session_created_at: new Date().toISOString(),
+        metadata: initialMetadata
+      }).eq('id', chatId);
       
-      console.log(`[${requestId}] ✅ Nova sessão criada com metadata limpo: ${currentSessionId}`);
+      console.log(`[${requestId}] ✅ Primeira sessão criada: ${currentSessionId}`);
     }
     
     // Add session_id and metadata snapshot to debug log
     debugLog.session_id = currentSessionId;
     debugLog.current_state = chat.metadata?.conversation_state || 'STATE_1_GREETING';
-    debugLog.metadata_snapshot = chat.metadata;
+    
+    // ✅ Adicionar API structure dentro de metadata_snapshot
+    debugLog.metadata_snapshot = {
+      ...chat.metadata,
+      api_structure: {
+        categories_count: categories.length,
+        categories_sample: categories.slice(0, 2).map(c => ({
+          id: c.id,
+          name: c.name,
+          products_count: (c.products || []).length
+        })),
+        products_total: products.length,
+        products_sample: products.slice(0, 3).map(p => ({
+          id: p.id,
+          name: p.name,
+          category_id: p.category_id,
+          price: p.price
+        }))
+      }
+    };
     
     // ========== FIX #1: Save customer message FIRST with session_id ==========
     console.log(`[${requestId}] 💾 Saving customer message WITH session_id...`);
@@ -1217,6 +1235,35 @@ async function processAIResponse(
     
     console.log(`[${requestId}] 💾 Message saved to database`);
     
+    // ✅ ATUALIZAR CHAT METADATA E ESTADO
+    console.log(`[${requestId}] 💾 Atualizando chat metadata...`);
+
+    const updatedMetadata = {
+      ...finalMetadata, // Metadata já atualizado pelos agentes
+      hasGreeted: true, // Sempre true após primeira resposta
+      conversation_state: newState,
+      completion_criteria: {
+        ...completionCriteria,
+        hasGreeted: true
+      },
+      last_processed_at: new Date().toISOString()
+    };
+
+    const { error: updateError } = await supabase
+      .from('chats')
+      .update({
+        metadata: updatedMetadata,
+        conversation_state: newState,
+        last_message_at: new Date().toISOString()
+      })
+      .eq('id', chat.id);
+
+    if (updateError) {
+      console.error(`[${requestId}] ❌ Erro ao atualizar metadata:`, updateError);
+    } else {
+      console.log(`[${requestId}] ✅ Metadata atualizado - hasGreeted: true, state: ${newState}`);
+    }
+    
     // ========== SEND VIA WHATSAPP ==========
     
     if (agent.evolution_api_token && agent.evolution_api_instance) {
@@ -1238,13 +1285,62 @@ async function processAIResponse(
     debugLog.processing_time_ms = Date.now() - processingStart;
     
     try {
-      await supabase
+      // ✅ Validar campos obrigatórios
+      if (!debugLog.chat_id) {
+        console.error(`[${requestId}] ❌ Missing chat_id for debug log`);
+        throw new Error('Missing chat_id');
+      }
+      if (!debugLog.request_id) {
+        console.error(`[${requestId}] ❌ Missing request_id for debug log`);
+        throw new Error('Missing request_id');
+      }
+
+      console.log(`[${requestId}] 📊 Salvando debug log...`, {
+        chat_id: debugLog.chat_id,
+        session_id: debugLog.session_id,
+        has_final_response: !!debugLog.final_response,
+        final_response_length: debugLog.final_response?.length || 0,
+        detected_intents_count: debugLog.detected_intents?.length || 0,
+        agents_called_count: debugLog.agents_called?.length || 0
+      });
+
+      const { data: logData, error: logError } = await supabase
         .from('ai_processing_logs')
-        .insert(debugLog);
-      
-      console.log(`[${requestId}] 💾 Debug log saved`);
+        .insert(debugLog)
+        .select();
+
+      if (logError) {
+        console.error(`[${requestId}] ❌ Erro ao inserir debug log:`, {
+          code: logError.code,
+          message: logError.message,
+          details: logError.details,
+          hint: logError.hint
+        });
+        throw logError;
+      }
+
+      console.log(`[${requestId}] ✅ Debug log salvo com sucesso - ID: ${logData[0]?.id}`);
     } catch (error) {
-      console.error(`[${requestId}] ❌ Failed to save debug log:`, error);
+      console.error(`[${requestId}] ❌ CRITICAL: Erro ao salvar debug log:`, {
+        message: error.message,
+        stack: error.stack,
+        debugLog_keys: Object.keys(debugLog)
+      });
+      
+      // Tentar salvar erro em fallback table para não perder
+      try {
+        await supabase.from('error_logs').insert({
+          request_id: requestId,
+          error_type: 'debug_log_save_failed',
+          error_message: error.message,
+          context: {
+            chat_id: debugLog.chat_id,
+            session_id: debugLog.session_id
+          }
+        });
+      } catch (e) {
+        console.error(`[${requestId}] ❌ Failed to save error log:`, e);
+      }
     }
     
   } catch (error) {
@@ -1279,11 +1375,11 @@ serve(async (req) => {
     
     if (req.method === 'GET') {
       const url = new URL(req.url);
+      const debug = url.searchParams.get('debug');
       const token = url.searchParams.get('token');
       const challenge = url.searchParams.get('challenge');
       
-      console.log(`[${requestId}] GET request - token: ${token ? 'present' : 'missing'}, challenge: ${challenge ? 'present' : 'missing'}`);
-      
+      // Webhook verification (Evolution API)
       if (token && challenge) {
         console.log(`[${requestId}] ✅ Webhook verification successful`);
         return new Response(challenge, {
@@ -1291,9 +1387,79 @@ serve(async (req) => {
         });
       }
       
+      // ✅ DEBUG ENDPOINT
+      if (debug === 'true') {
+        console.log(`[${requestId}] 🔍 Debug endpoint called`);
+        
+        const { data: recentChats } = await supabase
+          .from('chats')
+          .select('id, phone, conversation_state, session_id, session_status, metadata, last_message_at, created_at')
+          .order('created_at', { ascending: false })
+          .limit(5);
+        
+        const { data: recentLogs } = await supabase
+          .from('ai_processing_logs')
+          .select('id, chat_id, request_id, final_response, created_at')
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        const { data: recentMessages } = await supabase
+          .from('messages')
+          .select('id, chat_id, sender_type, content, session_id, created_at')
+          .order('created_at', { ascending: false })
+          .limit(15);
+        
+        const { count: totalLogs } = await supabase
+          .from('ai_processing_logs')
+          .select('*', { count: 'exact', head: true });
+        
+        const { count: activeSessions } = await supabase
+          .from('chats')
+          .select('*', { count: 'exact', head: true })
+          .eq('session_status', 'active');
+        
+        return new Response(JSON.stringify({
+          status: 'active',
+          version: '5.0',
+          timestamp: new Date().toISOString(),
+          stats: {
+            total_debug_logs: totalLogs,
+            active_sessions: activeSessions
+          },
+          recent_chats: recentChats?.map(c => ({
+            id: c.id,
+            phone: c.phone,
+            session_id: c.session_id,
+            session_status: c.session_status,
+            conversation_state: c.conversation_state,
+            hasGreeted: c.metadata?.hasGreeted,
+            last_message_at: c.last_message_at
+          })),
+          recent_logs: recentLogs?.map(l => ({
+            id: l.id,
+            chat_id: l.chat_id,
+            request_id: l.request_id,
+            response_preview: l.final_response?.substring(0, 100),
+            created_at: l.created_at
+          })),
+          recent_messages: recentMessages?.map(m => ({
+            id: m.id,
+            chat_id: m.chat_id,
+            sender: m.sender_type,
+            session_id: m.session_id,
+            content_preview: m.content?.substring(0, 50),
+            created_at: m.created_at
+          }))
+        }, null, 2), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      
+      // Health check padrão
       console.log(`[${requestId}] ℹ️ Health check request`);
       return new Response(JSON.stringify({ 
         status: 'Webhook is active',
+        version: '5.0',
         timestamp: new Date().toISOString(),
         requestId 
       }), {
