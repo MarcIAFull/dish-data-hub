@@ -70,18 +70,23 @@ async function getOrCreateActiveChat(supabase: any, phone: string, requestId: st
   console.log(`[${requestId}] 🔄 Verificando chats recentes...`);
   
   // 2. Buscar último chat arquivado (< 24h) para reabertura
+  // ⚠️ IMPORTANTE: Não reabrir chats que foram fechados por reset do sistema
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data: recentChat } = await supabase
     .from('chats')
     .select('*, agents!inner(*, restaurants!inner(*))')
     .eq('phone', phone)
     .eq('status', 'archived')
+    .eq('ai_enabled', true) // ✅ CORREÇÃO: Só reabrir se AI ainda estava habilitada
     .gte('archived_at', oneDayAgo)
     .order('archived_at', { ascending: false })
     .limit(1)
     .maybeSingle();
   
-  if (recentChat) {
+  // Verificar se chat foi arquivado por reset do sistema
+  const wasSystemReset = recentChat?.metadata?.archived_reason === 'system_reset';
+  
+  if (recentChat && !wasSystemReset) {
     console.log(`[${requestId}] 🔄 Reabrindo chat recente: ${recentChat.id}`);
     
     const { data: reopenedChat } = await supabase
@@ -105,6 +110,10 @@ async function getOrCreateActiveChat(supabase: any, phone: string, requestId: st
       .single();
     
     return reopenedChat;
+  }
+  
+  if (wasSystemReset) {
+    console.log(`[${requestId}] 🚫 Chat ${recentChat.id} foi resetado - criando novo chat`);
   }
   
   console.log(`[${requestId}] 📝 Criando novo chat...`);
