@@ -15,6 +15,37 @@ function isDirectOrder(message: string): boolean {
   return directOrderKeywords.some(pattern => pattern.test(msg));
 }
 
+// 🔍 FASE 3: Extrair múltiplos produtos mencionados na mensagem
+function extractProductRequests(message: string): string[] {
+  const msg = message.toLowerCase();
+  const products: string[] = [];
+  
+  // Padrão 1: "e uma/um X" (ex: "e uma coca", "e um açaí")
+  const pattern1 = /\be um(a)?\s+([a-zà-ú\s]+?)(?=\s+e\s|,|\.|$)/gi;
+  let match1;
+  while ((match1 = pattern1.exec(msg)) !== null) {
+    products.push(match1[2].trim());
+  }
+  
+  // Padrão 2: "quero X e Y" (ex: "quero tapioca e coca")
+  const pattern2 = /(?:quero|adiciona|me traz)\s+([a-zà-ú\s]+?)\s+e\s+([a-zà-ú\s]+?)(?=,|\.|$)/gi;
+  let match2;
+  while ((match2 = pattern2.exec(msg)) !== null) {
+    products.push(match2[1].trim());
+    products.push(match2[2].trim());
+  }
+  
+  // Padrão 3: Lista com vírgulas (ex: "tapioca, coca e suco")
+  const pattern3 = /([a-zà-ú]+(?:\s+[a-zà-ú]+)*)\s*,\s*/g;
+  let match3;
+  while ((match3 = pattern3.exec(msg)) !== null) {
+    products.push(match3[1].trim());
+  }
+  
+  // Remover duplicados e filtrar vazios
+  return [...new Set(products)].filter(p => p.length > 2);
+}
+
 export async function processOrderAgent(
   userMessage: string,
   conversationHistory: any[],
@@ -45,7 +76,13 @@ export async function processOrderAgent(
     ? `\n\n⚠️ PRODUTOS MENCIONADOS ANTERIORMENTE: ${pendingProducts.map((p: any) => `${p.name} (R$ ${p.price})`).join(', ')}\nSe o cliente confirmar, adicione estes produtos ao carrinho.`
     : '';
   
-  const systemPrompt = getOrderPrompt(context, context.enrichedContext) + pendingProductsNote;
+  // 🔍 FASE 3: Detectar múltiplos produtos na mensagem
+  const detectedProducts = extractProductRequests(userMessage);
+  const multiProductNote = detectedProducts.length > 1
+    ? `\n\n🔍 PRODUTOS DETECTADOS NA MENSAGEM: ${detectedProducts.join(', ')}\nProcesse TODOS estes produtos separadamente.`
+    : '';
+  
+  const systemPrompt = getOrderPrompt(context, context.enrichedContext) + pendingProductsNote + multiProductNote;
   
   const tools = [
     ...getCartTools(),
