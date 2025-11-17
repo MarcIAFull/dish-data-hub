@@ -19,7 +19,7 @@ export async function decideAgent(
     hasItemsInCart: boolean;
     itemCount: number;
     cartTotal: number;
-    currentState: string;
+    currentState: ConversationState | string; // Aceitar enum ou string para compatibilidade
     restaurantName: string;
   },
   requestId: string
