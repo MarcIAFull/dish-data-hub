@@ -209,63 +209,69 @@ serve(async (req) => {
     // Get or create active chat
     const chat = await getOrCreateActiveChat(supabase, phone, requestId);
     
-    // ⏳ DEBOUNCE: Check for rapid messages IMMEDIATELY
-    const now = new Date().toISOString();
+    // ⏱️ DEBOUNCE SIMPLES: Aguardar 8 segundos antes de processar
+    const DEBOUNCE_MS = 8000;
+    
+    console.log(`[${requestId}] ⏳ Aguardando ${DEBOUNCE_MS}ms por mais mensagens...`);
+    
+    // Acumular esta mensagem
     const metadata = chat.metadata || {};
     const pendingMessages = metadata.pending_messages || [];
-    const lastMessageTime = metadata.last_message_timestamp;
+    pendingMessages.push({
+      content: userMessage,
+      received_at: new Date().toISOString()
+    });
     
-    const timeSinceLastMessage = lastMessageTime 
-      ? Date.now() - new Date(lastMessageTime).getTime()
-      : 10000; // First message always processes
-    
-    console.log(`[${requestId}] ⏱️  Tempo desde última msg: ${timeSinceLastMessage}ms`);
-    
-    // If message arrived < 8s after last one AND not forced, accumulate it
-    if (timeSinceLastMessage < 8000 && !body._force_process) {
-      console.log(`[${requestId}] ⏳ Mensagem rápida detectada, acumulando...`);
-      
-      // CRITICAL: Update timestamp IMMEDIATELY to prevent race condition
-      await supabase.from('chats').update({
+    // Salvar timestamp e mensagens pendentes
+    await supabase
+      .from('chats')
+      .update({
         metadata: {
           ...metadata,
-          pending_messages: [...pendingMessages, { content: userMessage, received_at: now }],
-          last_message_timestamp: now,
-          debounce_timer_active: true
+          pending_messages: pendingMessages,
+          last_message_timestamp: new Date().toISOString(),
+          processing_request_id: requestId
         }
-      }).eq('id', chat.id);
-      
-      return new Response(JSON.stringify({ 
-        status: 'queued', 
-        message: 'Aguardando mais mensagens...',
-        queued_count: pendingMessages.length + 1
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      })
+      .eq('id', chat.id);
+    
+    // Aguardar 8 segundos
+    await new Promise(resolve => setTimeout(resolve, DEBOUNCE_MS));
+    
+    // Buscar chat novamente para ver se chegou mais mensagens
+    const { data: updatedChat } = await supabase
+      .from('chats')
+      .select('metadata')
+      .eq('id', chat.id)
+      .single();
+    
+    const currentPending = updatedChat?.metadata?.pending_messages || [];
+    const processingRequestId = updatedChat?.metadata?.processing_request_id;
+    
+    // Se outro request assumiu o processamento, cancelar este
+    if (processingRequestId !== requestId) {
+      console.log(`[${requestId}] ❌ Cancelado - outro request assumiu (${processingRequestId})`);
+      return new Response(
+        JSON.stringify({ success: true, cancelled: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
     }
     
-    // CRITICAL: Update timestamp NOW for next message comparison
-    await supabase.from('chats').update({
-      metadata: {
-        ...metadata,
-        last_message_timestamp: now
-      }
-    }).eq('id', chat.id);
+    // Combinar todas as mensagens pendentes
+    userMessage = currentPending.map((m: any) => m.content).join('\n');
+    console.log(`[${requestId}] ✅ Processando ${currentPending.length} mensagens acumuladas`);
     
-    // 🔄 Process accumulated messages if any
-    if (pendingMessages.length > 0) {
-      console.log(`[${requestId}] 🔄 Processando ${pendingMessages.length + 1} mensagens acumuladas`);
-      userMessage = [...pendingMessages.map((m: any) => m.content), userMessage].join('\n');
-      
-      // Clear pending messages
-      await supabase.from('chats').update({
+    // Limpar fila
+    await supabase
+      .from('chats')
+      .update({
         metadata: {
           ...metadata,
           pending_messages: [],
-          debounce_timer_active: false
+          processing_request_id: null
         }
-      }).eq('id', chat.id);
-    }
+      })
+      .eq('id', chat.id);
     
     // 📚 Load conversation context
     console.log(`[${requestId}] 📚 Carregando contexto...`);
