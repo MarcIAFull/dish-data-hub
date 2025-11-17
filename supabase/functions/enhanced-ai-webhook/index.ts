@@ -1625,7 +1625,54 @@ serve(async (req) => {
 
       console.log(`[${requestId}] Found ${messageHistory?.length || 0} previous messages`);
 
-      // ============= SESSION MANAGEMENT (MOVED UP) =============
+      // ============= SECURITY LAYER 4: RATE LIMITING =============
+      
+      const RATE_LIMIT_WINDOW = 60; // 1 minute
+      const RATE_LIMIT_MAX = 10; // 10 messages per minute
+      
+      const { data: recentMessages } = await supabase
+        .from('messages')
+        .select('created_at')
+        .eq('chat_id', chat.id)
+        .gte('created_at', new Date(Date.now() - RATE_LIMIT_WINDOW * 1000).toISOString());
+      
+      if (recentMessages && recentMessages.length >= RATE_LIMIT_MAX) {
+        console.warn(`[${requestId}] ⚠️ RATE LIMIT EXCEEDED for ${customerPhone}`);
+        
+        // Send warning message
+        if (agent.evolution_api_token) {
+          await fetch(`https://evolution.fullbpo.com/message/sendText/${agent.evolution_api_instance}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': agent.evolution_api_token
+            },
+            body: JSON.stringify({
+              number: customerPhone,
+              text: 'Por favor, aguarde um momento. Você está enviando mensagens muito rapidamente. ⏱️'
+            })
+          });
+        }
+        
+        return new Response(JSON.stringify({ 
+          status: 'rate_limited', 
+          requestId,
+          retry_after: RATE_LIMIT_WINDOW 
+        }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      
+      console.log(`[${requestId}] ✓ Rate limit check passed (${recentMessages?.length || 0}/${RATE_LIMIT_MAX})`);
+
+      // Save incoming message - Apply sanitization
+      const rawMessageContent = message.conversation || message.extendedTextMessage?.text || message.imageMessage?.caption || '';
+      const messageContent = sanitizeInput(rawMessageContent);
+      
+      console.log(`[${requestId}] 📝 Sanitized message: ${messageContent.substring(0, 100)}...`);
+      
+      // ============= SESSION MANAGEMENT (AFTER messageContent) =============
       // ✅ CRIAR/VALIDAR SESSION_ID **ANTES** DE SALVAR MENSAGEM DO CLIENTE
       
       console.log(`[${requestId}] 🔄 Verificando session_id do chat...`);
@@ -1736,53 +1783,6 @@ serve(async (req) => {
       }
       
       console.log(`[${requestId}] 📋 Session_id confirmado: ${currentSessionId} (status: ${chat.session_status || 'active'})`);
-
-      // ============= SECURITY LAYER 4: RATE LIMITING =============
-      
-      const RATE_LIMIT_WINDOW = 60; // 1 minute
-      const RATE_LIMIT_MAX = 10; // 10 messages per minute
-      
-      const { data: recentMessages } = await supabase
-        .from('messages')
-        .select('created_at')
-        .eq('chat_id', chat.id)
-        .gte('created_at', new Date(Date.now() - RATE_LIMIT_WINDOW * 1000).toISOString());
-      
-      if (recentMessages && recentMessages.length >= RATE_LIMIT_MAX) {
-        console.warn(`[${requestId}] ⚠️ RATE LIMIT EXCEEDED for ${customerPhone}`);
-        
-        // Send warning message
-        if (agent.evolution_api_token) {
-          await fetch(`https://evolution.fullbpo.com/message/sendText/${agent.evolution_api_instance}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': agent.evolution_api_token
-            },
-            body: JSON.stringify({
-              number: customerPhone,
-              text: 'Por favor, aguarde um momento. Você está enviando mensagens muito rapidamente. ⏱️'
-            })
-          });
-        }
-        
-        return new Response(JSON.stringify({ 
-          status: 'rate_limited', 
-          requestId,
-          retry_after: RATE_LIMIT_WINDOW 
-        }), {
-          status: 429,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-      
-      console.log(`[${requestId}] ✓ Rate limit check passed (${recentMessages?.length || 0}/${RATE_LIMIT_MAX})`);
-
-      // Save incoming message - Apply sanitization
-      const rawMessageContent = message.conversation || message.extendedTextMessage?.text || message.imageMessage?.caption || '';
-      const messageContent = sanitizeInput(rawMessageContent);
-      
-      console.log(`[${requestId}] 📝 Sanitized message: ${messageContent.substring(0, 100)}...`);
       
       // ============= SECURITY LAYER 6: DETECT SUSPICIOUS INPUT =============
       
