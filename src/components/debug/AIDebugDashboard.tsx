@@ -136,19 +136,59 @@ export function AIDebugDashboard() {
   };
 
   const clearLogs = async () => {
+    if (!confirm('⚠️ ATENÇÃO: Isso vai limpar TODOS os chats, mensagens e logs. Confirma?')) {
+      return;
+    }
+
     try {
-      const { error } = await supabase
+      console.log('🗑️ Iniciando limpeza completa...');
+
+      // 1. Limpar mensagens
+      const { error: messagesError } = await supabase
+        .from('messages')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+
+      if (messagesError) {
+        console.error('Erro ao limpar mensagens:', messagesError);
+        throw messagesError;
+      }
+
+      // 2. Limpar logs de processamento AI
+      const { error: logsError } = await supabase
         .from('ai_processing_logs')
         .delete()
         .neq('id', '00000000-0000-0000-0000-000000000000');
 
-      if (error) throw error;
+      if (logsError) {
+        console.error('Erro ao limpar logs:', logsError);
+        throw logsError;
+      }
+
+      // 3. Resetar metadata dos chats (limpar carrinho, pending messages, etc)
+      const { error: chatsError } = await supabase
+        .from('chats')
+        .update({ 
+          metadata: {},
+          conversation_state: 'greeting',
+          status: 'archived',
+          archived_at: new Date().toISOString()
+        })
+        .neq('id', 0);
+
+      if (chatsError) {
+        console.error('Erro ao resetar chats:', chatsError);
+        throw chatsError;
+      }
+
       setLogs([]);
       setSelectedLog(null);
-      toast.success('Logs limpos');
+      
+      console.log('✅ Limpeza completa concluída');
+      toast.success('🧹 Sistema limpo: chats arquivados, mensagens e logs removidos');
     } catch (error) {
-      console.error('Error clearing logs:', error);
-      toast.error('Erro ao limpar logs');
+      console.error('Error clearing system:', error);
+      toast.error('Erro ao limpar sistema. Veja o console.');
     }
   };
 
