@@ -38,80 +38,43 @@ export async function executeAddItemToOrder(
   chatId: number,
   args: { product_name: string; quantity: number; unit_price: number; notes?: string }
 ) {
-  console.log(`[ADD_ITEM] 🛒 Iniciando adição de item ao carrinho chatId=${chatId}`);
+  console.log(`[ADD_ITEM] 🛒 Usando função SQL atômica chatId=${chatId}`);
   console.log(`[ADD_ITEM] 📦 Item: ${args.product_name} x${args.quantity} @ R$${args.unit_price}`);
   
   try {
-    // Buscar metadata atual
-    console.log(`[ADD_ITEM] 📖 Buscando metadata do chat ${chatId}...`);
-    const { data: chat, error: fetchError } = await supabase
-      .from('chats')
-      .select('metadata')
-      .eq('id', chatId)
-      .single();
+    // Gerar product_id único para idempotência
+    const productId = `${args.product_name.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`;
     
-    if (fetchError) {
-      console.error(`[ADD_ITEM] ❌ Erro ao buscar chat:`, fetchError);
-      throw fetchError;
+    console.log(`[ADD_ITEM] 🔑 Product ID gerado: ${productId}`);
+    
+    // Usar função SQL atômica para prevenir race conditions
+    const { data, error } = await supabase.rpc('atomic_add_item_to_cart', {
+      p_chat_id: chatId,
+      p_product_name: args.product_name,
+      p_product_id: productId,
+      p_quantity: args.quantity,
+      p_unit_price: args.unit_price,
+      p_notes: args.notes || null
+    });
+
+    if (error) {
+      console.error(`[ADD_ITEM] ❌ Erro na função SQL:`, error);
+      throw error;
     }
-    
-    const metadata = chat?.metadata || {};
-    const orderItems = metadata.order_items || [];
-    
-    console.log(`[ADD_ITEM] 📊 Carrinho atual: ${orderItems.length} itens`);
-    
-    // Adicionar novo item
-    const newItem = {
-      product_name: args.product_name,
-      quantity: args.quantity,
-      unit_price: args.unit_price,
-      notes: args.notes || null,
-      added_at: new Date().toISOString()
-    };
-    
-    orderItems.push(newItem);
-    console.log(`[ADD_ITEM] ➕ Item adicionado ao array. Novo total: ${orderItems.length} itens`);
-    
-    // Atualizar metadata preservando outros campos
-    const updatedMetadata = {
-      ...metadata,
-      order_items: orderItems,
-      order_total: orderItems.reduce((sum: number, item: any) => 
-        sum + (item.quantity * item.unit_price), 0
-      )
-    };
-    
-    console.log(`[ADD_ITEM] 💾 Atualizando metadata no banco...`);
-    console.log(`[ADD_ITEM] 📝 Metadata atualizado:`, JSON.stringify(updatedMetadata, null, 2));
-    
-    const { error: updateError } = await supabase
-      .from('chats')
-      .update({ 
-        metadata: updatedMetadata,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', chatId);
-    
-    if (updateError) {
-      console.error(`[ADD_ITEM] ❌ Erro ao atualizar metadata:`, updateError);
-      throw updateError;
-    }
-    
-    const total = updatedMetadata.order_total;
-    
-    console.log(`[ADD_ITEM] ✅ Item adicionado com sucesso!`);
-    console.log(`[ADD_ITEM] 📊 Carrinho final: ${orderItems.length} itens, Total: R$ ${total.toFixed(2)}`);
-    
+
+    console.log(`[ADD_ITEM] ✅ ${data.was_updated ? 'Atualizado' : 'Adicionado'} com sucesso!`);
+    console.log(`[ADD_ITEM] 📊 Carrinho: ${data.cart_item_count} itens, Total: R$ ${data.cart_total}`);
+
     return {
       success: true,
       data: {
         item_added: args.product_name,
         quantity: args.quantity,
-        items_count: orderItems.length,
-        current_total: total,
-        metadata: updatedMetadata
+        items_count: data.cart_item_count,
+        current_total: data.cart_total,
+        was_updated: data.was_updated
       },
-      message: `${args.product_name} adicionado! Total: R$ ${total.toFixed(2)} (${orderItems.length} ${orderItems.length === 1 ? 'item' : 'itens'})`
+      message: `${args.product_name} ${data.was_updated ? 'atualizado' : 'adicionado'}! Total: R$ ${data.cart_total} (${data.cart_item_count} ${data.cart_item_count === 1 ? 'item' : 'itens'})`
     };
     
   } catch (error) {

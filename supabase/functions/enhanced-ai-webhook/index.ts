@@ -173,17 +173,35 @@ async function executeTools(toolCalls: any[], supabase: any, chatId: number, age
 
 async function sendWhatsAppMessage(phone: string, message: string, agent: any, requestId: string): Promise<boolean> {
   try {
-    console.log(`[${requestId}] [5/5] 📱 Enviando WhatsApp...`);
-    if (!agent.evolution_api_base_url) return false;
-    const response = await fetch(`${agent.evolution_api_base_url}/message/sendText/${agent.evolution_api_instance}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': agent.evolution_api_token },
-      body: JSON.stringify({ number: phone, text: message, delay: 1000 })
-    });
-    console.log(`[${requestId}] ✅ WhatsApp ${response.ok ? 'sent' : 'failed'}`);
-    return response.ok;
+    console.log(`[${requestId}] [6/6] 📱 Enviando WhatsApp com retry logic...`);
+    
+    if (!agent.evolution_api_base_url || !agent.evolution_api_instance || !agent.evolution_api_token) {
+      console.warn(`[${requestId}] ⚠️ Configuração WhatsApp incompleta`);
+      return false;
+    }
+    
+    const { sendWhatsAppWithRetry, extractWhatsAppConfig } = await import('./utils/whatsapp-sender.ts');
+    
+    const whatsappConfig = extractWhatsAppConfig(agent);
+    if (!whatsappConfig) {
+      console.warn(`[${requestId}] ⚠️ Configuração WhatsApp inválida`);
+      return false;
+    }
+    
+    const result = await sendWhatsAppWithRetry(
+      whatsappConfig,
+      { phone, message, requestId }
+    );
+    
+    if (result.success) {
+      console.log(`[${requestId}] ✅ WhatsApp enviado em ${result.attempts} tentativa(s)`);
+    } else {
+      console.error(`[${requestId}] ❌ Falha após ${result.attempts} tentativas: ${result.error}`);
+    }
+    
+    return result.success;
   } catch (error) {
-    console.error(`[${requestId}] ❌ WhatsApp error:`, error);
+    console.error(`[${requestId}] ❌ Erro crítico WhatsApp:`, error);
     return false;
   }
 }
@@ -344,25 +362,26 @@ serve(async (req) => {
     
     const processingTime = Date.now() - startTime;
     
-    // [5/5] Save processing log with loop metadata
+    // [5/5] Save processing log with metrics
     await saveProcessingLog(supabase, {
       chat_id: chat.id,
       session_id: sessionId,
       request_id: requestId,
       user_message: userMessage,
       current_state: chat.conversation_state || 'greeting',
-      new_state: chat.conversation_state, // Will be updated by context manager
+      new_state: chat.conversation_state,
       metadata_snapshot: metadata,
       orchestrator_decision: decision,
-      agents_called: loopResult.agentsCalled, // 🆕 Array de agentes
-      loop_iterations: loopResult.loopCount, // 🆕 Número de iterações
-      exit_reason: loopResult.exitReason, // 🆕 Razão de saída
-      state_transitions: loopResult.stateTransitions, // 🆕 Histórico de transições
+      agents_called: loopResult.agentsCalled,
+      loop_iterations: loopResult.loopCount,
+      exit_reason: loopResult.exitReason,
+      state_transitions: loopResult.stateTransitions,
       tool_results: loopResult.allToolResults,
       loaded_history: conversationHistory,
       loaded_summaries: summaries,
       final_response: loopResult.finalResponse,
-      processing_time_ms: processingTime
+      processing_time_ms: processingTime,
+      agent_metrics: loopResult.agentMetrics
     });
     
     console.log(`[${requestId}] ⚡ Total: ${processingTime}ms`);
