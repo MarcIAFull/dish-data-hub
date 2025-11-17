@@ -209,69 +209,67 @@ serve(async (req) => {
     // Get or create active chat
     const chat = await getOrCreateActiveChat(supabase, phone, requestId);
     
-    // ⏱️ DEBOUNCE SIMPLES: Aguardar 8 segundos antes de processar
+    // ⏱️ DEBOUNCE: Verificar se deve acumular ou processar
     const DEBOUNCE_MS = 8000;
-    
-    console.log(`[${requestId}] ⏳ Aguardando ${DEBOUNCE_MS}ms por mais mensagens...`);
-    
-    // Acumular esta mensagem
     const metadata = chat.metadata || {};
     const pendingMessages = metadata.pending_messages || [];
-    pendingMessages.push({
-      content: userMessage,
-      received_at: new Date().toISOString()
-    });
-    
-    // Salvar timestamp e mensagens pendentes
-    await supabase
-      .from('chats')
-      .update({
+    const lastMessageTime = metadata.last_message_timestamp;
+
+    const timeSinceLastMessage = lastMessageTime 
+      ? Date.now() - new Date(lastMessageTime).getTime()
+      : 999999; // Primeira mensagem sempre processa
+
+    console.log(`[${requestId}] ⏱️ Tempo desde última msg: ${timeSinceLastMessage}ms`);
+    console.log(`[${requestId}] 📊 Mensagens pendentes atuais: ${pendingMessages.length}`);
+
+    // Adicionar mensagem atual à fila
+    const newPendingMessages = [
+      ...pendingMessages,
+      { content: userMessage, received_at: new Date().toISOString() }
+    ];
+
+    // DECISÃO: Acumular ou processar?
+    if (timeSinceLastMessage < DEBOUNCE_MS && pendingMessages.length > 0) {
+      // ⏳ ACUMULAR - Ainda dentro da janela de debounce
+      console.log(`[${requestId}] ⏳ Acumulando mensagem (${newPendingMessages.length} total)`);
+      
+      await supabase.from('chats').update({
         metadata: {
           ...metadata,
-          pending_messages: pendingMessages,
-          last_message_timestamp: new Date().toISOString(),
-          processing_request_id: requestId
+          pending_messages: newPendingMessages,
+          last_message_timestamp: new Date().toISOString()
         }
-      })
-      .eq('id', chat.id);
-    
-    // Aguardar 8 segundos
-    await new Promise(resolve => setTimeout(resolve, DEBOUNCE_MS));
-    
-    // Buscar chat novamente para ver se chegou mais mensagens
-    const { data: updatedChat } = await supabase
-      .from('chats')
-      .select('metadata')
-      .eq('id', chat.id)
-      .single();
-    
-    const currentPending = updatedChat?.metadata?.pending_messages || [];
-    const processingRequestId = updatedChat?.metadata?.processing_request_id;
-    
-    // Se outro request assumiu o processamento, cancelar este
-    if (processingRequestId !== requestId) {
-      console.log(`[${requestId}] ❌ Cancelado - outro request assumiu (${processingRequestId})`);
-      return new Response(
-        JSON.stringify({ success: true, cancelled: true }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      );
+      }).eq('id', chat.id);
+      
+      return new Response(JSON.stringify({ 
+        status: 'queued', 
+        count: newPendingMessages.length 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
+      });
     }
-    
+
+    // ✅ PROCESSAR - Janela expirou ou é primeira mensagem
+    console.log(`[${requestId}] ✅ Processando ${newPendingMessages.length} mensagem(s)`);
+
     // Combinar todas as mensagens pendentes
-    userMessage = currentPending.map((m: any) => m.content).join('\n');
-    console.log(`[${requestId}] ✅ Processando ${currentPending.length} mensagens acumuladas`);
-    
-    // Limpar fila
-    await supabase
-      .from('chats')
-      .update({
-        metadata: {
-          ...metadata,
-          pending_messages: [],
-          processing_request_id: null
-        }
-      })
-      .eq('id', chat.id);
+    if (newPendingMessages.length > 1) {
+      userMessage = newPendingMessages.map((m: any) => m.content).join('\n');
+      console.log(`[${requestId}] 📝 Mensagens combinadas: "${userMessage}"`);
+    } else if (newPendingMessages.length === 1) {
+      userMessage = newPendingMessages[0].content;
+      console.log(`[${requestId}] 📝 Mensagem única: "${userMessage}"`);
+    }
+
+    // Limpar fila e atualizar timestamp
+    await supabase.from('chats').update({
+      metadata: {
+        ...metadata,
+        pending_messages: [],
+        last_message_timestamp: new Date().toISOString()
+      }
+    }).eq('id', chat.id);
     
     // 📚 Load conversation context
     console.log(`[${requestId}] 📚 Carregando contexto...`);
