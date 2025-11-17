@@ -205,16 +205,38 @@ export function EnrichedContextViewer({ context }: EnrichedContextViewerProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <p className="text-sm font-medium mb-1">Personalidade</p>
-            <Badge variant="outline">{agent?.personality || 'friendly'}</Badge>
+            <p className="text-sm font-medium mb-2 flex items-center gap-2">
+              <Bot className="h-4 w-4 text-purple-500" />
+              Personalidade
+            </p>
+            <p className="text-sm bg-muted/50 p-3 rounded">
+              {agent?.personality || 'profissional e prestativo'}
+            </p>
           </div>
 
           {agent?.instructions && (
             <div>
-              <p className="text-sm font-medium mb-1">Instruções Customizadas</p>
-              <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-                {agent.instructions}
-              </p>
+              <p className="text-sm font-medium mb-2">Instruções Customizadas</p>
+              <ScrollArea className="h-[100px]">
+                <p className="text-xs text-muted-foreground bg-muted/50 p-3 rounded whitespace-pre-wrap">
+                  {agent.instructions}
+                </p>
+              </ScrollArea>
+            </div>
+          )}
+
+          {agent?.features && Object.keys(agent.features).length > 0 && (
+            <div>
+              <p className="text-sm font-medium mb-2">Features Habilitadas</p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(agent.features).map(([key, value]: [string, any]) => (
+                  value && (
+                    <Badge key={key} variant="outline" className="text-xs">
+                      {key.replace(/_/g, ' ')}
+                    </Badge>
+                  )
+                ))}
+              </div>
             </div>
           )}
 

@@ -1,11 +1,18 @@
 // 📝 All AI prompts in one place
+// v5.3 - FASE 5: Personalização via DB
 
-export function getSalesPrompt(context: {
-  restaurantName: string;
-  currentCart: any[];
-  cartTotal: number;
-  currentState: string;
-}): string {
+export function getSalesPrompt(
+  context: {
+    restaurantName: string;
+    currentCart: any[];
+    cartTotal: number;
+    currentState: string;
+  },
+  enrichedContext?: any
+): string {
+  const agentPersonality = enrichedContext?.agent?.personality || "profissional e prestativo";
+  const customInstructions = enrichedContext?.agent?.instructions || "";
+
   const cartSummary = context.currentCart.length > 0
     ? `Carrinho atual (${context.currentCart.length} itens, total: R$ ${context.cartTotal.toFixed(2)}):\n${
         context.currentCart.map((item: any) => 
@@ -16,6 +23,10 @@ export function getSalesPrompt(context: {
 
   return `Você é o vendedor do ${context.restaurantName}.
 
+=== PERSONALIDADE DO AGENTE ===
+${agentPersonality}
+
+${customInstructions ? `=== INSTRUÇÕES ESPECÍFICAS ===\n${customInstructions}\n` : ''}
 ESTADO ATUAL: ${context.currentState}
 ${cartSummary}
 
@@ -65,14 +76,24 @@ Cliente: "quanto custa a coca?"
 - Seja DIRETO e EFICIENTE!`;
 }
 
-export function getCheckoutPrompt(context: {
-  restaurantName: string;
-  currentCart: any[];
-  cartTotal: number;
-  deliveryFee: number;
-}): string {
+export function getCheckoutPrompt(
+  context: {
+    restaurantName: string;
+    currentCart: any[];
+    cartTotal: number;
+    deliveryFee: number;
+  },
+  enrichedContext?: any
+): string {
+  const agentPersonality = enrichedContext?.agent?.personality || "profissional e prestativo";
+  const customInstructions = enrichedContext?.agent?.instructions || "";
+
   return `Você é o FINALIZADOR do ${context.restaurantName}.
 
+=== PERSONALIDADE DO AGENTE ===
+${agentPersonality}
+
+${customInstructions ? `=== INSTRUÇÕES ESPECÍFICAS ===\n${customInstructions}\n` : ''}
 PEDIDO ATUAL:
 ${context.currentCart.map((item: any, i: number) => 
   `${i + 1}. ${item.product_name} x${item.quantity} - R$ ${(item.unit_price * item.quantity).toFixed(2)}`
@@ -97,12 +118,22 @@ REGRAS:
 5. Seja claro e direto`;
 }
 
-export function getMenuPrompt(context: {
-  restaurantName: string;
-  menuLink?: string;
-}): string {
+export function getMenuPrompt(
+  context: {
+    restaurantName: string;
+    menuLink?: string;
+  },
+  enrichedContext?: any
+): string {
+  const agentPersonality = enrichedContext?.agent?.personality || "profissional e prestativo";
+  const customInstructions = enrichedContext?.agent?.instructions || "";
+
   return `Você é um especialista em cardápio do restaurante ${context.restaurantName}.
 
+=== PERSONALIDADE DO AGENTE ===
+${agentPersonality}
+
+${customInstructions ? `=== INSTRUÇÕES ESPECÍFICAS ===\n${customInstructions}\n` : ''}
 MISSÃO: Responder perguntas sobre produtos, preços e disponibilidade de forma INTELIGENTE e PRESTATIVA.
 
 FERRAMENTAS DISPONÍVEIS:
@@ -136,14 +167,24 @@ FORMATO DE RESPOSTA:
 ${context.menuLink ? `Link do cardápio: ${context.menuLink}` : ''}`;
 }
 
-export function getSupportPrompt(context: {
-  restaurantName: string;
-  restaurantAddress?: string;
-  restaurantPhone?: string;
-  workingHours?: any;
-}): string {
+export function getSupportPrompt(
+  context: {
+    restaurantName: string;
+    restaurantAddress?: string;
+    restaurantPhone?: string;
+    workingHours?: any;
+  },
+  enrichedContext?: any
+): string {
+  const agentPersonality = enrichedContext?.agent?.personality || "profissional e prestativo";
+  const customInstructions = enrichedContext?.agent?.instructions || "";
+
   return `Você é o SUPORTE do ${context.restaurantName}.
 
+=== PERSONALIDADE DO AGENTE ===
+${agentPersonality}
+
+${customInstructions ? `=== INSTRUÇÕES ESPECÍFICAS ===\n${customInstructions}\n` : ''}
 INFORMAÇÕES:
 ${context.restaurantAddress ? `Endereço: ${context.restaurantAddress}` : ''}
 ${context.restaurantPhone ? `Telefone: ${context.restaurantPhone}` : ''}

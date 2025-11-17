@@ -9,6 +9,7 @@ export async function processMenuAgent(
   context: {
     restaurantName: string;
     menuLink?: string;
+    enrichedContext?: any;  // ✅ FASE 5
   },
   requestId: string
 ): Promise<{ content: string; toolCalls?: any[] }> {
@@ -18,7 +19,7 @@ export async function processMenuAgent(
   
   console.log(`[${requestId}] [3/5] 📋 Agente MENU processando...`);
   
-  const systemPrompt = getMenuPrompt(context);
+  const systemPrompt = getMenuPrompt(context, context.enrichedContext);  // ✅ FASE 5
   
   const tools = [
     ...getProductTools(),

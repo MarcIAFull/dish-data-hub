@@ -12,6 +12,7 @@ export async function processCheckoutAgent(
     currentCart: any[];
     cartTotal: number;
     deliveryFee: number;
+    enrichedContext?: any;  // ✅ FASE 5
   },
   requestId: string
 ): Promise<{ content: string; toolCalls?: any[] }> {
@@ -21,7 +22,7 @@ export async function processCheckoutAgent(
   
   console.log(`[${requestId}] [3/5] 💳 Agente CHECKOUT processando...`);
   
-  const systemPrompt = getCheckoutPrompt(context);
+  const systemPrompt = getCheckoutPrompt(context, context.enrichedContext);  // ✅ FASE 5
   
   const tools = [
     ...getAddressTools(),

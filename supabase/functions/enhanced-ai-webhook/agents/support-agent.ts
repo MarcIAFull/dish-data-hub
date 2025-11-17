@@ -10,6 +10,7 @@ export async function processSupportAgent(
     restaurantAddress?: string;
     restaurantPhone?: string;
     workingHours?: any;
+    enrichedContext?: any;  // ✅ FASE 5
   },
   requestId: string
 ): Promise<{ content: string; toolCalls?: any[] }> {
@@ -19,7 +20,7 @@ export async function processSupportAgent(
   
   console.log(`[${requestId}] [3/5] 🆘 Agente SUPPORT processando...`);
   
-  const systemPrompt = getSupportPrompt(context);
+  const systemPrompt = getSupportPrompt(context, context.enrichedContext);  // ✅ FASE 5
   
   const messages = [
     { role: 'system', content: systemPrompt },

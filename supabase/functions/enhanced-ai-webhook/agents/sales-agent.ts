@@ -12,6 +12,7 @@ export async function processSalesAgent(
     currentCart: any[];
     cartTotal: number;
     currentState: string;
+    enrichedContext?: any;  // ✅ FASE 5
   },
   requestId: string
 ): Promise<{ content: string; toolCalls?: any[] }> {
@@ -26,7 +27,7 @@ export async function processSalesAgent(
     currentState: context.currentState
   });
   
-  const systemPrompt = getSalesPrompt(context);
+  const systemPrompt = getSalesPrompt(context, context.enrichedContext);  // ✅ FASE 5
   
   const tools = [
     ...getProductTools(),
