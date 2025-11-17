@@ -9,6 +9,7 @@ import { RefreshCw, Clock, Trash2, MessageSquare, Activity } from "lucide-react"
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { EnrichedContextViewer } from "./EnrichedContextViewer"; // ✅ NOVO: FASE 1
+import { MacroGuidanceViewer } from "./MacroGuidanceViewer"; // ✅ NOVO: FASE 2
 
 interface AILog {
   id: string;
@@ -273,8 +274,9 @@ export function AIDebugDashboard() {
           <CardContent>
             {selectedLog ? (
               <Tabs defaultValue="timeline">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                  <TabsTrigger value="guidance">Orientação</TabsTrigger>
                   <TabsTrigger value="context">Contexto</TabsTrigger>
                   <TabsTrigger value="tools">Ferramentas</TabsTrigger>
                   <TabsTrigger value="raw">Raw Data</TabsTrigger>
@@ -306,6 +308,13 @@ export function AIDebugDashboard() {
                       </div>
                     </div>
                   ))}
+                </TabsContent>
+
+                <TabsContent value="guidance" className="space-y-3">
+                  <MacroGuidanceViewer
+                    state={selectedLog.metadata_snapshot?.current_state || 'greeting'}
+                    guidance={selectedLog.metadata_snapshot?.macro_guidance}
+                  />
                 </TabsContent>
 
                 <TabsContent value="context" className="space-y-3">

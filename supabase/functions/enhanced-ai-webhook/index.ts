@@ -378,6 +378,14 @@ const DEBOUNCE_MS = 3000;
     const processingTime = Date.now() - startTime;
     
     // [5/5] Save processing log with metrics
+    
+    // ✅ FASE 2: Gerar Macro Guidance para debug
+    const { getMacroGuidanceForState } = await import('./utils/macro-guidance.ts');
+    const macroGuidance = getMacroGuidanceForState(
+      chat.conversation_state || 'greeting',
+      enrichedContext
+    );
+    
     await saveProcessingLog(supabase, {
       chat_id: chat.id,
       session_id: sessionId,
@@ -396,7 +404,8 @@ const DEBOUNCE_MS = 3000;
       loaded_summaries: conversationHistory.slice(-5),
       final_response: loopResult.finalResponse,
       processing_time_ms: processingTime,
-      enriched_context: enrichedContext, // ✅ NOVO: FASE 1 - Persistir contexto enriquecido
+      enriched_context: enrichedContext, // ✅ FASE 1: Persistir contexto enriquecido
+      macro_guidance: macroGuidance, // ✅ FASE 2: Persistir orientação macro
       agent_metrics: loopResult.agentMetrics
     });
     

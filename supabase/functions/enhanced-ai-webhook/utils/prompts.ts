@@ -1,5 +1,8 @@
 // 📝 All AI prompts in one place
 // v5.3 - FASE 5: Personalização via DB
+// v5.3 - FASE 2: Macro Guidance por Estado
+
+import { getMacroGuidanceForState } from './macro-guidance.ts';
 
 export function getSalesPrompt(
   context: {
@@ -12,6 +15,13 @@ export function getSalesPrompt(
 ): string {
   const agentPersonality = enrichedContext?.agent?.personality || "profissional e prestativo";
   const customInstructions = enrichedContext?.agent?.instructions || "";
+  
+  // ✅ FASE 2: Injetar Macro Guidance baseada no estado
+  const macroGuidance = getMacroGuidanceForState(context.currentState, {
+    cart: { items: context.currentCart, total: context.cartTotal, count: context.currentCart.length },
+    customer: enrichedContext?.customer || {},
+    restaurant: enrichedContext?.restaurant || {}
+  });
 
   const cartSummary = context.currentCart.length > 0
     ? `Carrinho atual (${context.currentCart.length} itens, total: R$ ${context.cartTotal.toFixed(2)}):\n${
@@ -21,7 +31,13 @@ export function getSalesPrompt(
       }`
     : 'Carrinho vazio';
 
-  return `Você é o vendedor do ${context.restaurantName}.
+  return `${macroGuidance}
+
+========================================
+PROMPT BASE DO AGENTE DE VENDAS
+========================================
+
+Você é o vendedor do ${context.restaurantName}.
 
 === PERSONALIDADE DO AGENTE ===
 ${agentPersonality}
@@ -87,8 +103,21 @@ export function getCheckoutPrompt(
 ): string {
   const agentPersonality = enrichedContext?.agent?.personality || "profissional e prestativo";
   const customInstructions = enrichedContext?.agent?.instructions || "";
+  
+  // ✅ FASE 2: Injetar Macro Guidance
+  const macroGuidance = getMacroGuidanceForState('collecting_address', {
+    cart: { items: context.currentCart, total: context.cartTotal, count: context.currentCart.length },
+    customer: enrichedContext?.customer || {},
+    restaurant: enrichedContext?.restaurant || {}
+  });
 
-  return `Você é o FINALIZADOR do ${context.restaurantName}.
+  return `${macroGuidance}
+
+========================================
+PROMPT BASE DO AGENTE DE CHECKOUT
+========================================
+
+Você é o FINALIZADOR do ${context.restaurantName}.
 
 === PERSONALIDADE DO AGENTE ===
 ${agentPersonality}
@@ -127,13 +156,21 @@ export function getMenuPrompt(
 ): string {
   const agentPersonality = enrichedContext?.agent?.personality || "profissional e prestativo";
   const customInstructions = enrichedContext?.agent?.instructions || "";
+  
+  // ✅ FASE 2: Injetar Macro Guidance
+  const macroGuidance = getMacroGuidanceForState('browsing', {
+    cart: { items: [], total: 0, count: 0 },
+    customer: enrichedContext?.customer || {},
+    restaurant: enrichedContext?.restaurant || {}
+  });
 
-  return `Você é um especialista em cardápio do restaurante ${context.restaurantName}.
+  return `${macroGuidance}
 
-=== PERSONALIDADE DO AGENTE ===
-${agentPersonality}
+========================================
+PROMPT BASE DO AGENTE DE MENU
+========================================
 
-${customInstructions ? `=== INSTRUÇÕES ESPECÍFICAS ===\n${customInstructions}\n` : ''}
+Você é um especialista em cardápio do restaurante ${context.restaurantName}.
 MISSÃO: Responder perguntas sobre produtos, preços e disponibilidade de forma INTELIGENTE e PRESTATIVA.
 
 FERRAMENTAS DISPONÍVEIS:
@@ -178,13 +215,21 @@ export function getSupportPrompt(
 ): string {
   const agentPersonality = enrichedContext?.agent?.personality || "profissional e prestativo";
   const customInstructions = enrichedContext?.agent?.instructions || "";
+  
+  // ✅ FASE 2: Injetar Macro Guidance (support não tem estado específico, usa greeting como base)
+  const macroGuidance = getMacroGuidanceForState('greeting', {
+    cart: { items: [], total: 0, count: 0 },
+    customer: enrichedContext?.customer || {},
+    restaurant: enrichedContext?.restaurant || {}
+  });
 
-  return `Você é o SUPORTE do ${context.restaurantName}.
+  return `${macroGuidance}
 
-=== PERSONALIDADE DO AGENTE ===
-${agentPersonality}
+========================================
+PROMPT BASE DO AGENTE DE SUPORTE
+========================================
 
-${customInstructions ? `=== INSTRUÇÕES ESPECÍFICAS ===\n${customInstructions}\n` : ''}
+Você é o SUPORTE do ${context.restaurantName}.
 INFORMAÇÕES:
 ${context.restaurantAddress ? `Endereço: ${context.restaurantAddress}` : ''}
 ${context.restaurantPhone ? `Telefone: ${context.restaurantPhone}` : ''}
