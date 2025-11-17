@@ -1121,11 +1121,15 @@ async function processAIResponse(
           console.warn(`[${requestId}] ⚠️ Response warnings:`, validation.warnings);
         }
         
+        // Declare nextState and completionCriteria outside conditional to avoid ReferenceError
+        let nextState = currentStateForPlan; // Default: keep current state
+        let completionCriteria = calculateCompletionCriteria(finalMetadata);
+        
         // Calculate completion criteria and next state (Smart State Machine V2)
-        const completionCriteria = calculateCompletionCriteria(finalMetadata);
+        completionCriteria = calculateCompletionCriteria(finalMetadata);
         console.log(`[${requestId}] 📊 Completion Criteria:`, completionCriteria);
         
-        const nextState = getNextState(currentStateForPlan, completionCriteria, messageContent);
+        nextState = getNextState(currentStateForPlan, completionCriteria, messageContent);
         
         // Update metadata with new state and completion data
         await supabase
