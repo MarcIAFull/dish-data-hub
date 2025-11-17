@@ -99,6 +99,26 @@ export async function executeAgentLoop(
       }))
     });
     
+    // ✅ VALIDAÇÃO: SALES Agent deve adicionar ao carrinho quando cliente pede produto
+    if (currentAgent === 'SALES' && toolResults.length > 0) {
+      const checkedAvailability = toolResults.some(t => t.tool === 'check_product_availability' && t.result?.success);
+      const addedToCart = toolResults.some(t => t.tool === 'add_item_to_order');
+      
+      // Detectar se usuário PEDIU produto (não apenas perguntou)
+      const userMessageLower = userMessage.toLowerCase();
+      const userWantsToAdd = /quero|adiciona|pede|fecha|finaliza|pode adicionar|vou querer|me traz/i.test(userMessageLower);
+      const userJustAsking = /quanto|preço|custa|tem|disponível|cardápio/i.test(userMessageLower) && 
+                            !userWantsToAdd;
+      
+      if (userWantsToAdd && checkedAvailability && !addedToCart && !userJustAsking) {
+        console.warn(`[${context.requestId}] ⚠️ CRÍTICO: SALES verificou produto mas NÃO adicionou ao carrinho!`);
+        console.warn(`[${context.requestId}] Mensagem do usuário: "${userMessage}"`);
+        console.warn(`[${context.requestId}] Ferramentas chamadas: ${toolResults.map(t => t.tool).join(', ')}`);
+      } else if (addedToCart) {
+        console.log(`[${context.requestId}] ✅ SALES adicionou item ao carrinho corretamente`);
+      }
+    }
+    
     // 3. Registrar métricas do agente
     agentMetrics[currentAgent] = {
       execution_time_ms: agentExecutionTime,
