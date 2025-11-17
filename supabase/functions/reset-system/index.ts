@@ -20,27 +20,31 @@ serve(async (req) => {
 
     console.log('🧹 Starting system reset...');
 
-    // 1. Archive all active chats
+    // 1. Archive all active chats (force close)
     const { data: archivedChats, error: chatError } = await supabaseClient
       .from('chats')
       .update({
         status: 'archived',
         archived_at: new Date().toISOString(),
         session_status: 'completed',
+        ai_enabled: false, // Desabilitar AI para evitar processamento
         metadata: {
-          archived_reason: 'System reset for testing',
-          archived_at: new Date().toISOString()
+          archived_reason: 'system_reset',
+          archived_at: new Date().toISOString(),
+          pending_messages: [], // Limpar mensagens pendentes
+          order_items: [], // Limpar carrinho
+          debounce_timer_active: false
         }
       })
-      .neq('status', 'archived')
-      .select('id, phone');
+      .eq('status', 'active') // Fechar apenas os ativos
+      .select('id, phone, restaurant_id');
 
     if (chatError) {
       console.error('Error archiving chats:', chatError);
       throw chatError;
     }
 
-    console.log(`✅ Archived ${archivedChats?.length || 0} chats`);
+    console.log(`✅ Archived ${archivedChats?.length || 0} active chats`);
 
     // 2. Cancel pending/preparing orders
     const { data: cancelledOrders, error: orderError } = await supabaseClient
