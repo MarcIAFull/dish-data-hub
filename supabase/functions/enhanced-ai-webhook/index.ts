@@ -16,6 +16,7 @@ import { processSupportAgent } from './agents/support-agent.ts';
 import { processConversationAgent } from './agents/conversation-agent.ts';
 import { updateConversationContext } from './utils/context-manager.ts';
 import { ConversationState } from './types/conversation-states.ts';
+import { executeAgentLoop } from './utils/agent-loop.ts';
 
 // Tools
 import { executeCheckProductAvailability, executeListProductsByCategory } from './tools/product-tools.ts';
@@ -305,116 +306,69 @@ serve(async (req) => {
     // [2/5] ORCHESTRATOR
     console.log(`[${requestId}] [2/5] 🧠 Orquestrando...`);
     const decision = await decideAgent(userMessage, cart, chat.conversation_state || 'initial', requestId);
-    console.log(`[${requestId}] ✅ Decisão: ${decision.agent} (razão: ${decision.reasoning})`);
+    console.log(`[${requestId}] ✅ Decisão inicial: ${decision.agent} (razão: ${decision.reasoning})`);
     
-    // [3/5] AGENT: Route to specialized agent with history
-    console.log(`[${requestId}] [3/5] 🤖 Chamando agente ${decision.agent}...`);
+    // [3/5] AGENT LOOP: Execute specialized agents with re-evaluation
+    console.log(`[${requestId}] [3/5] 🔄 Iniciando Agent Loop...`);
     
-    let agentResult: { content: string; toolCalls?: any[] };
-    
-    if (decision.agent === 'SALES') {
-      agentResult = await processSalesAgent(
-        userMessage,
-        conversationHistory,
-        {
-          restaurantName: restaurant.name,
-          currentCart: cart.items,
-          cartTotal: cart.total,
-          currentState: chat.conversation_state || 'initial'
-        },
-        requestId
-      );
-    } else if (decision.agent === 'CHECKOUT') {
-      agentResult = await processCheckoutAgent(
-        userMessage,
-        conversationHistory,
-        {
-          restaurantName: restaurant.name,
-          currentCart: cart.items,
-          cartTotal: cart.total,
-          deliveryFee: metadata.delivery_fee || 0
-        },
-        requestId
-      );
-    } else if (decision.agent === 'MENU') {
-      agentResult = await processMenuAgent(
-        userMessage,
-        conversationHistory,
-        {
-          restaurantName: restaurant.name,
-          menuLink: `https://app.example.com/${restaurant.slug}`
-        },
-        requestId
-      );
-    } else {
-      agentResult = await processSupportAgent(
-        userMessage,
-        conversationHistory,
-        {
-          restaurantName: restaurant.name,
-          restaurantAddress: restaurant.address,
-          restaurantPhone: restaurant.phone,
-          workingHours: restaurant.working_hours
-        },
-        requestId
-      );
-    }
-    
-    const toolResults = await executeTools(agentResult.toolCalls || [], supabase, chatId, agent, restaurant.id, requestId);
-    
-    // 🆕 CONTEXT MANAGER: Avaliar transição de estado
-    const contextUpdate = await updateConversationContext(
-      supabase,
-      chatId,
-      chat,
+    const loopResult = await executeAgentLoop(
       decision.agent,
-      toolResults,
-      requestId
-    );
-
-    console.log(`[${requestId}] 📊 Novo estado: ${contextUpdate.newState}`);
-
-    // Opcional: Se deve chamar próximo agente (FASE 3 implementará isso)
-    if (contextUpdate.shouldCallNextAgent && contextUpdate.suggestedNextAgent) {
-      console.log(`[${requestId}] 🔄 Sugestão: chamar ${contextUpdate.suggestedNextAgent} automaticamente`);
-    }
-    
-    // [4/5] CONVERSATION: Humanize response with context
-    const finalResponse = await processConversationAgent(
       userMessage,
-      decision.agent,
-      agentResult.content,
-      toolResults,
-      restaurant.name,
-      requestId,
-      conversationHistory
+      conversationHistory,
+      {
+        supabase,
+        chatId,
+        chat,
+        restaurant,
+        sessionId,
+        requestId,
+        executeTools
+      },
+      3 // Máximo 3 agentes por mensagem
     );
     
-    await supabase.from('messages').insert({ chat_id: chatId, session_id: sessionId, sender_type: 'assistant', content: finalResponse });
+    console.log(`[${requestId}] ✅ Agent Loop concluído:`, {
+      agents: loopResult.agentsCalled,
+      iterations: loopResult.loopCount,
+      exitReason: loopResult.exitReason,
+      transitions: loopResult.stateTransitions
+    });
+    
+    // [4/5] Salvar resposta final
+    await supabase.from('messages').insert({ 
+      chat_id: chatId, 
+      session_id: sessionId, 
+      sender_type: 'assistant', 
+      content: loopResult.finalResponse 
+    });
     
     const processingTime = Date.now() - startTime;
     
-    // Save processing log with full context
+    // [5/5] Save processing log with loop metadata
     await saveProcessingLog(supabase, {
       chat_id: chat.id,
       session_id: sessionId,
       request_id: requestId,
       user_message: userMessage,
-      current_state: chat.conversation_state || 'unknown',
+      current_state: chat.conversation_state || 'greeting',
+      new_state: chat.conversation_state, // Will be updated by context manager
       metadata_snapshot: metadata,
       orchestrator_decision: decision,
-      agent_called: decision.agent,
-      tool_results: toolResults,
+      agents_called: loopResult.agentsCalled, // 🆕 Array de agentes
+      loop_iterations: loopResult.loopCount, // 🆕 Número de iterações
+      exit_reason: loopResult.exitReason, // 🆕 Razão de saída
+      state_transitions: loopResult.stateTransitions, // 🆕 Histórico de transições
+      tool_results: loopResult.allToolResults,
       loaded_history: conversationHistory,
-      loaded_summaries: [],
-      final_response: finalResponse,
+      loaded_summaries: summaries,
+      final_response: loopResult.finalResponse,
       processing_time_ms: processingTime
     });
     
     console.log(`[${requestId}] ⚡ Total: ${processingTime}ms`);
     
-    // [5/5] WHATSAPP
-    await sendWhatsAppMessage(phone, finalResponse, agent, requestId);
+    // [6/6] WHATSAPP
+    await sendWhatsAppMessage(phone, loopResult.finalResponse, agent, requestId);
     
     console.log(`\n${'='.repeat(80)}\n[${requestId}] ✅ COMPLETED - ${Date.now() - startTime}ms\n${'='.repeat(80)}\n`);
     return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
