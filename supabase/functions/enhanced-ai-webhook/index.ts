@@ -209,7 +209,7 @@ serve(async (req) => {
     // Get or create active chat
     const chat = await getOrCreateActiveChat(supabase, phone, requestId);
     
-    // ⏳ DEBOUNCE: Check for rapid messages and accumulate them
+    // ⏳ DEBOUNCE: Check for rapid messages IMMEDIATELY
     const now = new Date().toISOString();
     const metadata = chat.metadata || {};
     const pendingMessages = metadata.pending_messages || [];
@@ -219,10 +219,13 @@ serve(async (req) => {
       ? Date.now() - new Date(lastMessageTime).getTime()
       : 10000; // First message always processes
     
+    console.log(`[${requestId}] ⏱️  Tempo desde última msg: ${timeSinceLastMessage}ms`);
+    
     // If message arrived < 8s after last one AND not forced, accumulate it
     if (timeSinceLastMessage < 8000 && !body._force_process) {
-      console.log(`[${requestId}] ⏳ Mensagem rápida detectada (${timeSinceLastMessage}ms), acumulando...`);
+      console.log(`[${requestId}] ⏳ Mensagem rápida detectada, acumulando...`);
       
+      // CRITICAL: Update timestamp IMMEDIATELY to prevent race condition
       await supabase.from('chats').update({
         metadata: {
           ...metadata,
@@ -234,31 +237,32 @@ serve(async (req) => {
       
       return new Response(JSON.stringify({ 
         status: 'queued', 
-        message: 'Aguardando mais mensagens...' 
+        message: 'Aguardando mais mensagens...',
+        queued_count: pendingMessages.length + 1
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
+    
+    // CRITICAL: Update timestamp NOW for next message comparison
+    await supabase.from('chats').update({
+      metadata: {
+        ...metadata,
+        last_message_timestamp: now
+      }
+    }).eq('id', chat.id);
     
     // 🔄 Process accumulated messages if any
     if (pendingMessages.length > 0) {
       console.log(`[${requestId}] 🔄 Processando ${pendingMessages.length + 1} mensagens acumuladas`);
       userMessage = [...pendingMessages.map((m: any) => m.content), userMessage].join('\n');
       
+      // Clear pending messages
       await supabase.from('chats').update({
         metadata: {
           ...metadata,
           pending_messages: [],
-          last_message_timestamp: now,
           debounce_timer_active: false
-        }
-      }).eq('id', chat.id);
-    } else {
-      // Update timestamp for single message
-      await supabase.from('chats').update({
-        metadata: {
-          ...metadata,
-          last_message_timestamp: now
         }
       }).eq('id', chat.id);
     }
