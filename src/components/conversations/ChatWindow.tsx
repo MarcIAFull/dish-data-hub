@@ -209,8 +209,22 @@ export function ChatWindow({ conversation, onStatusChange, onRefresh }: ChatWind
         return 'bg-gray-500';
       case 'human_handoff':
         return 'bg-yellow-500';
+      case 'archived':
+        return 'bg-muted';
       default:
         return 'bg-blue-500';
+    }
+  };
+  
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'active': return 'Ativo';
+      case 'ativo': return 'Ativo';
+      case 'human_handoff': return 'Com humano';
+      case 'ended': return 'Encerrado';
+      case 'encerrado': return 'Encerrado';
+      case 'archived': return 'Arquivado';
+      default: return status;
     }
   };
 
@@ -248,15 +262,18 @@ export function ChatWindow({ conversation, onStatusChange, onRefresh }: ChatWind
                 </Badge>
               )}
 
+              {/* Badge de Status com cores corretas */}
               <Badge 
                 variant="outline"
                 className={
                   conversation.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
+                  conversation.status === 'archived' ? 'bg-gray-50 text-gray-600 border-gray-200' :
                   conversation.status === 'ended' ? 'bg-gray-50 text-gray-700 border-gray-200' :
-                  'bg-yellow-50 text-yellow-700 border-yellow-200'
+                  conversation.status === 'human_handoff' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                  'bg-blue-50 text-blue-700 border-blue-200'
                 }
               >
-                {conversation.status}
+                {getStatusLabel(conversation.status)}
               </Badge>
             </div>
             

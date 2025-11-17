@@ -42,7 +42,9 @@ export function ConversationActions({
         .from('chats')
         .update({ 
           archived_at: new Date().toISOString(),
-          status: 'ended'
+          status: 'archived', // 🆕 Usar status correto
+          session_status: 'completed',
+          conversation_state: 'completed'
         })
         .eq('id', Number(conversation.id));
 
