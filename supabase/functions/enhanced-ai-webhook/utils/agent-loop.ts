@@ -88,6 +88,17 @@ export async function executeAgentLoop(
     
     allToolResults.push(...toolResults);
     
+    // ✅ LOG DETALHADO: Ferramentas executadas
+    console.log(`[${context.requestId}] 🔧 Ferramentas executadas:`, {
+      count: toolResults.length,
+      tools: toolResults.map(t => t.tool),
+      results: toolResults.map(t => ({ 
+        tool: t.tool, 
+        success: t.result?.success !== false,
+        summary: JSON.stringify(t.result || {}).substring(0, 100)
+      }))
+    });
+    
     // 3. Registrar métricas do agente
     agentMetrics[currentAgent] = {
       execution_time_ms: agentExecutionTime,
@@ -108,7 +119,15 @@ export async function executeAgentLoop(
     const previousState = context.chat.conversation_state || 'greeting';
     stateTransitions.push(`${previousState} → ${contextUpdate.newState} (via ${currentAgent})`);
     
-    console.log(`[${context.requestId}] 📊 State transition: ${previousState} → ${contextUpdate.newState}`);
+    // ✅ LOG DETALHADO: Transição de estado
+    console.log(`[${context.requestId}] 📊 Transição de estado:`, {
+      from: previousState,
+      to: contextUpdate.newState,
+      via: currentAgent,
+      shouldCallNext: contextUpdate.shouldCallNextAgent,
+      suggestedNext: contextUpdate.suggestedNextAgent,
+      stateChanged: previousState !== contextUpdate.newState
+    });
     
     // 4. Atualizar histórico de conversa para próxima iteração
     updatedConversationHistory.push({

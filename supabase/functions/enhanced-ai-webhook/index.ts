@@ -232,14 +232,15 @@ serve(async (req) => {
     const chat = await getOrCreateActiveChat(supabase, phone, requestId);
     
     // ⏱️ DEBOUNCE: Verificar se deve acumular ou processar
-    const DEBOUNCE_MS = 8000;
+// ✅ CORREÇÃO: Reduzir debounce de 8s para 3s
+const DEBOUNCE_MS = 3000;
     const metadata = chat.metadata || {};
     const pendingMessages = metadata.pending_messages || [];
     const lastMessageTime = metadata.last_message_timestamp;
 
     const timeSinceLastMessage = lastMessageTime 
       ? Date.now() - new Date(lastMessageTime).getTime()
-      : 999999; // Primeira mensagem sempre processa
+      : 999999; // ✅ Primeira mensagem sempre processa imediatamente
 
     console.log(`[${requestId}] ⏱️ Tempo desde última msg: ${timeSinceLastMessage}ms`);
     console.log(`[${requestId}] 📊 Mensagens pendentes atuais: ${pendingMessages.length}`);
@@ -251,10 +252,13 @@ serve(async (req) => {
     ];
 
     // DECISÃO: Acumular ou processar?
-    // ⚠️ CORREÇÃO: Removido `&& pendingMessages.length > 0` para primeira mensagem também acumular
     console.log(`[${requestId}] 🔍 Debounce check: timeSince=${timeSinceLastMessage}ms, threshold=${DEBOUNCE_MS}ms, pending=${pendingMessages.length}`);
     
-    if (timeSinceLastMessage < DEBOUNCE_MS) {
+    // ✅ CORREÇÃO: Se não há mensagens pendentes E é primeira mensagem, processar imediatamente
+    if (pendingMessages.length === 0 && timeSinceLastMessage >= DEBOUNCE_MS) {
+      console.log(`[${requestId}] 🚀 Primeira mensagem - processando imediatamente`);
+      // Continuar para processamento (não acumular)
+    } else if (timeSinceLastMessage < DEBOUNCE_MS) {
       // ⏳ ACUMULAR - Ainda dentro da janela de debounce
       console.log(`[${requestId}] ⏳ ACUMULANDO mensagem (${newPendingMessages.length} total) - aguardando ${DEBOUNCE_MS - timeSinceLastMessage}ms`);
       

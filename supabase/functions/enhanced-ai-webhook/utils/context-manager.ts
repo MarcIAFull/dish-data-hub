@@ -54,7 +54,26 @@ export async function updateConversationContext(
   });
   
   // 5. Avaliar transição de estado
-  const newState = evaluateStateTransition(context);
+  let newState = evaluateStateTransition(context);
+  
+  // ✅ FALLBACK: Se estado não mudou e ferramentas foram executadas, inferir manualmente
+  if (newState === currentState && toolsExecuted.length > 0) {
+    console.log(`[${requestId}] ⚠️ State machine não transitou. Aplicando fallback...`);
+    
+    if (toolsExecuted.includes('add_item_to_order')) {
+      newState = ConversationState.BUILDING_ORDER;
+      console.log(`[${requestId}] ✅ Fallback: add_item_to_order → BUILDING_ORDER`);
+    } else if (toolsExecuted.includes('create_order')) {
+      newState = ConversationState.ORDER_PLACED;
+      console.log(`[${requestId}] ✅ Fallback: create_order → ORDER_PLACED`);
+    } else if (toolsExecuted.includes('send_menu_link')) {
+      newState = ConversationState.BROWSING_MENU;
+      console.log(`[${requestId}] ✅ Fallback: send_menu_link → BROWSING_MENU`);
+    } else if (toolsExecuted.includes('validate_delivery_address') && metadata.address_validated) {
+      newState = ConversationState.COLLECTING_PAYMENT;
+      console.log(`[${requestId}] ✅ Fallback: validate_delivery_address → COLLECTING_PAYMENT`);
+    }
+  }
   
   // 6. Determinar se deve chamar próximo agente
   const agentRecommendation = shouldCallNextAgent(newState, context);
