@@ -5,25 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Clock, Trash2, MessageSquare, Workflow, Activity } from "lucide-react";
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { IntentsViewer } from "./IntentsViewer";
-import { AgentFlowViewer } from "./AgentFlowViewer";
-import { ToolCallsViewer } from "./ToolCallsViewer";
-import { MetadataDiff } from "./MetadataDiff";
-import { ContextViewer } from "./ContextViewer";
-import { CommunicationViewer } from "./CommunicationViewer";
-import { TimelineViewer } from "./TimelineViewer";
+import { RefreshCw, Clock, Trash2, MessageSquare, Activity } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -33,711 +15,265 @@ interface AILog {
   session_id: string;
   request_id: string;
   user_messages: any;
-  current_state: string;
-  metadata_snapshot: any;
   detected_intents: any;
-  execution_plan: any;
   agents_called: any;
   tools_executed: any;
-  loaded_history: any;
-  loaded_summaries: any;
   final_response: string;
-  new_state: string;
-  updated_metadata: any;
   processing_time_ms: number;
   created_at: string;
-  api_structure?: any; // ✅ FIX #4: Add api_structure field
 }
 
-interface Chat {
-  id: number;
-  phone: string;
-  session_id: string;
-  created_at: string;
+function getAgentIcon(agent: string) {
+  switch (agent) {
+    case 'SALES': return '🛒';
+    case 'CHECKOUT': return '💳';
+    case 'MENU': return '📋';
+    case 'SUPPORT': return '🆘';
+    default: return '🤖';
+  }
 }
 
-function buildTimelineEvents(log: AILog) {
-  const events: any[] = [];
-  let timestamp = 0;
-
-  // 1. Webhook received
-  events.push({
-    timestamp: 0,
-    type: "webhook",
-    title: "Webhook Recebido",
-    description: `Request ID: ${log.request_id}`,
-    status: "success"
-  });
-  timestamp += 10;
-
-  // 2. User messages
-  if (log.user_messages && log.user_messages.length > 0) {
-    events.push({
-      timestamp,
-      type: "message",
-      title: "Mensagem do Usuário",
-      description: log.user_messages.map((m: any) => m.content || m).join(", ").substring(0, 100),
+function buildSimplifiedTimeline(log: AILog) {
+  const steps = [
+    {
+      step: 1,
+      name: "Webhook",
+      icon: "📥",
+      description: `Mensagem recebida: "${log.user_messages?.[0]?.substring(0, 50)}..."`,
       status: "success"
-    });
-    timestamp += 20;
-  }
-
-  // 3. Context loading
-  if (log.loaded_history || log.loaded_summaries) {
-    const historyCount = log.loaded_history?.length || 0;
-    const summaryCount = log.loaded_summaries?.length || 0;
-    events.push({
-      timestamp,
-      type: "context",
-      title: "Contexto Carregado",
-      description: `${historyCount} msgs histórico, ${summaryCount} resumos`,
+    },
+    {
+      step: 2,
+      name: "Orquestrador",
+      icon: "🎯",
+      description: `Agente escolhido: ${log.agents_called?.[0] || 'N/A'}`,
+      details: log.detected_intents?.[0]?.reasoning,
+      status: log.agents_called?.[0] ? "success" : "warning"
+    },
+    {
+      step: 3,
+      name: "Agente Especializado",
+      icon: getAgentIcon(log.agents_called?.[0]),
+      description: `${log.agents_called?.[0]} processou a mensagem`,
+      details: `${log.tools_executed?.length || 0} ferramenta(s) usada(s)`,
       status: "success"
-    });
-    timestamp += 30;
-  }
-
-  // 4. State detection
-  events.push({
-    timestamp,
-    type: "state",
-    title: "Estado Atual",
-    description: `${log.current_state} → ${log.new_state || log.current_state}`,
-    status: "success"
-  });
-  timestamp += 20;
-
-  // 5. Intent detection
-  if (log.detected_intents && log.detected_intents.length > 0) {
-    events.push({
-      timestamp,
-      type: "intent",
-      title: `${log.detected_intents.length} Intent(s) Detectado(s)`,
-      description: log.detected_intents.map((i: any) => i.type || i).join(", "),
+    },
+    {
+      step: 4,
+      name: "Humanização",
+      icon: "🎨",
+      description: "Resposta humanizada para WhatsApp",
+      details: log.final_response?.substring(0, 100),
+      status: log.final_response ? "success" : "warning"
+    },
+    {
+      step: 5,
+      name: "WhatsApp",
+      icon: "📱",
+      description: "Mensagem enviada",
       status: "success"
-    });
-    timestamp += 50;
-  }
-
-  // 6. Execution plan
-  if (log.execution_plan && log.execution_plan.length > 0) {
-    events.push({
-      timestamp,
-      type: "plan",
-      title: "Plano de Execução",
-      description: `${log.execution_plan.length} passo(s) planejado(s)`,
-      status: "success"
-    });
-    timestamp += 40;
-  }
-
-  // 7. Agent calls
-  if (log.agents_called && log.agents_called.length > 0) {
-    log.agents_called.forEach((agent: any, idx: number) => {
-      events.push({
-        timestamp,
-        type: "agent",
-        title: `${agent.agent || `Agent ${idx + 1}`}`,
-        description: agent.action || "Processing",
-        status: agent.output ? "success" : "pending",
-        duration: agent.duration_ms
-      });
-      timestamp += 100;
-    });
-  }
-
-  // 8. Tool execution
-  if (log.tools_executed && log.tools_executed.length > 0) {
-    log.tools_executed.forEach((tool: any, idx: number) => {
-      events.push({
-        timestamp,
-        type: "tool",
-        title: tool.toolName || tool.name || `Tool ${idx + 1}`,
-        description: tool.success ? "Sucesso" : "Falhou",
-        status: tool.success ? "success" : "error",
-        duration: tool.duration_ms
-      });
-      timestamp += 50;
-    });
-  }
-
-  // 9. Response generation
-  if (log.final_response) {
-    events.push({
-      timestamp,
-      type: "response",
-      title: "Resposta Gerada",
-      description: `${log.final_response.length} caracteres`,
-      status: "success"
-    });
-    timestamp += 30;
-  }
-
-  // 10. Metadata update
-  if (log.updated_metadata) {
-    events.push({
-      timestamp,
-      type: "metadata",
-      title: "Metadata Atualizado",
-      description: `State: ${log.new_state || log.current_state}`,
-      status: "success"
-    });
-    timestamp += 20;
-  }
-
-  // 11. WhatsApp sent
-  events.push({
-    timestamp,
-    type: "whatsapp",
-    title: "Enviado ao WhatsApp",
-    description: "Mensagem enviada ao cliente",
-    status: "success"
-  });
-
-  return events;
+    }
+  ];
+  
+  return steps;
 }
 
 export function AIDebugDashboard() {
-  const [chats, setChats] = useState<Chat[]>([]);
-  const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
   const [logs, setLogs] = useState<AILog[]>([]);
+  const [selectedLog, setSelectedLog] = useState<AILog | null>(null);
   const [loading, setLoading] = useState(false);
-  const [resetting, setResetting] = useState(false);
-  // ✅ FIX #6: Add filters state
-  const [filterIntent, setFilterIntent] = useState<string>("");
-  const [filterAgent, setFilterAgent] = useState<string>("");
-  const [searchTerm, setSearchTerm] = useState<string>("");
 
-  const handleResetSystem = async () => {
-    setResetting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('reset-system');
-      if (error) throw error;
-      toast.success(data.message);
-      await loadChats();
-      setSelectedChatId(null);
-      setLogs([]);
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error('Erro ao resetar');
-    } finally {
-      setResetting(false);
-    }
-  };
-
-  const loadChats = async () => {
+  const loadLogs = async () => {
     setLoading(true);
     try {
-      console.log("[DEBUG] Loading chats...");
-      
-      // Check authentication
-      const { data: { user } } = await supabase.auth.getUser();
-      console.log("[DEBUG] Current user:", user?.email);
-      
       const { data, error } = await supabase
-        .from("chats")
-        .select("id, phone, session_id, created_at")
-        .order("created_at", { ascending: false })
-        .limit(20);
-      
-      console.log("[DEBUG] Chats loaded:", data?.length, "Error:", error);
-      
-      if (error) throw error;
-      setChats(data || []);
-    } catch (error) {
-      console.error("Error loading chats:", error);
-      toast.error("Erro ao carregar conversas");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadLogs = async (chatId: number) => {
-    setLoading(true);
-    try {
-      console.log("[DEBUG] Loading logs for chat:", chatId);
-      
-      // Check authentication
-      const { data: { user } } = await supabase.auth.getUser();
-      console.log("[DEBUG] Current user:", user?.email);
-      
-      const { data, error } = await supabase
-        .from("ai_processing_logs")
-        .select("*")
-        .eq("chat_id", chatId)
-        .order("created_at", { ascending: false })
+        .from('ai_processing_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
         .limit(50);
-      
-      console.log("[DEBUG] Logs loaded:", data?.length, "Error:", error);
-      
-      if (error) {
-        console.error("[DEBUG] RLS Error:", error);
-        throw error;
-      }
-      
+
+      if (error) throw error;
       setLogs(data || []);
+      toast.success('Logs atualizados');
     } catch (error) {
-      console.error("Error loading logs:", error);
-      toast.error("Erro ao carregar logs");
+      console.error('Error loading logs:', error);
+      toast.error('Erro ao carregar logs');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const clearLogs = async () => {
+    try {
+      const { error } = await supabase
+        .from('ai_processing_logs')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+
+      if (error) throw error;
+      setLogs([]);
+      setSelectedLog(null);
+      toast.success('Logs limpos');
+    } catch (error) {
+      console.error('Error clearing logs:', error);
+      toast.error('Erro ao limpar logs');
     }
   };
 
   useEffect(() => {
-    console.log("[DEBUG] AIDebugDashboard mounted");
-    loadChats();
+    loadLogs();
   }, []);
 
-  useEffect(() => {
-    console.log("[DEBUG] selectedChatId changed:", selectedChatId);
-    if (selectedChatId) {
-      loadLogs(selectedChatId);
-    }
-  }, [selectedChatId]);
-
-  const handleRefresh = () => {
-    if (selectedChatId) {
-      loadLogs(selectedChatId);
-    } else {
-      loadChats();
-    }
-  };
-
-  // ✅ FIX #6: Filter logs
-  const filteredLogs = logs.filter(log => {
-    if (filterIntent && !log.detected_intents?.some((i: any) => i.type === filterIntent)) {
-      return false;
-    }
-    if (filterAgent && !log.agents_called?.some((a: any) => a.agent === filterAgent)) {
-      return false;
-    }
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      return (
-        log.request_id.toLowerCase().includes(search) ||
-        log.final_response?.toLowerCase().includes(search) ||
-        log.user_messages?.some((m: any) => m.content?.toLowerCase().includes(search))
-      );
-    }
-    return true;
-  });
-
-  // ✅ FIX #7: Calculate metrics
-  const metrics = {
-    avgResponseTime: logs.length > 0 
-      ? Math.round(logs.reduce((sum, l) => sum + (l.processing_time_ms || 0), 0) / logs.length)
-      : 0,
-    successRate: logs.length > 0
-      ? Math.round((logs.filter(l => l.final_response).length / logs.length) * 100)
-      : 0,
-    mostCommonIntent: logs.length > 0
-      ? Object.entries(
-          logs.reduce((acc, l) => {
-            l.detected_intents?.forEach((i: any) => {
-              acc[i.type] = (acc[i.type] || 0) + 1;
-            });
-            return acc;
-          }, {} as Record<string, number>)
-        ).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A'
-      : 'N/A',
-    mostUsedAgent: logs.length > 0
-      ? Object.entries(
-          logs.reduce((acc, l) => {
-            l.agents_called?.forEach((a: any) => {
-              acc[a.agent] = (acc[a.agent] || 0) + 1;
-            });
-            return acc;
-          }, {} as Record<string, number>)
-        ).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A'
-      : 'N/A'
-  };
-
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">AI Debug Dashboard</h1>
-            <p className="text-muted-foreground">
-              Sistema completo de debug
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={handleRefresh} disabled={loading} variant="outline" size="sm">
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-              Atualizar
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm" disabled={resetting}>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Resetar
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Isso irá apagar todos os dados.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleResetSystem}>
-                    Resetar
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">AI Debug Dashboard</h1>
+          <p className="text-muted-foreground">Arquitetura Simplificada v5.0 - 5 Etapas</p>
         </div>
+        <div className="flex gap-2">
+          <Button onClick={loadLogs} disabled={loading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
+          <Button onClick={clearLogs} variant="destructive">
+            <Trash2 className="mr-2 h-4 w-4" />
+            Limpar
+          </Button>
+        </div>
+      </div>
 
-        {/* ✅ FIX #7: Metrics Cards */}
-        {selectedChatId && logs.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs text-muted-foreground">Tempo Médio</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">{metrics.avgResponseTime}ms</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs text-muted-foreground">Taxa de Sucesso</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">{metrics.successRate}%</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs text-muted-foreground">Intent Mais Comum</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-lg font-bold">{metrics.mostCommonIntent}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs text-muted-foreground">Agente Mais Usado</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-lg font-bold">{metrics.mostUsedAgent}</p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="text-sm">Conversas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[calc(100vh-200px)]">
-                <div className="space-y-2">
-                  {chats.map((chat) => (
-                    <Card
-                      key={chat.id}
-                      className={`cursor-pointer transition-colors ${
-                        selectedChatId === chat.id
-                          ? "border-primary bg-primary/5"
-                          : "hover:bg-muted/50"
-                      }`}
-                      onClick={() => setSelectedChatId(chat.id)}
-                    >
-                      <CardContent className="p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{chat.phone}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {format(new Date(chat.created_at), "dd/MM HH:mm")}
-                            </p>
-                          </div>
-                          <Badge variant="outline">#{chat.id}</Badge>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-
-          <div className="lg:col-span-3">
-            {!selectedChatId ? (
-              <Card>
-                <CardContent className="py-24 text-center">
-                  <p className="text-muted-foreground">
-                    Selecione uma conversa
-                  </p>
-                </CardContent>
-              </Card>
-            ) : filteredLogs.length === 0 ? (
-              <Card>
-                <CardContent className="py-24 text-center space-y-4">
-                  <p className="text-muted-foreground">
-                    {logs.length === 0 
-                      ? "Nenhum log encontrado para esta conversa" 
-                      : "Nenhum log corresponde aos filtros selecionados"}
-                  </p>
-                  {logs.length === 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      Total de logs no banco: {logs.length}
-                      <br />
-                      Chat ID selecionado: {selectedChatId}
-                    </p>
-                  )}
-                  <Button onClick={handleRefresh} variant="outline" size="sm">
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Recarregar
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-6">
-                {/* ✅ FIX #6: Filters UI */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm">Filtros</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div>
-                        <label className="text-xs text-muted-foreground mb-1 block">Intent</label>
-                        <select
-                          className="w-full text-sm border rounded-md px-2 py-1 bg-background"
-                          value={filterIntent}
-                          onChange={(e) => setFilterIntent(e.target.value)}
-                        >
-                          <option value="">Todos</option>
-                          <option value="GREETING">GREETING</option>
-                          <option value="MENU">MENU</option>
-                          <option value="ORDER">ORDER</option>
-                          <option value="CHECKOUT">CHECKOUT</option>
-                          <option value="SUPPORT">SUPPORT</option>
-                          <option value="LOGISTICS">LOGISTICS</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground mb-1 block">Agente</label>
-                        <select
-                          className="w-full text-sm border rounded-md px-2 py-1 bg-background"
-                          value={filterAgent}
-                          onChange={(e) => setFilterAgent(e.target.value)}
-                        >
-                          <option value="">Todos</option>
-                          <option value="SALES">SALES</option>
-                          <option value="MENU">MENU</option>
-                          <option value="CHECKOUT">CHECKOUT</option>
-                          <option value="SUPPORT">SUPPORT</option>
-                          <option value="LOGISTICS_HANDLER">LOGISTICS_HANDLER</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground mb-1 block">Buscar</label>
-                        <input
-                          type="text"
-                          className="w-full text-sm border rounded-md px-2 py-1 bg-background"
-                          placeholder="Request ID ou conteúdo..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Logs Recentes ({logs.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[600px]">
+              <div className="space-y-2">
+                {logs.map((log) => (
+                  <div
+                    key={log.id}
+                    onClick={() => setSelectedLog(log)}
+                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                      selectedLog?.id === log.id
+                        ? 'bg-primary/10 border-primary'
+                        : 'hover:bg-muted/50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <Badge variant="outline">
+                        {log.agents_called?.[0] || 'N/A'}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {log.processing_time_ms}ms
+                      </span>
                     </div>
-                  </CardContent>
-                </Card>
+                    <p className="text-sm line-clamp-2 mb-2">
+                      {log.user_messages?.[0] || 'Sem mensagem'}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      {format(new Date(log.created_at), 'HH:mm:ss')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
 
-                {filteredLogs.map((log) => (
-                  <Card key={log.id} className="border-2">
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <Activity className="h-4 w-4" />
-                            Request: {log.request_id.substring(0, 8)}
-                          </CardTitle>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            {format(new Date(log.created_at), "dd/MM/yyyy HH:mm:ss")}
-                            <Badge variant="outline" className="ml-2">
-                              {log.processing_time_ms}ms
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>
+              {selectedLog ? `Request: ${selectedLog.request_id}` : 'Selecione um log'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {selectedLog ? (
+              <Tabs defaultValue="timeline">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                  <TabsTrigger value="tools">Ferramentas</TabsTrigger>
+                  <TabsTrigger value="raw">Raw Data</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="timeline" className="space-y-4">
+                  {buildSimplifiedTimeline(selectedLog).map((step) => (
+                    <div key={step.step} className="border rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="text-3xl">{step.icon}</div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-semibold">
+                              [{step.step}/5] {step.name}
+                            </h3>
+                            <Badge variant={step.status === 'success' ? 'default' : 'secondary'}>
+                              {step.status}
                             </Badge>
                           </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
-                          {log.current_state && <Badge variant="outline">{log.current_state}</Badge>}
-                          {log.new_state && log.new_state !== log.current_state && (
-                            <div className="flex items-center gap-1">
-                              <span className="text-xs">→</span>
-                              <Badge>{log.new_state}</Badge>
-                            </div>
+                          <p className="text-sm text-muted-foreground mb-1">
+                            {step.description}
+                          </p>
+                          {step.details && (
+                            <p className="text-xs text-muted-foreground italic">
+                              {step.details}
+                            </p>
                           )}
                         </div>
                       </div>
-                    </CardHeader>
+                    </div>
+                  ))}
+                </TabsContent>
 
-                    <CardContent>
-                      <Tabs defaultValue="communication" className="w-full">
-                        <TabsList className="grid w-full grid-cols-7">
-                          <TabsTrigger value="communication" className="text-xs">
-                            <MessageSquare className="h-3 w-3 mr-1" />
-                            Comunicação
-                          </TabsTrigger>
-                          <TabsTrigger value="timeline" className="text-xs">
-                            <Clock className="h-3 w-3 mr-1" />
-                            Timeline
-                          </TabsTrigger>
-                          <TabsTrigger value="intents" className="text-xs">
-                            Intents
-                          </TabsTrigger>
-                          <TabsTrigger value="agents" className="text-xs">
-                            <Workflow className="h-3 w-3 mr-1" />
-                            Agentes
-                          </TabsTrigger>
-                          <TabsTrigger value="context" className="text-xs">
-                            Contexto
-                          </TabsTrigger>
-                          <TabsTrigger value="metadata" className="text-xs">
-                            Metadata
-                          </TabsTrigger>
-                          <TabsTrigger value="api" className="text-xs" disabled={!log.api_structure}>
-                            API
-                          </TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="communication" className="mt-4">
-                          <CommunicationViewer agents={log.agents_called || []} />
-                        </TabsContent>
-
-                        <TabsContent value="timeline" className="mt-4">
-                          <TimelineViewer 
-                            events={buildTimelineEvents(log)} 
-                            totalTime={log.processing_time_ms}
-                          />
-                        </TabsContent>
-
-                        <TabsContent value="intents" className="mt-4">
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-sm">Intenções</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <IntentsViewer intents={log.detected_intents || []} />
-                            </CardContent>
-                          </Card>
-                        </TabsContent>
-
-                        <TabsContent value="agents" className="mt-4">
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-sm">Fluxo de Agentes</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <AgentFlowViewer agents={log.agents_called || []} />
-                            </CardContent>
-                          </Card>
-                        </TabsContent>
-
-                        <TabsContent value="context" className="mt-4">
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-sm">Contexto</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <ContextViewer
-                                history={log.loaded_history}
-                                summaries={log.loaded_summaries}
-                              />
-                            </CardContent>
-                          </Card>
-                        </TabsContent>
-
-                        <TabsContent value="metadata" className="mt-4">
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-sm">Metadata</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <MetadataDiff
-                                before={log.metadata_snapshot}
-                                after={log.updated_metadata}
-                              />
-                            </CardContent>
-                          </Card>
-                        </TabsContent>
-
-                        {/* ✅ FIX #4: API Structure Tab - Reading from metadata_snapshot */}
-                        <TabsContent value="api" className="mt-4">
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-sm">API Structure</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              {log.metadata_snapshot?.api_structure ? (
-                                <div className="space-y-3">
-                                  <div>
-                                    <p className="text-xs font-semibold mb-1">Resumo:</p>
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                      <Badge variant="outline">
-                                        {log.metadata_snapshot.api_structure.categories_count} categorias
-                                      </Badge>
-                                      <Badge variant="outline">
-                                        {log.metadata_snapshot.api_structure.products_final} produtos
-                                      </Badge>
-                                      <Badge variant="outline">
-                                        De categorias: {log.metadata_snapshot.api_structure.products_from_categories}
-                                      </Badge>
-                                      <Badge variant="outline">
-                                        Flat: {log.metadata_snapshot.api_structure.products_flat}
-                                      </Badge>
-                                    </div>
-                                  </div>
-                                  
-                                  {log.metadata_snapshot.api_structure.categories_sample && log.metadata_snapshot.api_structure.categories_sample.length > 0 && (
-                                    <div>
-                                      <p className="text-xs font-semibold mb-1">Sample Categories:</p>
-                                      <pre className="text-xs bg-muted p-2 rounded">
-                                        {JSON.stringify(log.metadata_snapshot.api_structure.categories_sample, null, 2)}
-                                      </pre>
-                                    </div>
-                                  )}
-                                  
-                                  {log.metadata_snapshot.api_structure.products_sample && log.metadata_snapshot.api_structure.products_sample.length > 0 && (
-                                    <div>
-                                      <p className="text-xs font-semibold mb-1">Sample Products:</p>
-                                      <pre className="text-xs bg-muted p-2 rounded">
-                                        {JSON.stringify(log.metadata_snapshot.api_structure.products_sample, null, 2)}
-                                      </pre>
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <p className="text-sm text-muted-foreground">API structure não disponível neste log</p>
-                              )}
-                            </CardContent>
-                          </Card>
-                        </TabsContent>
-                      </Tabs>
-
-                      {log.final_response && (
-                        <div className="mt-4 p-4 bg-muted/50 rounded-lg border-2 border-primary/20">
-                          <p className="text-xs font-semibold mb-2 flex items-center gap-2">
-                            <MessageSquare className="h-3 w-3" />
-                            Resposta Final:
-                          </p>
-                          <p className="text-sm whitespace-pre-wrap">{log.final_response}</p>
+                <TabsContent value="tools" className="space-y-3">
+                  <h3 className="font-semibold mb-2">
+                    Ferramentas Executadas ({selectedLog.tools_executed?.length || 0})
+                  </h3>
+                  {selectedLog.tools_executed?.length > 0 ? (
+                    selectedLog.tools_executed.map((tool: any, idx: number) => (
+                      <div key={idx} className="border rounded-lg p-3">
+                        <div className="font-medium mb-2">🔧 {tool.tool}</div>
+                        <div className="text-sm space-y-1">
+                          <div>
+                            <span className="text-muted-foreground">Args: </span>
+                            <code className="text-xs bg-muted p-1 rounded">
+                              {JSON.stringify(tool.arguments)}
+                            </code>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Result: </span>
+                            <code className="text-xs bg-muted p-1 rounded">
+                              {tool.result?.message || JSON.stringify(tool.result)}
+                            </code>
+                          </div>
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Nenhuma ferramenta usada</p>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="raw">
+                  <ScrollArea className="h-[500px]">
+                    <pre className="text-xs bg-muted p-4 rounded-lg overflow-x-auto">
+                      {JSON.stringify(selectedLog, null, 2)}
+                    </pre>
+                  </ScrollArea>
+                </TabsContent>
+              </Tabs>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-[400px] text-muted-foreground">
+                <MessageSquare className="h-16 w-16 mb-4" />
+                <p>Selecione um log para ver os detalhes</p>
               </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
