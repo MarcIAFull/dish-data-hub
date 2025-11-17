@@ -16,7 +16,7 @@ import { processSupportAgent } from './agents/support-agent.ts';
 import { processConversationAgent } from './agents/conversation-agent.ts';
 
 // Tools
-import { executeCheckProductAvailability } from './tools/product-tools.ts';
+import { executeCheckProductAvailability, executeListProductsByCategory } from './tools/product-tools.ts';
 import { executeAddItemToOrder, executeGetCartSummary } from './tools/order-tools.ts';
 import { executeValidateAddress } from './tools/address-tools.ts';
 import { executeListPaymentMethods } from './tools/payment-tools.ts';
@@ -154,6 +154,7 @@ async function executeTools(toolCalls: any[], supabase: any, chatId: number, age
     let result: any;
     switch (toolName) {
       case 'check_product_availability': result = await executeCheckProductAvailability(supabase, restaurantId, args); break;
+      case 'list_products_by_category': result = await executeListProductsByCategory(supabase, restaurantId, args); break;
       case 'add_item_to_order': result = await executeAddItemToOrder(supabase, chatId, args); break;
       case 'get_cart_summary': result = await executeGetCartSummary(supabase, chatId); break;
       case 'validate_delivery_address': result = await executeValidateAddress(supabase, agent, args); break;
