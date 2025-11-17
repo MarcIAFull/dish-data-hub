@@ -285,18 +285,15 @@ serve(async (req) => {
     const chat = await getOrCreateActiveChat(supabase, phone, requestId);
     
     // ⏱️ DEBOUNCE: Verificar se deve acumular ou processar
-// ✅ CORREÇÃO: Reduzir debounce de 8s para 3s
-const DEBOUNCE_MS = 3000;
+    const DEBOUNCE_MS = 3000;
     const metadata = chat.metadata || {};
     const pendingMessages = metadata.pending_messages || [];
     const lastMessageTime = metadata.last_message_timestamp;
+    const isProcessing = metadata.debounce_timer_active || false;
 
     const timeSinceLastMessage = lastMessageTime 
       ? Date.now() - new Date(lastMessageTime).getTime()
-      : 999999; // ✅ Primeira mensagem sempre processa imediatamente
-
-    console.log(`[${requestId}] ⏱️ Tempo desde última msg: ${timeSinceLastMessage}ms`);
-    console.log(`[${requestId}] 📊 Mensagens pendentes atuais: ${pendingMessages.length}`);
+      : 999999;
 
     // Adicionar mensagem atual à fila
     const newPendingMessages = [
@@ -305,15 +302,14 @@ const DEBOUNCE_MS = 3000;
     ];
 
     // DECISÃO: Acumular ou processar?
-    console.log(`[${requestId}] 🔍 Debounce check: timeSince=${timeSinceLastMessage}ms, threshold=${DEBOUNCE_MS}ms, pending=${pendingMessages.length}`);
+    console.log(`[${requestId}] 🔍 Debounce check: timeSince=${timeSinceLastMessage}ms, threshold=${DEBOUNCE_MS}ms, pending=${pendingMessages.length}, isProcessing=${isProcessing}`);
     
-    // ✅ CORREÇÃO: Se não há mensagens pendentes E é primeira mensagem, processar imediatamente
-    if (pendingMessages.length === 0 && timeSinceLastMessage >= DEBOUNCE_MS) {
-      console.log(`[${requestId}] 🚀 Primeira mensagem - processando imediatamente`);
-      // Continuar para processamento (não acumular)
-    } else if (timeSinceLastMessage < DEBOUNCE_MS) {
-      // ⏳ ACUMULAR - Ainda dentro da janela de debounce
-      console.log(`[${requestId}] ⏳ ACUMULANDO mensagem (${newPendingMessages.length} total) - aguardando ${DEBOUNCE_MS - timeSinceLastMessage}ms`);
+    // ✅ CORREÇÃO CRÍTICA: Acumular se:
+    // 1. Ainda dentro da janela de debounce (< 3s desde última mensagem)
+    // 2. OU já existe processamento em andamento
+    if (timeSinceLastMessage < DEBOUNCE_MS || isProcessing) {
+      const reason = isProcessing ? 'processamento em andamento' : `dentro da janela (${timeSinceLastMessage}ms < ${DEBOUNCE_MS}ms)`;
+      console.log(`[${requestId}] ⏳ ACUMULANDO mensagem (${newPendingMessages.length} total) - ${reason}`);
       
       await supabase.from('chats').update({
         metadata: {
@@ -329,7 +325,7 @@ const DEBOUNCE_MS = 3000;
       return new Response(JSON.stringify({ 
         status: 'queued', 
         count: newPendingMessages.length,
-        will_process_in_ms: DEBOUNCE_MS - timeSinceLastMessage
+        reason: reason
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
