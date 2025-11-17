@@ -34,37 +34,60 @@ function getAgentIcon(agent: string) {
 }
 
 function buildSimplifiedTimeline(log: AILog) {
-  // Extract message text safely
+  console.log('[DEBUG] Building timeline for log:', log);
+  
+  // Safely extract all values and convert to strings
   const userMessage = typeof log.user_messages?.[0] === 'string' 
     ? log.user_messages[0] 
-    : log.user_messages?.[0]?.content || 'N/A';
+    : (typeof log.user_messages?.[0] === 'object' 
+        ? (log.user_messages[0]?.content || JSON.stringify(log.user_messages[0]))
+        : 'N/A');
+  
+  const agentCalled = typeof log.agents_called?.[0] === 'string'
+    ? log.agents_called[0]
+    : (typeof log.agents_called?.[0] === 'object'
+        ? JSON.stringify(log.agents_called[0])
+        : 'N/A');
+  
+  // Safe details extraction
+  let orchestratorDetails = '';
+  if (log.detected_intents?.[0]) {
+    const intent = log.detected_intents[0];
+    if (typeof intent === 'string') {
+      orchestratorDetails = intent;
+    } else if (typeof intent === 'object') {
+      orchestratorDetails = intent.reasoning || intent.agent || JSON.stringify(intent);
+    }
+  }
+  
+  const toolsCount = Array.isArray(log.tools_executed) ? log.tools_executed.length : 0;
+  
+  const finalResponse = typeof log.final_response === 'string' 
+    ? log.final_response 
+    : (log.final_response ? JSON.stringify(log.final_response) : '');
   
   const steps = [
     {
       step: 1,
       name: "Webhook",
       icon: "📥",
-      description: `Mensagem recebida: "${userMessage.substring(0, 50)}..."`,
+      description: `Mensagem recebida: "${String(userMessage).substring(0, 50)}..."`,
       status: "success"
     },
     {
       step: 2,
       name: "Orquestrador",
       icon: "🎯",
-      description: `Agente escolhido: ${log.agents_called?.[0] || 'N/A'}`,
-      details: typeof log.detected_intents?.[0]?.reasoning === 'string' 
-        ? log.detected_intents[0].reasoning 
-        : (log.detected_intents?.[0]?.agent 
-            ? `Agente: ${log.detected_intents[0].agent}` 
-            : JSON.stringify(log.detected_intents?.[0] || '')),
-      status: log.agents_called?.[0] ? "success" : "warning"
+      description: `Agente escolhido: ${agentCalled}`,
+      details: orchestratorDetails || undefined,
+      status: agentCalled !== 'N/A' ? "success" : "warning"
     },
     {
       step: 3,
       name: "Agente Especializado",
-      icon: getAgentIcon(log.agents_called?.[0]),
-      description: `${log.agents_called?.[0]} processou a mensagem`,
-      details: `${log.tools_executed?.length || 0} ferramenta(s) usada(s)`,
+      icon: getAgentIcon(agentCalled),
+      description: `${agentCalled} processou a mensagem`,
+      details: `${toolsCount} ferramenta(s) usada(s)`,
       status: "success"
     },
     {
@@ -72,8 +95,8 @@ function buildSimplifiedTimeline(log: AILog) {
       name: "Humanização",
       icon: "🎨",
       description: "Resposta humanizada para WhatsApp",
-      details: log.final_response?.substring(0, 100),
-      status: log.final_response ? "success" : "warning"
+      details: finalResponse ? String(finalResponse).substring(0, 100) : undefined,
+      status: finalResponse ? "success" : "warning"
     },
     {
       step: 5,
@@ -84,6 +107,7 @@ function buildSimplifiedTimeline(log: AILog) {
     }
   ];
   
+  console.log('[DEBUG] Built steps:', steps);
   return steps;
 }
 
@@ -175,7 +199,11 @@ export function AIDebugDashboard() {
                   >
                     <div className="flex items-start justify-between mb-2">
                       <Badge variant="outline">
-                        {log.agents_called?.[0] || 'N/A'}
+                        {typeof log.agents_called?.[0] === 'string' 
+                          ? log.agents_called[0] 
+                          : (typeof log.agents_called?.[0] === 'object' 
+                              ? JSON.stringify(log.agents_called[0]) 
+                              : 'N/A')}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         {log.processing_time_ms}ms
@@ -184,7 +212,9 @@ export function AIDebugDashboard() {
                     <p className="text-sm line-clamp-2 mb-2">
                       {typeof log.user_messages?.[0] === 'string' 
                         ? log.user_messages[0] 
-                        : log.user_messages?.[0]?.content || 'Sem mensagem'}
+                        : (typeof log.user_messages?.[0] === 'object'
+                            ? (log.user_messages[0]?.content || JSON.stringify(log.user_messages[0]))
+                            : 'Sem mensagem')}
                     </p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Clock className="h-3 w-3" />
@@ -229,11 +259,9 @@ export function AIDebugDashboard() {
                           <p className="text-sm text-muted-foreground mb-1">
                             {step.description}
                           </p>
-                          {step.details && (
+                          {step.details && typeof step.details === 'string' && (
                             <p className="text-xs text-muted-foreground italic">
-                              {typeof step.details === 'string' 
-                                ? step.details 
-                                : JSON.stringify(step.details)}
+                              {step.details}
                             </p>
                           )}
                         </div>
@@ -249,18 +277,22 @@ export function AIDebugDashboard() {
                   {selectedLog.tools_executed?.length > 0 ? (
                     selectedLog.tools_executed.map((tool: any, idx: number) => (
                       <div key={idx} className="border rounded-lg p-3">
-                        <div className="font-medium mb-2">🔧 {tool.tool}</div>
+                        <div className="font-medium mb-2">
+                          🔧 {typeof tool.tool === 'string' ? tool.tool : JSON.stringify(tool.tool || 'unknown')}
+                        </div>
                         <div className="text-sm space-y-1">
                           <div>
                             <span className="text-muted-foreground">Args: </span>
                             <code className="text-xs bg-muted p-1 rounded">
-                              {JSON.stringify(tool.arguments)}
+                              {typeof tool.arguments === 'string' ? tool.arguments : JSON.stringify(tool.arguments || {})}
                             </code>
                           </div>
                           <div>
                             <span className="text-muted-foreground">Result: </span>
                             <code className="text-xs bg-muted p-1 rounded">
-                              {tool.result?.message || JSON.stringify(tool.result)}
+                              {typeof tool.result === 'string' 
+                                ? tool.result 
+                                : (tool.result?.message || JSON.stringify(tool.result || {}))}
                             </code>
                           </div>
                         </div>
