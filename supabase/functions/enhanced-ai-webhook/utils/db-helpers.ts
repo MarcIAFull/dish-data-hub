@@ -33,9 +33,13 @@ export async function saveProcessingLog(
     session_id: string;
     request_id: string;
     user_message: string;
+    current_state: string;
+    metadata_snapshot: any;
     orchestrator_decision: any;
     agent_called: string;
-    tools_used: any[];
+    tool_results: any[];
+    loaded_history: any[];
+    loaded_summaries: any[];
     final_response: string;
     processing_time_ms: number;
   }
@@ -47,10 +51,13 @@ export async function saveProcessingLog(
       session_id: logData.session_id,
       request_id: logData.request_id,
       user_messages: [{ content: logData.user_message }],
-      current_state: 'PROCESSING',
+      current_state: logData.current_state,
+      metadata_snapshot: logData.metadata_snapshot,
       detected_intents: [logData.orchestrator_decision],
       agents_called: [logData.agent_called],
-      tools_executed: logData.tools_used,
+      tools_executed: logData.tool_results,
+      loaded_history: logData.loaded_history,
+      loaded_summaries: logData.loaded_summaries,
       final_response: logData.final_response,
       processing_time_ms: logData.processing_time_ms,
       created_at: new Date().toISOString()
