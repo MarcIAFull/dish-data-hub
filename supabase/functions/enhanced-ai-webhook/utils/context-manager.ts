@@ -79,11 +79,13 @@ export async function updateConversationContext(
     }
   };
   
-  // 8. Atualizar banco de dados
-  const { error } = await supabase
-    .from('chats')
-    .update(contextUpdates)
-    .eq('id', chatId);
+  // 8. Atualizar banco de dados com função SQL atômica
+  const { error } = await supabase.rpc('atomic_update_conversation_state', {
+    p_chat_id: chatId,
+    p_new_state: newState,
+    p_metadata_updates: contextUpdates.metadata,
+    p_agent_name: agentCalled
+  });
   
   if (error) {
     console.error(`[${requestId}] ❌ Erro ao atualizar contexto:`, error);

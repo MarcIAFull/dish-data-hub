@@ -17,6 +17,13 @@ export interface AgentLoopResult {
   exitReason: 'max_iterations' | 'no_more_agents' | 'terminal_state';
   allToolResults: any[];
   conversationHistory: any[];
+  agentMetrics: {
+    [agent: string]: {
+      execution_time_ms: number;
+      tools_called: number;
+      success: boolean;
+    };
+  };
 }
 
 /**
@@ -40,6 +47,7 @@ export async function executeAgentLoop(
   
   const agentsCalled: string[] = [];
   const stateTransitions: string[] = [];
+  const agentMetrics: Record<string, { execution_time_ms: number; tools_called: number; success: boolean }> = {};
   let currentAgent = initialAgent;
   let loopCount = 0;
   let lastAgentResult: any = null;
@@ -53,18 +61,20 @@ export async function executeAgentLoop(
     loopCount++;
     console.log(`[${context.requestId}] 🔁 Loop ${loopCount}/${maxIterations} - Agent: ${currentAgent}`);
     
-    // 1. Executar agente atual
+    // 1. Executar agente atual (com métricas)
+    const agentStartTime = Date.now();
     const agentResult = await callSpecializedAgent(
       currentAgent,
       userMessage,
       updatedConversationHistory,
       context
     );
+    const agentExecutionTime = Date.now() - agentStartTime;
     
     agentsCalled.push(currentAgent);
     lastAgentResult = agentResult;
     
-    console.log(`[${context.requestId}] ✅ ${currentAgent} processou. Tools: ${agentResult.toolCalls?.length || 0}`);
+    console.log(`[${context.requestId}] ✅ ${currentAgent} processou em ${agentExecutionTime}ms. Tools: ${agentResult.toolCalls?.length || 0}`);
     
     // 2. Executar ferramentas
     const toolResults = await context.executeTools(
@@ -77,6 +87,13 @@ export async function executeAgentLoop(
     );
     
     allToolResults.push(...toolResults);
+    
+    // 3. Registrar métricas do agente
+    agentMetrics[currentAgent] = {
+      execution_time_ms: agentExecutionTime,
+      tools_called: toolResults.length,
+      success: toolResults.every(r => r.success !== false)
+    };
     
     // 3. Atualizar contexto e avaliar próximo estado
     const contextUpdate = await updateConversationContext(
@@ -162,7 +179,8 @@ export async function executeAgentLoop(
     loopCount,
     exitReason,
     allToolResults,
-    conversationHistory: updatedConversationHistory
+    conversationHistory: updatedConversationHistory,
+    agentMetrics
   };
 }
 

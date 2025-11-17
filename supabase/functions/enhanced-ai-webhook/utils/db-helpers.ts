@@ -37,17 +37,39 @@ export async function saveProcessingLog(
     new_state?: string;
     metadata_snapshot: any;
     orchestrator_decision: any;
-    agents_called: string[]; // 🆕 Array de agentes
-    loop_iterations?: number; // 🆕 Número de iterações
-    exit_reason?: string; // 🆕 Razão de saída do loop
-    state_transitions?: string[]; // 🆕 Histórico de transições
+    agents_called: string[];
+    loop_iterations?: number;
+    exit_reason?: string;
+    state_transitions?: string[];
     tool_results: any[];
     loaded_history: any[];
     loaded_summaries: any[];
     final_response: string;
     processing_time_ms: number;
+    agent_metrics?: {
+      [agent: string]: {
+        execution_time_ms: number;
+        tools_called: number;
+        success: boolean;
+      };
+    };
   }
 ): Promise<void> {
+  // Calcular métricas de ferramentas
+  const toolMetrics = logData.tool_results.reduce((acc, result) => {
+    const toolName = result.tool || 'unknown';
+    if (!acc[toolName]) {
+      acc[toolName] = { success: 0, failed: 0, total: 0 };
+    }
+    acc[toolName].total++;
+    if (result.success) {
+      acc[toolName].success++;
+    } else {
+      acc[toolName].failed++;
+    }
+    return acc;
+  }, {} as Record<string, { success: number; failed: number; total: number }>);
+
   const { error } = await supabase
     .from('ai_processing_logs')
     .insert({
@@ -61,10 +83,15 @@ export async function saveProcessingLog(
         ...logData.metadata_snapshot,
         loop_iterations: logData.loop_iterations,
         exit_reason: logData.exit_reason,
-        state_transitions: logData.state_transitions
+        state_transitions: logData.state_transitions,
+        agent_metrics: logData.agent_metrics,
+        tool_metrics: toolMetrics,
+        avg_agent_time_ms: logData.agent_metrics 
+          ? Object.values(logData.agent_metrics).reduce((sum, m) => sum + m.execution_time_ms, 0) / Object.keys(logData.agent_metrics).length
+          : 0
       },
       detected_intents: [logData.orchestrator_decision],
-      agents_called: logData.agents_called, // Agora é array
+      agents_called: logData.agents_called,
       tools_executed: logData.tool_results,
       loaded_history: logData.loaded_history,
       loaded_summaries: logData.loaded_summaries,

@@ -1407,6 +1407,26 @@ export type Database = {
       }
     }
     Functions: {
+      atomic_add_item_to_cart: {
+        Args: {
+          p_chat_id: number
+          p_notes?: string
+          p_product_id: string
+          p_product_name: string
+          p_quantity: number
+          p_unit_price: number
+        }
+        Returns: Json
+      }
+      atomic_update_conversation_state: {
+        Args: {
+          p_agent_name?: string
+          p_chat_id: number
+          p_metadata_updates?: Json
+          p_new_state: string
+        }
+        Returns: Json
+      }
       generate_session_id: { Args: never; Returns: string }
       has_role: {
         Args: {
