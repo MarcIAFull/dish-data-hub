@@ -163,21 +163,124 @@ export async function updateConversationContext(
   };
 }
 
+// ============================================
+// 🆕 FASE 2: Rastreamento de Produtos Mencionados
+// ============================================
+
+/**
+ * Adiciona produto mencionado ao metadata para rastreamento
+ */
+export async function trackPendingProduct(
+  supabase: any,
+  chatId: number,
+  productName: string,
+  productId: string,
+  price: number,
+  requestId: string
+): Promise<void> {
+  console.log(`[${requestId}] 📌 Rastreando produto mencionado: ${productName}`);
+  
+  const { data: currentChat, error: fetchError } = await supabase
+    .from('chats')
+    .select('metadata')
+    .eq('id', chatId)
+    .single();
+  
+  if (fetchError) {
+    console.error(`[${requestId}] ❌ Erro ao buscar chat para rastrear produto:`, fetchError);
+    return;
+  }
+  
+  const metadata = currentChat.metadata || {};
+  const pendingProducts = metadata.pending_products || [];
+  
+  // Evitar duplicatas
+  const alreadyTracked = pendingProducts.some((p: any) => p.id === productId);
+  if (alreadyTracked) {
+    console.log(`[${requestId}] ⚠️ Produto ${productName} já está sendo rastreado`);
+    return;
+  }
+  
+  // Adicionar produto
+  pendingProducts.push({
+    id: productId,
+    name: productName,
+    price,
+    mentioned_at: new Date().toISOString()
+  });
+  
+  const { error: updateError } = await supabase
+    .from('chats')
+    .update({
+      metadata: { ...metadata, pending_products: pendingProducts }
+    })
+    .eq('id', chatId);
+  
+  if (updateError) {
+    console.error(`[${requestId}] ❌ Erro ao atualizar produtos pendentes:`, updateError);
+  } else {
+    console.log(`[${requestId}] ✅ Produto ${productName} rastreado com sucesso`);
+  }
+}
+
+/**
+ * Limpa produtos pendentes (após adicionar ao carrinho)
+ */
+export async function clearPendingProducts(
+  supabase: any,
+  chatId: number,
+  requestId: string
+): Promise<void> {
+  console.log(`[${requestId}] 🧹 Limpando produtos pendentes`);
+  
+  const { data: currentChat, error: fetchError } = await supabase
+    .from('chats')
+    .select('metadata')
+    .eq('id', chatId)
+    .single();
+  
+  if (fetchError) {
+    console.error(`[${requestId}] ❌ Erro ao buscar chat para limpar produtos:`, fetchError);
+    return;
+  }
+  
+  const metadata = currentChat.metadata || {};
+  delete metadata.pending_products;
+  
+  const { error: updateError } = await supabase
+    .from('chats')
+    .update({ metadata })
+    .eq('id', chatId);
+  
+  if (updateError) {
+    console.error(`[${requestId}] ❌ Erro ao limpar produtos pendentes:`, updateError);
+  } else {
+    console.log(`[${requestId}] ✅ Produtos pendentes limpos`);
+  }
+}
+
 /**
  * Converte string do DB para enum
  */
-function parseConversationState(stateStr: string): ConversationState {
+export function parseConversationState(stateStr: string): ConversationState {
   // Mapear estados legados
   const legacyMapping: Record<string, ConversationState> = {
     'greeting': ConversationState.GREETING,
     'discovery': ConversationState.DISCOVERY,
     'presentation': ConversationState.BROWSING_MENU,
+    'browsing_menu': ConversationState.BROWSING_MENU,
     'upsell': ConversationState.BUILDING_ORDER,
+    'building_order': ConversationState.BUILDING_ORDER,
     'logistics': ConversationState.READY_TO_CHECKOUT,
+    'ready_to_checkout': ConversationState.READY_TO_CHECKOUT,
     'address': ConversationState.COLLECTING_ADDRESS,
+    'collecting_address': ConversationState.COLLECTING_ADDRESS,
     'payment': ConversationState.COLLECTING_PAYMENT,
+    'collecting_payment': ConversationState.COLLECTING_PAYMENT,
     'summary': ConversationState.CONFIRMING_ORDER,
-    'confirmed': ConversationState.ORDER_PLACED
+    'confirming_order': ConversationState.CONFIRMING_ORDER,
+    'confirmed': ConversationState.ORDER_PLACED,
+    'order_placed': ConversationState.ORDER_PLACED
   };
   
   return legacyMapping[stateStr] || ConversationState.GREETING;
