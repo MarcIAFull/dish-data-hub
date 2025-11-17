@@ -14,6 +14,8 @@ import { processCheckoutAgent } from './agents/checkout-agent.ts';
 import { processMenuAgent } from './agents/menu-agent.ts';
 import { processSupportAgent } from './agents/support-agent.ts';
 import { processConversationAgent } from './agents/conversation-agent.ts';
+import { updateConversationContext } from './utils/context-manager.ts';
+import { ConversationState } from './types/conversation-states.ts';
 
 // Tools
 import { executeCheckProductAvailability, executeListProductsByCategory } from './tools/product-tools.ts';
@@ -359,6 +361,23 @@ serve(async (req) => {
     }
     
     const toolResults = await executeTools(agentResult.toolCalls || [], supabase, chatId, agent, restaurant.id, requestId);
+    
+    // 🆕 CONTEXT MANAGER: Avaliar transição de estado
+    const contextUpdate = await updateConversationContext(
+      supabase,
+      chatId,
+      chat,
+      decision.agent,
+      toolResults,
+      requestId
+    );
+
+    console.log(`[${requestId}] 📊 Novo estado: ${contextUpdate.newState}`);
+
+    // Opcional: Se deve chamar próximo agente (FASE 3 implementará isso)
+    if (contextUpdate.shouldCallNextAgent && contextUpdate.suggestedNextAgent) {
+      console.log(`[${requestId}] 🔄 Sugestão: chamar ${contextUpdate.suggestedNextAgent} automaticamente`);
+    }
     
     // [4/5] CONVERSATION: Humanize response with context
     const finalResponse = await processConversationAgent(
