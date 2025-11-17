@@ -34,12 +34,17 @@ function getAgentIcon(agent: string) {
 }
 
 function buildSimplifiedTimeline(log: AILog) {
+  // Extract message text safely
+  const userMessage = typeof log.user_messages?.[0] === 'string' 
+    ? log.user_messages[0] 
+    : log.user_messages?.[0]?.content || 'N/A';
+  
   const steps = [
     {
       step: 1,
       name: "Webhook",
       icon: "📥",
-      description: `Mensagem recebida: "${log.user_messages?.[0]?.substring(0, 50)}..."`,
+      description: `Mensagem recebida: "${userMessage.substring(0, 50)}..."`,
       status: "success"
     },
     {
@@ -173,7 +178,9 @@ export function AIDebugDashboard() {
                       </span>
                     </div>
                     <p className="text-sm line-clamp-2 mb-2">
-                      {log.user_messages?.[0] || 'Sem mensagem'}
+                      {typeof log.user_messages?.[0] === 'string' 
+                        ? log.user_messages[0] 
+                        : log.user_messages?.[0]?.content || 'Sem mensagem'}
                     </p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Clock className="h-3 w-3" />
