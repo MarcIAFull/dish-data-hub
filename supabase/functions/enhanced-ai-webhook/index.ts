@@ -961,25 +961,30 @@ async function processAIResponse(
       });
     }
     
-    // ✅ FIX #4: Save API structure to debug log
-    debugLog.api_structure = {
-      categories_count: categories.length,
-      categories_sample: categories.slice(0, 2).map(c => ({
-        id: c.id,
-        name: c.name,
-        products_in_category: (c.products || []).length
-      })),
-      products_from_categories: productsFromCategories.length,
-      products_flat: productsFlat.length,
-      products_final: products.length,
-      products_sample: products.slice(0, 3).map(p => ({
-        id: p.id,
-        name: p.name,
-        category_id: p.category_id,
-        category: p.category,
-        price: p.price
-      }))
-    };
+        // ✅ FIX #4: Save API structure inside metadata_snapshot
+        const apiStructure = {
+          categories_count: categories.length,
+          categories_sample: categories.slice(0, 2).map(c => ({
+            id: c.id,
+            name: c.name,
+            products_in_category: (c.products || []).length
+          })),
+          products_from_categories: productsFromCategories.length,
+          products_flat: productsFlat.length,
+          products_final: products.length,
+          products_sample: products.slice(0, 3).map(p => ({
+            id: p.id,
+            name: p.name,
+            category_id: p.category_id,
+            category: p.category,
+            price: p.price
+          }))
+        };
+        
+        debugLog.metadata_snapshot = {
+          ...chat.metadata,
+          api_structure: apiStructure
+        };
     
     console.log(`[${requestId}] ✅ Restaurant data fetched - ${categories.length} categories, ${products.length} products`);
     

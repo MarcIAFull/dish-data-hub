@@ -544,47 +544,47 @@ export function AIDebugDashboard() {
                           </Card>
                         </TabsContent>
 
-                        {/* ✅ FIX #4: API Structure Tab */}
+                        {/* ✅ FIX #4: API Structure Tab - Reading from metadata_snapshot */}
                         <TabsContent value="api" className="mt-4">
                           <Card>
                             <CardHeader>
                               <CardTitle className="text-sm">API Structure</CardTitle>
                             </CardHeader>
                             <CardContent>
-                              {log.api_structure ? (
+                              {log.metadata_snapshot?.api_structure ? (
                                 <div className="space-y-3">
                                   <div>
                                     <p className="text-xs font-semibold mb-1">Resumo:</p>
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                                       <Badge variant="outline">
-                                        {log.api_structure.categories_count} categorias
+                                        {log.metadata_snapshot.api_structure.categories_count} categorias
                                       </Badge>
                                       <Badge variant="outline">
-                                        {log.api_structure.products_final} produtos
+                                        {log.metadata_snapshot.api_structure.products_final} produtos
                                       </Badge>
                                       <Badge variant="outline">
-                                        De categorias: {log.api_structure.products_from_categories}
+                                        De categorias: {log.metadata_snapshot.api_structure.products_from_categories}
                                       </Badge>
                                       <Badge variant="outline">
-                                        Flat: {log.api_structure.products_flat}
+                                        Flat: {log.metadata_snapshot.api_structure.products_flat}
                                       </Badge>
                                     </div>
                                   </div>
                                   
-                                  {log.api_structure.categories_sample && log.api_structure.categories_sample.length > 0 && (
+                                  {log.metadata_snapshot.api_structure.categories_sample && log.metadata_snapshot.api_structure.categories_sample.length > 0 && (
                                     <div>
                                       <p className="text-xs font-semibold mb-1">Sample Categories:</p>
                                       <pre className="text-xs bg-muted p-2 rounded">
-                                        {JSON.stringify(log.api_structure.categories_sample, null, 2)}
+                                        {JSON.stringify(log.metadata_snapshot.api_structure.categories_sample, null, 2)}
                                       </pre>
                                     </div>
                                   )}
                                   
-                                  {log.api_structure.products_sample && log.api_structure.products_sample.length > 0 && (
+                                  {log.metadata_snapshot.api_structure.products_sample && log.metadata_snapshot.api_structure.products_sample.length > 0 && (
                                     <div>
                                       <p className="text-xs font-semibold mb-1">Sample Products:</p>
                                       <pre className="text-xs bg-muted p-2 rounded">
-                                        {JSON.stringify(log.api_structure.products_sample, null, 2)}
+                                        {JSON.stringify(log.metadata_snapshot.api_structure.products_sample, null, 2)}
                                       </pre>
                                     </div>
                                   )}
