@@ -814,7 +814,7 @@ async function processAIResponse(
       .from('messages')
       .insert({
         chat_id: chatId,
-        sender_type: 'user',
+        sender_type: 'customer',  // ✅ FIX: 'customer' não 'user'
         content: messageContent,
         session_id: currentSessionId,
         created_at: new Date().toISOString()
@@ -888,6 +888,9 @@ async function processAIResponse(
     const productsFromCategories = categories.flatMap(cat => cat.products || []);
     const productsFlat = restaurantData.menu?.products || [];
     
+    // ✅ DECLARAR products ANTES de usar no debug log
+    const products = productsFlat.length > 0 ? productsFlat : productsFromCategories;
+    
     // ✅ Adicionar API structure dentro de metadata_snapshot (APÓS ter categories e products)
     debugLog.metadata_snapshot = {
       ...debugLog.metadata_snapshot,
@@ -898,7 +901,7 @@ async function processAIResponse(
           name: c.name,
           products_count: (c.products || []).length
         })),
-        products_total: products.length,
+        products_total: products.length,  // ✅ Agora products já existe!
         products_sample: products.slice(0, 3).map(p => ({
           id: p.id,
           name: p.name,
@@ -909,7 +912,6 @@ async function processAIResponse(
     };
     
     console.log(`[${requestId}] 📊 API structure adicionada ao debug log`);
-    const products = productsFlat.length > 0 ? productsFlat : productsFromCategories;
     
     console.log(`[${requestId}]   - Categories: ${categories.length}`);
     console.log(`[${requestId}]   - Products from categories: ${productsFromCategories.length}`);
