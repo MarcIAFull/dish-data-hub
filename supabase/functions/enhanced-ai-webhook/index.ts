@@ -1198,7 +1198,7 @@ async function processAIResponse(
     const updatedMetadata = {
       ...finalMetadata, // Metadata já atualizado pelos agentes
       hasGreeted: true, // Sempre true após primeira resposta
-      conversation_state: newState,
+      conversation_state: nextState,  // ✅ FIX: usar nextState não newState
       completion_criteria: {
         ...completionCriteria,
         hasGreeted: true
@@ -1210,7 +1210,7 @@ async function processAIResponse(
       .from('chats')
       .update({
         metadata: updatedMetadata,
-        conversation_state: newState,
+        conversation_state: nextState,  // ✅ FIX: usar nextState não newState
         last_message_at: new Date().toISOString()
       })
       .eq('id', chat.id);
@@ -1218,7 +1218,7 @@ async function processAIResponse(
     if (updateError) {
       console.error(`[${requestId}] ❌ Erro ao atualizar metadata:`, updateError);
     } else {
-      console.log(`[${requestId}] ✅ Metadata atualizado - hasGreeted: true, state: ${newState}`);
+      console.log(`[${requestId}] ✅ Metadata atualizado - hasGreeted: true, state: ${nextState}`);  // ✅ FIX: usar nextState não newState
     }
     
     // ========== SEND VIA WHATSAPP ==========
