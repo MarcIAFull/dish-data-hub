@@ -14,6 +14,3 @@ verify_jwt = true
 
 [functions.expire-inactive-sessions]
 verify_jwt = false
-
-[functions.expire-pending-messages]
-verify_jwt = false
