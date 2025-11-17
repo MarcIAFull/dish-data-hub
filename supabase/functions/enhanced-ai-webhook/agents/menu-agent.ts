@@ -1,79 +1,49 @@
-// Menu Agent - Specialized in menu presentation
+// 📋 Menu Agent - Simplified
 
-import { getMenuPrompt } from '../utils/prompt-templates.ts';
-import type { MenuContext } from '../utils/context-builder.ts';
+import { getMenuPrompt } from '../utils/prompts.ts';
+import { getProductTools } from '../tools/product-tools.ts';
 
-/**
- * Menu Agent tools - focused on menu display
- */
-export function getMenuTools() {
-  return [
+export async function processMenuAgent(
+  userMessage: string,
+  conversationHistory: any[],
+  context: {
+    restaurantName: string;
+    menuLink?: string;
+  },
+  requestId: string
+): Promise<{ content: string; toolCalls?: any[] }> {
+  
+  const openAIKey = Deno.env.get('OPENAI_API_KEY');
+  if (!openAIKey) throw new Error('OPENAI_API_KEY not configured');
+  
+  console.log(`[${requestId}] [3/5] 📋 Agente MENU processando...`);
+  
+  const systemPrompt = getMenuPrompt(context);
+  
+  const tools = [
+    ...getProductTools(),
     {
       type: "function",
       function: {
         name: "send_menu_link",
-        description: "Envia link do cardápio digital completo. USE APENAS quando cliente pedir explicitamente para 'ver o cardápio todo' ou 'quero o cardápio completo'. NÃO use para perguntas sobre produtos específicos.",
+        description: "Envia link do cardápio completo (usar apenas quando cliente pedir explicitamente)",
         parameters: {
           type: "object",
           properties: {}
         }
       }
-    },
-    {
-      type: "function",
-      function: {
-        name: "check_product_availability",
-        description: "SEMPRE use esta tool quando o cliente perguntar sobre um produto ESPECÍFICO (ex: 'me fala da tapioca', 'quanto custa o X', 'tem Y?', 'quero saber do produto Z'). Retorna nome completo, preço atualizado e descrição detalhada do produto direto do banco de dados.",
-        parameters: {
-          type: "object",
-          properties: {
-            product_name: {
-              type: "string",
-              description: "Nome do produto que o cliente está perguntando"
-            }
-          },
-          required: ["product_name"]
-        }
-      }
     }
   ];
-}
-
-/**
- * Process Menu Agent response
- */
-export async function processMenuAgent(
-  context: MenuContext,
-  messages: any[],
-  chatId: number,
-  supabase: any,
-  agent: any,
-  currentState: string,
-  requestId: string
-): Promise<{ content: string; toolCalls?: any[] }> {
-  const openAIKey = Deno.env.get('OPENAI_API_KEY');
-  if (!openAIKey) {
-    throw new Error('OPENAI_API_KEY not configured');
-  }
-
-  console.log(`[${requestId}] 📋 Menu Agent - Starting processing...`);
-  console.log(`[${requestId}] 📊 Context:`);
-  console.log(`  - Restaurant: ${context.restaurantName}`);
-  console.log(`  - Categories: ${context.categories?.length || 0}`);
-  console.log(`  - Total products: ${context.totalProducts || 0}`);
-
-  const systemPrompt = getMenuPrompt(context, currentState, agent?.personality, agent?.tone);
-  const tools = getMenuTools();
-
-  // Usar histórico completo (não fazer slice)
-  const conversationHistory = messages.map(m => ({
-    role: m.sender_type === 'user' ? 'user' : 'assistant',
-    content: m.content
-  }));
-
-  console.log(`[${requestId}] 📥 Conversation history: ${conversationHistory.length} messages`);
-  console.log(`[${requestId}] 🤖 Calling OpenAI (gpt-4o)...`);
-
+  
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...conversationHistory.slice(-3).map((msg: any) => ({
+      role: msg.sender_type === 'user' ? 'user' : 'assistant',
+      content: msg.content
+    })),
+    { role: 'user', content: userMessage }
+  ];
+  
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -82,36 +52,23 @@ export async function processMenuAgent(
     },
     body: JSON.stringify({
       model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...conversationHistory
-      ],
+      messages,
       tools,
-      tool_choice: 'auto',
-      max_tokens: 1000
+      max_tokens: 400
     })
   });
-
+  
   if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`[${requestId}] ❌ OpenAI API error:`, response.status, errorText);
     throw new Error(`OpenAI API error: ${response.status}`);
   }
-
+  
   const data = await response.json();
-  const assistantMessage = data.choices[0].message;
-
-  console.log(`[${requestId}] 📊 Menu Agent Response:`, {
-    has_content: !!assistantMessage.content,
-    content_length: assistantMessage.content?.length || 0,
-    has_tool_calls: !!assistantMessage.tool_calls,
-    tool_calls_count: assistantMessage.tool_calls?.length || 0,
-    finish_reason: data.choices[0].finish_reason,
-    tokens: data.usage
-  });
-
+  const message = data.choices[0].message;
+  
+  console.log(`[${requestId}] ✅ MENU agent processou`);
+  
   return {
-    content: assistantMessage.content || '',
-    toolCalls: assistantMessage.tool_calls || []
+    content: message.content || '',
+    toolCalls: message.tool_calls
   };
 }

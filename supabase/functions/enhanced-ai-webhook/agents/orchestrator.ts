@@ -1,41 +1,74 @@
-// Orchestrator Agent - Intent Classification
+// 🎯 Orchestrator Agent - Simplified Architecture
+// Decides which specialized agent should handle the user's message
 
-import { getOrchestratorPrompt } from '../utils/prompt-templates.ts';
-import type { ConversationState } from '../utils/context-builder.ts';
-
-export type Intent = 'GREETING' | 'MENU' | 'ORDER' | 'CHECKOUT' | 'SUPPORT' | 'UNCLEAR';
+interface OrchestratorDecision {
+  agent: 'MENU' | 'SALES' | 'CHECKOUT' | 'SUPPORT';
+  reasoning: string;
+}
 
 /**
- * Classifies user intent using lightweight AI call
+ * Decides which specialized agent should handle the message
+ * Uses OpenAI to make intelligent routing decision based on:
+ * - User message content
+ * - Conversation context (cart, state)
+ * - Restaurant information
  */
-export async function classifyIntent(
-  lastMessages: any[],
-  conversationState: ConversationState,
+export async function decideAgent(
+  userMessage: string,
+  conversationContext: {
+    hasItemsInCart: boolean;
+    itemCount: number;
+    cartTotal: number;
+    currentState: string;
+    restaurantName: string;
+  },
   requestId: string
-): Promise<Intent> {
+): Promise<OrchestratorDecision> {
+  
+  const openAIKey = Deno.env.get('OPENAI_API_KEY');
+  if (!openAIKey) {
+    console.error(`[${requestId}] ❌ OPENAI_API_KEY not configured`);
+    return { agent: 'MENU', reasoning: 'No API key - default to MENU' };
+  }
+
+  const prompt = `Você é o Orquestrador do ${conversationContext.restaurantName}.
+
+CONTEXTO ATUAL:
+- Carrinho: ${conversationContext.hasItemsInCart ? `${conversationContext.itemCount} itens (R$ ${conversationContext.cartTotal.toFixed(2)})` : 'VAZIO'}
+- Estado: ${conversationContext.currentState}
+
+MENSAGEM DO CLIENTE:
+"${userMessage}"
+
+AGENTES DISPONÍVEIS:
+
+1. MENU - Quando cliente quer ver cardápio ou produtos disponíveis
+   Exemplos: "cardápio", "o que tem?", "quais os pratos?"
+
+2. SALES - Quando cliente quer fazer pedido, adicionar produtos
+   Exemplos: "quero X", "vou levar", "me traz", "adiciona"
+
+3. CHECKOUT - Quando cliente quer finalizar pedido (APENAS se carrinho NÃO está vazio)
+   Exemplos: "finalizar", "pagar", "qual o endereço?", "qual forma de pagamento?"
+
+4. SUPPORT - Quando cliente tem dúvidas gerais, horário, localização
+   Exemplos: "que horas abre?", "onde fica?", "como funciona?"
+
+REGRAS CRÍTICAS:
+- Se carrinho está VAZIO → NUNCA escolha CHECKOUT
+- Se cliente menciona produto específico → SALES
+- Se cliente pede cardápio → MENU
+- Se cliente quer finalizar mas carrinho vazio → SALES (ajudar a adicionar produtos primeiro)
+
+RESPONDA EM JSON:
+{
+  "agent": "MENU" | "SALES" | "CHECKOUT" | "SUPPORT",
+  "reasoning": "breve explicação da escolha"
+}`;
+
+  console.log(`[${requestId}] [2/5] 🎯 Orquestrador decidindo agente...`);
+
   try {
-    const openAIKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIKey) {
-      console.error(`[${requestId}] ❌ OPENAI_API_KEY not configured`);
-      return 'UNCLEAR';
-    }
-
-    // ✅ CORREÇÃO 1: Usar apenas últimas 10 mensagens para evitar confusão contextual
-    const recentMessages = lastMessages.slice(-10);
-    const messagesText = recentMessages
-      .map(m => `${m.sender_type === 'user' ? 'Cliente' : 'Bot'}: ${m.content}`)
-      .join('\n');
-
-    const prompt = getOrchestratorPrompt(messagesText, conversationState);
-
-    console.log(`[${requestId}] 🎯 Orchestrator - Starting classification...`);
-    console.log(`[${requestId}] 📊 Input:`);
-    console.log(`  - Total messages: ${lastMessages.length}`);
-    console.log(`  - Last message: "${lastMessages[lastMessages.length - 1]?.content?.substring(0, 100)}"`);
-    console.log(`  - Cart: ${conversationState.itemCount} items (R$ ${conversationState.cartTotal})`);
-    console.log(`  - Has greeted: ${conversationState.hasGreeted}`);
-    console.log(`[${requestId}] 🤖 Calling OpenAI (gpt-4o)...`);
-
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -47,103 +80,43 @@ export async function classifyIntent(
         messages: [
           { role: 'system', content: prompt }
         ],
-        max_tokens: 50
+        response_format: { type: "json_object" },
+        max_tokens: 100
       })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`[${requestId}] ❌ OpenAI API error:`, response.status, errorText);
-      return 'UNCLEAR';
+      return { agent: 'MENU', reasoning: 'API error - default to MENU' };
     }
 
     const data = await response.json();
-    const rawIntent = data.choices[0].message.content.trim().toUpperCase();
+    const result = JSON.parse(data.choices[0].message.content);
     
-    console.log(`[${requestId}] 📥 OpenAI Response: "${rawIntent}"`);
-    console.log(`[${requestId}] 📊 Tokens used: ${data.usage?.total_tokens || 'N/A'}`);
+    console.log(`[${requestId}] ✅ Agente escolhido: ${result.agent} (${result.reasoning})`);
     
-    const intent = rawIntent as Intent;
-
-    console.log(`[${requestId}] ✅ Intent classified: ${intent}`);
-
-    // Validate intent
-    const validIntents: Intent[] = ['GREETING', 'MENU', 'ORDER', 'CHECKOUT', 'SUPPORT', 'UNCLEAR'];
-    if (!validIntents.includes(intent)) {
-      console.warn(`[${requestId}] ⚠️ Invalid intent: ${intent}, defaulting to UNCLEAR`);
-      return 'UNCLEAR';
-    }
-
-    return intent;
+    return {
+      agent: result.agent,
+      reasoning: result.reasoning
+    };
 
   } catch (error) {
-    console.error(`[${requestId}] ❌ Error classifying intent:`, error);
-    return 'UNCLEAR';
+    console.error(`[${requestId}] ❌ Error in orchestrator:`, error);
+    return { agent: 'MENU', reasoning: 'Error - default to MENU' };
   }
 }
 
 /**
- * Routes to appropriate agent based on intent and conversation state
+ * Orchestrator can call multiple agents sequentially if needed
+ * For now, we keep it simple with single agent calls
+ * Future enhancement: Support multi-agent workflows
  */
-export function routeToAgent(
-  intent: Intent,
-  conversationState: ConversationState
-): 'SALES' | 'CHECKOUT' | 'MENU' | 'SUPPORT' | 'FALLBACK' {
-  // GREETING → Welcome + present menu (MENU agent)
-  if (intent === 'GREETING' && !conversationState.hasGreeted) {
-    return 'MENU';
-  }
-
-  // MENU → Show menu (MENU agent)
-  if (intent === 'MENU') {
-    return 'MENU';
-  }
-
-  // ORDER → Sales specialist (SALES agent)
-  if (intent === 'ORDER') {
-    return 'SALES';
-  }
-
-  // CHECKOUT → Finalize order (ONLY if cart has items)
-  if (intent === 'CHECKOUT') {
-    // ⚠️ CORREÇÃO 3: VALIDAÇÃO CRÍTICA - Redirecionar para SALES se carrinho vazio
-    if (!conversationState.hasItemsInCart) {
-      console.log(`[Routing] CHECKOUT com carrinho vazio → redirect to SALES Agent`);
-      return 'SALES';
-    }
-    return 'CHECKOUT';
-  }
-
-  // SUPPORT → Customer support (SUPPORT agent)
-  if (intent === 'SUPPORT') {
-    return 'SUPPORT';
-  }
-
-  // UNCLEAR - route based on conversation state
-  if (intent === 'UNCLEAR') {
-    // First contact → welcome with menu
-    if (!conversationState.hasGreeted) {
-      console.log(`[Routing] UNCLEAR + no greeting → MENU Agent`);
-      return 'MENU';
-    }
-    
-    // Cart empty → probably wants menu/order
-    if (!conversationState.hasItemsInCart) {
-      console.log(`[Routing] UNCLEAR + cart empty → MENU Agent`);
-      return 'MENU';
-    }
-    
-    // Has cart but not finalized → continue selling
-    if (conversationState.hasItemsInCart && !conversationState.hasValidatedAddress) {
-      console.log(`[Routing] UNCLEAR + cart not finalized → SALES Agent`);
-      return 'SALES';
-    }
-    
-    // Default safe option
-    console.log(`[Routing] UNCLEAR default → SALES Agent`);
-    return 'SALES';
-  }
-
-  // Default fallback (should rarely happen now)
-  return 'FALLBACK';
+export function shouldCallAdditionalAgents(
+  firstAgentResult: any,
+  conversationContext: any
+): boolean {
+  // Example: If SALES added items but cart still needs more info → call CHECKOUT
+  // For v1, we keep it simple: one agent per message
+  return false;
 }
