@@ -606,7 +606,7 @@ ${(() => {
   }
   const currency = restaurantData.country === 'PT' ? '€' : 'R$';
   return `"Claro! Aqui está nosso cardápio completo:\n\n${categoriesWithProducts.map((cat: any) => 
-    \`🍽️ *\${cat.name}*\n\${cat.products.map((p: any) => \`  • \${p.name} - \${currency} \${parseFloat(p.price).toFixed(2)}\${p.description ? \` | \${p.description}\` : ''}\`).join('\\n')}\`
+    \`🍽️ *\${cat.name}*\n\${cat.products.map((p: any) => \`  • \${p.name} - ${currency} \${parseFloat(p.price).toFixed(2)}\${p.description ? \` | \${p.description}\` : ''}\`).join('\\n')}\`
   ).join('\\n\\n')}\n\nQual item te interessa?"`;
 })()}
 
