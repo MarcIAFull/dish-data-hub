@@ -413,7 +413,25 @@ serve(async (req) => {
     
     // [2/5] ORCHESTRATOR
     console.log(`[${requestId}] [2/5] 🧠 Orquestrando...`);
-    const decision = await decideAgent(userMessage, cart, chat.conversation_state || 'initial', requestId);
+    
+    // ✅ CORREÇÃO 1: Contar mensagens para detectar início de conversa
+    const { count: messageCount } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('chat_id', chatId);
+    
+    const decision = await decideAgent(
+      userMessage,
+      {
+        hasItemsInCart: cart.items.length > 0,
+        itemCount: cart.items.length,
+        cartTotal: cart.total,
+        currentState: chat.conversation_state || 'initial',
+        restaurantName: restaurant.name,
+        messageCount: messageCount || 0
+      },
+      requestId
+    );
     console.log(`[${requestId}] ✅ Decisão inicial: ${decision.agent} (razão: ${decision.reasoning})`);
     
     // [3/5] AGENT LOOP: Execute specialized agents with re-evaluation
@@ -430,7 +448,8 @@ serve(async (req) => {
         restaurant,
         sessionId,
         requestId,
-        executeTools
+        executeTools,
+        enrichedContext  // ✅ CORREÇÃO 3: Passar enrichedContext
       },
       3 // Máximo 3 agentes por mensagem
     );

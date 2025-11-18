@@ -42,6 +42,7 @@ export async function executeAgentLoop(
     sessionId: string;
     requestId: string;
     executeTools: (toolCalls: any[], supabase: any, chatId: number, agent: any, restaurantId: string, requestId: string) => Promise<any[]>;
+    enrichedContext?: any;  // ✅ CORREÇÃO 3: Adicionar enrichedContext ao tipo
   },
   maxIterations: number = 3
 ): Promise<AgentLoopResult> {
@@ -262,6 +263,36 @@ async function callSpecializedAgent(
 ): Promise<{ content: string; toolCalls?: any[] }> {
   
   const cart = getCartFromMetadata(context.chat.metadata || {});
+  
+  // ✅ CORREÇÃO 2: GREETING Agent
+  if (agent === 'GREETING') {
+    return await processGreetingAgent(
+      userMessage,
+      conversationHistory,
+      {
+        restaurantName: context.restaurant.name,
+        restaurantDescription: context.restaurant.description,
+        enrichedContext: context.enrichedContext
+      },
+      context.requestId
+    );
+  }
+  
+  // ✅ CORREÇÃO 2: ORDER Agent
+  if (agent === 'ORDER') {
+    return await processOrderAgent(
+      userMessage,
+      conversationHistory,
+      {
+        restaurantName: context.restaurant.name,
+        currentCart: cart.items,
+        cartTotal: cart.total,
+        currentState: context.chat.conversation_state || 'initial',
+        enrichedContext: context.enrichedContext
+      },
+      context.requestId
+    );
+  }
   
   if (agent === 'SALES') {
     return await processSalesAgent(
