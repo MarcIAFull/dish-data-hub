@@ -88,77 +88,6 @@ export type Database = {
           },
         ]
       }
-      ai_processing_logs: {
-        Row: {
-          agents_called: Json | null
-          chat_id: number
-          created_at: string | null
-          current_state: string | null
-          detected_intents: Json | null
-          execution_plan: Json | null
-          final_response: string | null
-          id: string
-          loaded_history: Json | null
-          loaded_summaries: Json | null
-          metadata_snapshot: Json | null
-          new_state: string | null
-          processing_time_ms: number | null
-          request_id: string
-          session_id: string | null
-          tools_executed: Json | null
-          updated_metadata: Json | null
-          user_messages: Json | null
-        }
-        Insert: {
-          agents_called?: Json | null
-          chat_id: number
-          created_at?: string | null
-          current_state?: string | null
-          detected_intents?: Json | null
-          execution_plan?: Json | null
-          final_response?: string | null
-          id?: string
-          loaded_history?: Json | null
-          loaded_summaries?: Json | null
-          metadata_snapshot?: Json | null
-          new_state?: string | null
-          processing_time_ms?: number | null
-          request_id: string
-          session_id?: string | null
-          tools_executed?: Json | null
-          updated_metadata?: Json | null
-          user_messages?: Json | null
-        }
-        Update: {
-          agents_called?: Json | null
-          chat_id?: number
-          created_at?: string | null
-          current_state?: string | null
-          detected_intents?: Json | null
-          execution_plan?: Json | null
-          final_response?: string | null
-          id?: string
-          loaded_history?: Json | null
-          loaded_summaries?: Json | null
-          metadata_snapshot?: Json | null
-          new_state?: string | null
-          processing_time_ms?: number | null
-          request_id?: string
-          session_id?: string | null
-          tools_executed?: Json | null
-          updated_metadata?: Json | null
-          user_messages?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ai_processing_logs_chat_id_fkey"
-            columns: ["chat_id"]
-            isOneToOne: false
-            referencedRelation: "chats"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       blocked_numbers: {
         Row: {
           alert_count: number | null
@@ -334,9 +263,6 @@ export type Database = {
           reopened_at: string | null
           reopened_count: number | null
           restaurant_id: string | null
-          session_created_at: string | null
-          session_id: string | null
-          session_status: string | null
           status: string
           updated_at: string | null
         }
@@ -357,9 +283,6 @@ export type Database = {
           reopened_at?: string | null
           reopened_count?: number | null
           restaurant_id?: string | null
-          session_created_at?: string | null
-          session_id?: string | null
-          session_status?: string | null
           status?: string
           updated_at?: string | null
         }
@@ -380,9 +303,6 @@ export type Database = {
           reopened_at?: string | null
           reopened_count?: number | null
           restaurant_id?: string | null
-          session_created_at?: string | null
-          session_id?: string | null
-          session_status?: string | null
           status?: string
           updated_at?: string | null
         }
@@ -657,36 +577,6 @@ export type Database = {
         }
         Relationships: []
       }
-      error_logs: {
-        Row: {
-          context: Json | null
-          created_at: string | null
-          error_message: string | null
-          error_stack: string | null
-          error_type: string
-          id: number
-          request_id: string
-        }
-        Insert: {
-          context?: Json | null
-          created_at?: string | null
-          error_message?: string | null
-          error_stack?: string | null
-          error_type: string
-          id?: number
-          request_id: string
-        }
-        Update: {
-          context?: Json | null
-          created_at?: string | null
-          error_message?: string | null
-          error_stack?: string | null
-          error_type?: string
-          id?: number
-          request_id?: string
-        }
-        Relationships: []
-      }
       messages: {
         Row: {
           chat_id: number | null
@@ -696,7 +586,6 @@ export type Database = {
           message_type: string | null
           metadata: Json | null
           sender_type: string
-          session_id: string | null
           whatsapp_message_id: string | null
         }
         Insert: {
@@ -707,7 +596,6 @@ export type Database = {
           message_type?: string | null
           metadata?: Json | null
           sender_type: string
-          session_id?: string | null
           whatsapp_message_id?: string | null
         }
         Update: {
@@ -718,7 +606,6 @@ export type Database = {
           message_type?: string | null
           metadata?: Json | null
           sender_type?: string
-          session_id?: string | null
           whatsapp_message_id?: string | null
         }
         Relationships: [
@@ -1208,56 +1095,6 @@ export type Database = {
           },
         ]
       }
-      session_summaries: {
-        Row: {
-          chat_id: number
-          completed_at: string | null
-          created_at: string | null
-          customer_preferences: Json | null
-          delivery_type: string | null
-          id: string
-          items_ordered: Json | null
-          order_total: number | null
-          payment_method: string | null
-          session_id: string
-          summary: string
-        }
-        Insert: {
-          chat_id: number
-          completed_at?: string | null
-          created_at?: string | null
-          customer_preferences?: Json | null
-          delivery_type?: string | null
-          id?: string
-          items_ordered?: Json | null
-          order_total?: number | null
-          payment_method?: string | null
-          session_id: string
-          summary: string
-        }
-        Update: {
-          chat_id?: number
-          completed_at?: string | null
-          created_at?: string | null
-          customer_preferences?: Json | null
-          delivery_type?: string | null
-          id?: string
-          items_ordered?: Json | null
-          order_total?: number | null
-          payment_method?: string | null
-          session_id?: string
-          summary?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "session_summaries_chat_id_fkey"
-            columns: ["chat_id"]
-            isOneToOne: false
-            referencedRelation: "chats"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -1407,27 +1244,6 @@ export type Database = {
       }
     }
     Functions: {
-      atomic_add_item_to_cart: {
-        Args: {
-          p_chat_id: number
-          p_notes?: string
-          p_product_id: string
-          p_product_name: string
-          p_quantity: number
-          p_unit_price: number
-        }
-        Returns: Json
-      }
-      atomic_update_conversation_state: {
-        Args: {
-          p_agent_name?: string
-          p_chat_id: number
-          p_metadata_updates?: Json
-          p_new_state: string
-        }
-        Returns: Json
-      }
-      generate_session_id: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

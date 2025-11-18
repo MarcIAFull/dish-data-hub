@@ -53,10 +53,6 @@ const configItems = [
   { title: "Configurações", url: "/settings", icon: Settings },
 ];
 
-const debugItems = [
-  { title: "AI Debug", url: "/ai-debug", icon: Bug },
-];
-
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
@@ -197,29 +193,6 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Admin Section (only visible to admins) */}
-        {/* Debug Tools - Visible to all authenticated users */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Ferramentas</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {debugItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={item.url} 
-                      className={getNavClassName(item.url)}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Admin Section - Only visible to admins */}
         {isAdmin && (
           <SidebarGroup>
             <SidebarGroupLabel>Administração</SidebarGroupLabel>

@@ -8,9 +8,3 @@ verify_jwt = false
 
 [functions.validate-address]
 verify_jwt = false
-
-[functions.reset-system]
-verify_jwt = true
-
-[functions.expire-inactive-sessions]
-verify_jwt = false
