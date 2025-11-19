@@ -25,6 +25,7 @@ import Settings from "./pages/Settings";
 import RestaurantSettings from "./pages/RestaurantSettings";
 import NotFound from "./pages/NotFound";
 import WebhookDebug from "./pages/WebhookDebug";
+import WebhookDebugV2 from "./pages/WebhookDebugV2";
 
 const queryClient = new QueryClient();
 
@@ -105,6 +106,11 @@ const App = () => (
                       <ProtectedAdminRoute>
                         <WebhookDebug />
                       </ProtectedAdminRoute>
+                    } />
+                    <Route path="/webhook-debug-v2" element={
+                      <ProtectedRoute>
+                        <WebhookDebugV2 />
+                      </ProtectedRoute>
                     } />
                     <Route path="/r/:slug" element={<RestaurantPublic />} />
                     <Route path="/r/:slug.json" element={<RestaurantJSON />} />
