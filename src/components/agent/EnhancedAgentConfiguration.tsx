@@ -59,8 +59,6 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
   const [restaurantName, setRestaurantName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [testingConnection, setTestingConnection] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   const defaultAgent: Omit<Agent, 'id' | 'created_at' | 'updated_at'> = {
     restaurant_id: restaurantId,
@@ -70,11 +68,7 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
     is_active: true,
     fallback_enabled: true,
     fallback_timeout_minutes: 5,
-    whatsapp_number: '',
-    evolution_api_token: '',
-    evolution_api_instance: '',
-    evolution_api_base_url: 'https://evolution.fullbpo.com',
-    webhook_url: 'https://wsyddfdfzfkhkkxmrmxf.supabase.co/functions/v1/enhanced-ai-webhook'
+    whatsapp_number: ''
   };
 
   const fetchAgentAndRestaurant = async () => {
@@ -221,55 +215,6 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
     });
   };
 
-  const testConnection = async () => {
-    if (!agent?.evolution_api_instance || !agent?.evolution_api_token) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Preencha a Instância e o Token da Evolution API primeiro",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setTestingConnection(true);
-    setConnectionStatus('idle');
-
-    try {
-      const { data, error } = await supabase.functions.invoke('test-evolution-connection', {
-        body: {
-          instance: agent.evolution_api_instance,
-          token: agent.evolution_api_token,
-          baseUrl: agent.evolution_api_base_url || 'https://evolution.fullbpo.com'
-        }
-      });
-
-      if (error) throw error;
-
-      if (data?.success) {
-        setConnectionStatus('success');
-        toast({
-          title: "Conexão estabelecida!",
-          description: "As credenciais da Evolution API estão corretas",
-        });
-      } else {
-        setConnectionStatus('error');
-        toast({
-          title: "Falha na conexão",
-          description: data?.error || 'Não foi possível conectar com a Evolution API',
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      setConnectionStatus('error');
-      toast({
-        title: "Erro ao testar",
-        description: (error as Error).message,
-        variant: "destructive",
-      });
-    } finally {
-      setTestingConnection(false);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -510,135 +455,15 @@ export const EnhancedAgentConfiguration: React.FC<EnhancedAgentConfigurationProp
 
             <TabsContent value="whatsapp" className="space-y-4">
               <div className="space-y-4">
-                <div>
-                  <Label htmlFor="whatsapp_number">Número do WhatsApp</Label>
-                  <Input
-                    id="whatsapp_number"
-                    value={agent.whatsapp_number || ''}
-                    onChange={(e) => setAgent({ ...agent, whatsapp_number: e.target.value })}
-                    placeholder="Ex: +5511999999999"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="evolution_api_token">Token da Evolution API</Label>
-                  <Input
-                    id="evolution_api_token"
-                    type="password"
-                    value={agent.evolution_api_token || ''}
-                    onChange={(e) => setAgent({ ...agent, evolution_api_token: e.target.value })}
-                    placeholder="Seu token da Evolution API"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="evolution_api_instance">Instância da Evolution API</Label>
-                  <Input
-                    id="evolution_api_instance"
-                    value={agent.evolution_api_instance || ''}
-                    onChange={(e) => setAgent({ ...agent, evolution_api_instance: e.target.value })}
-                    placeholder="Nome da sua instância"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="evolution_api_base_url">URL Base da Evolution API</Label>
-                  <Input
-                    id="evolution_api_base_url"
-                    value={agent.evolution_api_base_url || ''}
-                    onChange={(e) => setAgent({ ...agent, evolution_api_base_url: e.target.value })}
-                    placeholder="https://evolution.fullbpo.com"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    URL do servidor Evolution API (padrão: https://evolution.fullbpo.com)
+                <div className="p-4 bg-muted rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                    <h4 className="font-medium">Integração WhatsApp Desativada</h4>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    A integração com Evolution API foi removida desta plataforma.
                   </p>
                 </div>
-
-                <div>
-                  <Label htmlFor="webhook_url">URL do Webhook</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="webhook_url"
-                      value="https://wsyddfdfzfkhkkxmrmxf.supabase.co/functions/v1/enhanced-ai-webhook"
-                      readOnly
-                      className="font-mono text-sm bg-muted"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={copyWebhookUrl}
-                      title="Copiar URL"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Copie esta URL e configure no painel da Evolution API para receber mensagens.
-                  </p>
-                </div>
-
-                <Separator className="my-4" />
-
-                <div>
-                  <Label>Testar Conexão</Label>
-                  <div className="flex gap-3 items-center mt-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={testConnection}
-                      disabled={testingConnection || !agent.evolution_api_instance || !agent.evolution_api_token}
-                    >
-                      {testingConnection && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Verificar Conexão Evolution API
-                    </Button>
-                    {connectionStatus === 'success' && (
-                      <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
-                        <CheckCircle2 className="h-5 w-5" />
-                        <span className="text-sm font-medium">Conectado</span>
-                      </div>
-                    )}
-                    {connectionStatus === 'error' && (
-                      <div className="flex items-center gap-2 text-destructive">
-                        <XCircle className="h-5 w-5" />
-                        <span className="text-sm font-medium">Falha na conexão</span>
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Teste se as credenciais da Evolution API estão corretas antes de salvar.
-                  </p>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="fallback" className="space-y-4">
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="fallback_enabled"
-                    checked={agent.fallback_enabled}
-                    onCheckedChange={(checked) => setAgent({ ...agent, fallback_enabled: checked })}
-                  />
-                  <Label htmlFor="fallback_enabled">Ativar fallback para atendimento humano</Label>
-                </div>
-
-                {agent.fallback_enabled && (
-                  <div>
-                    <Label htmlFor="fallback_timeout">Timeout para fallback (minutos)</Label>
-                    <Input
-                      id="fallback_timeout"
-                      type="number"
-                      min="1"
-                      max="60"
-                      value={agent.fallback_timeout_minutes}
-                      onChange={(e) => setAgent({ ...agent, fallback_timeout_minutes: parseInt(e.target.value) || 5 })}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Tempo em minutos após o qual o atendimento será transferido para um humano se não houver resposta
-                    </p>
-                  </div>
-                )}
               </div>
             </TabsContent>
           </Tabs>
