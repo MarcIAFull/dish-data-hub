@@ -386,6 +386,13 @@ serve(async (req) => {
         }
       }
 
+      // ============= EXTRACT AND SANITIZE MESSAGE CONTENT FIRST =============
+      
+      const rawMessageContent = message.conversation || message.extendedTextMessage?.text || message.imageMessage?.caption || '';
+      const messageContent = sanitizeInput(rawMessageContent);
+      
+      console.log(`[${requestId}] 📝 Sanitized message: ${messageContent.substring(0, 100)}...`);
+
       // ============= DEBOUNCE LOGIC =============
       const bufferKey = `${chat.id}`;
       const existingBuffer = messageBuffers.get(bufferKey);
@@ -494,11 +501,8 @@ serve(async (req) => {
       
       console.log(`[${requestId}] ✓ Rate limit check passed (${recentMessages?.length || 0}/${RATE_LIMIT_MAX})`);
 
-      // Save incoming message - Apply sanitization
-      const rawMessageContent = message.conversation || message.extendedTextMessage?.text || message.imageMessage?.caption || '';
-      const messageContent = sanitizeInput(rawMessageContent);
-      
-      console.log(`[${requestId}] 📝 Sanitized message: ${messageContent.substring(0, 100)}...`);
+      // Message content already extracted and sanitized above before buffering
+      // (moved to line ~388)
       
       // ============= SECURITY LAYER 6: DETECT SUSPICIOUS INPUT =============
       
