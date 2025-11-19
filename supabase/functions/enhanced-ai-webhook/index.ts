@@ -132,8 +132,13 @@ async function processBufferedMessages(
   requestId: string,
   supabase: any
 ) {
+  console.log(`[${requestId}] 🎯 processBufferedMessages CHAMADA! bufferKey: ${bufferKey}`);
+  
   const buffer = messageBuffers.get(bufferKey);
-  if (!buffer) return;
+  if (!buffer) {
+    console.log(`[${requestId}] ⚠️ Buffer não encontrado para ${bufferKey}`);
+    return;
+  }
 
   console.log(`[${requestId}] ✅ Debounce expirou - processando ${buffer.messages.length} mensagem(s)`);
   
@@ -163,38 +168,10 @@ async function processBufferedMessages(
     console.log(`[${requestId}] ✅ Mensagem do cliente salva com sucesso`);
   }
 
-  // Continue with existing AI processing logic...
-  await processWithAI(requestId, supabase, agent, chat, combinedMessage, customerPhone);
+  // Chama a lógica de processamento com IA que continua dentro do serve
+  // Por hora, removemos esta função stub que estava incompleta
+  // TODO: Refatorar para mover toda lógica de AI processing aqui
 }
-
-// ============= AI PROCESSING FUNCTION (EXISTING LOGIC) =============
-
-async function processWithAI(
-  requestId: string,
-  supabase: any,
-  agent: any,
-  chat: any,
-  messageContent: string,
-  customerPhone: string
-) {
-  console.log(`[${requestId}] 🧠 Enriquecendo contexto da conversa...`);
-
-  // Get chat history for context memory
-  console.log(`[${requestId}] 📚 Carregando histórico de mensagens...`);
-  
-  const { data: messageHistory } = await supabase
-    .from('messages')
-    .select('*')
-    .eq('chat_id', chat.id)
-    .order('created_at', { ascending: false })
-    .limit(agent.context_memory_turns || 10);
-
-  console.log(`[${requestId}] ✅ Histórico carregado: ${messageHistory?.length || 0} mensagens`);
-
-  // Continue with all the existing AI processing logic...
-  // (The rest of the code will remain from the original webhook)
-
-
 
 serve(async (req) => {
   const requestId = crypto.randomUUID().substring(0, 8);
@@ -743,14 +720,14 @@ ${(() => {
   }
   const currency = restaurantData.country === 'PT' ? '€' : 'R$';
   return `"Claro! Aqui está nosso cardápio completo:\n\n${categoriesWithProducts.map((cat: any) => 
-    \`🍽️ *\${cat.name}*\n\${cat.products.map((p: any) => \`  • \${p.name} - ${currency} \${parseFloat(p.price).toFixed(2)}\${p.description ? \` | \${p.description}\` : ''}\`).join('\\n')}\`
-  ).join('\\n\\n')}\n\nQual item te interessa?"`;
+    `🍽️ *${cat.name}*\n${cat.products.map((p: any) => `  • ${p.name} - ${currency} ${parseFloat(p.price).toFixed(2)}${p.description ? ` | ${p.description}` : ''}`).join('\n')}`
+  ).join('\n\n')}\n\nQual item te interessa?"`;
 })()}
 
 B) Se cliente pedir apenas "cardápio" ou "categorias":
 ${(() => {
   const categoriesWithProducts = restaurantData.menu.categories.filter((cat: any) => cat.products && cat.products.length > 0);
-  return `"Temos as seguintes categorias:\n${categoriesWithProducts.map((cat: any) => \`• \${cat.emoji || '📋'} \${cat.name}\`).join('\\n')}\n\nQual categoria te interessa?"`;
+  return `"Temos as seguintes categorias:\n${categoriesWithProducts.map((cat: any) => `• ${cat.emoji || '📋'} ${cat.name}`).join('\n')}\n\nQual categoria te interessa?"`;
 })()}
 
 PASSO 2 - Cliente escolhe categoria específica:
