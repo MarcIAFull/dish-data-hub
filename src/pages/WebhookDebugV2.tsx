@@ -13,6 +13,7 @@ import { ToolCallsInspector } from '@/components/debug/ToolCallsInspector';
 import { MetadataViewer } from '@/components/debug/MetadataViewer';
 import { MessageTester } from '@/components/debug/MessageTester';
 import { ErrorLogsPanel } from '@/components/debug/ErrorLogsPanel';
+import ChatExporter from '@/components/debug/ChatExporter';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -400,52 +401,59 @@ export default function WebhookDebugV2() {
         {/* Main content - Detalhes do chat */}
         <div className="col-span-9">
           {selectedChat ? (
-            <Tabs defaultValue="timeline" className="h-[calc(100vh-280px)]">
-              <TabsList className="grid w-full grid-cols-6">
-                <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                <TabsTrigger value="states">Estados</TabsTrigger>
-                <TabsTrigger value="tools">Tool Calls</TabsTrigger>
-                <TabsTrigger value="metadata">Metadata</TabsTrigger>
-                <TabsTrigger value="tester">Tester</TabsTrigger>
-                <TabsTrigger value="errors">Erros</TabsTrigger>
-              </TabsList>
+            <>
+              <Tabs defaultValue="timeline" className="h-[calc(100vh-280px)]">
+                <TabsList className="grid w-full grid-cols-6">
+                  <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                  <TabsTrigger value="states">Estados</TabsTrigger>
+                  <TabsTrigger value="tools">Tool Calls</TabsTrigger>
+                  <TabsTrigger value="metadata">Metadata</TabsTrigger>
+                  <TabsTrigger value="tester">Tester</TabsTrigger>
+                  <TabsTrigger value="errors">Erros</TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="timeline" className="h-[calc(100%-48px)]">
-                <ConversationTimeline chatId={selectedChat.id} />
-              </TabsContent>
+                <TabsContent value="timeline" className="h-[calc(100%-48px)]">
+                  <ConversationTimeline chatId={selectedChat.id} />
+                </TabsContent>
 
-              <TabsContent value="states" className="h-[calc(100%-48px)]">
-                <StateVisualization 
-                  chatId={selectedChat.id}
-                  currentState={selectedChat.conversation_state}
-                  metadata={selectedChat.metadata}
-                />
-              </TabsContent>
+                <TabsContent value="states" className="h-[calc(100%-48px)]">
+                  <StateVisualization 
+                    chatId={selectedChat.id}
+                    currentState={selectedChat.conversation_state}
+                    metadata={selectedChat.metadata}
+                  />
+                </TabsContent>
 
-              <TabsContent value="tools" className="h-[calc(100%-48px)]">
-                <ToolCallsInspector chatId={selectedChat.id} />
-              </TabsContent>
+                <TabsContent value="tools" className="h-[calc(100%-48px)]">
+                  <ToolCallsInspector chatId={selectedChat.id} />
+                </TabsContent>
 
-              <TabsContent value="metadata" className="h-[calc(100%-48px)]">
-                <MetadataViewer 
-                  chatId={selectedChat.id}
-                  metadata={selectedChat.metadata}
-                  onUpdate={loadData}
-                />
-              </TabsContent>
+                <TabsContent value="metadata" className="h-[calc(100%-48px)]">
+                  <MetadataViewer 
+                    chatId={selectedChat.id}
+                    metadata={selectedChat.metadata}
+                    onUpdate={loadData}
+                  />
+                </TabsContent>
 
-              <TabsContent value="tester" className="h-[calc(100%-48px)]">
-                <MessageTester 
-                  chatId={selectedChat.id}
-                  phone={selectedChat.phone}
-                  agentId={selectedChat.agent?.id}
-                />
-              </TabsContent>
+                <TabsContent value="tester" className="h-[calc(100%-48px)]">
+                  <MessageTester 
+                    chatId={selectedChat.id}
+                    phone={selectedChat.phone}
+                    agentId={selectedChat.agent?.id}
+                  />
+                </TabsContent>
 
-              <TabsContent value="errors" className="h-[calc(100%-48px)]">
-                <ErrorLogsPanel chatId={selectedChat.id} />
-              </TabsContent>
-            </Tabs>
+                <TabsContent value="errors" className="h-[calc(100%-48px)]">
+                  <ErrorLogsPanel chatId={selectedChat.id} />
+                </TabsContent>
+              </Tabs>
+
+              {/* Chat Exporter */}
+              <div className="mt-4">
+                <ChatExporter chatId={selectedChat.id} />
+              </div>
+            </>
           ) : (
             <Card className="h-full flex items-center justify-center">
               <CardContent>
