@@ -194,9 +194,104 @@ async function processWithAI(
 ) {
   console.log(`[${requestId}] 🧠 Enriquecendo contexto da conversa...`);
   
-  // Continue with the rest of the AI processing flow
-  // This will be implemented next...
-  console.log(`[${requestId}] ⚙️ Processamento com IA em andamento...`);
+  try {
+    // ============= ENRICH CONTEXT =============
+    
+    // 1. Verificar status do restaurante
+    console.log(`[${requestId}] 🏪 Verificando status do restaurante...`);
+    const isOpen = isRestaurantOpen(agent.restaurants.working_hours || {});
+    
+    // 2. Buscar histórico de pedidos do cliente
+    console.log(`[${requestId}] 📊 Buscando histórico do cliente ${customerPhone}...`);
+    const { data: customerOrders } = await supabase
+      .from('pedidos')
+      .select('*')
+      .eq('customer_phone', customerPhone)
+      .eq('restaurant_id', agent.restaurants.id)
+      .order('created_at', { ascending: false })
+      .limit(5);
+    
+    // 3. Buscar último resumo de sessão
+    console.log(`[${requestId}] 📝 Buscando último resumo de sessão...`);
+    const { data: lastSummary } = await supabase
+      .from('session_summaries')
+      .select('*')
+      .eq('chat_id', chat.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+    
+    // 4. Carregar configuração do agente
+    console.log(`[${requestId}] 🤖 Carregando configuração do agente...`);
+    const agentPersonality = agent.personality || 'Você é um assistente virtual inteligente e especializado neste restaurante. Seja sempre educado, prestativo e natural. Use emojis de forma apropriada e mantenha um tom amigável e profissional. Adapte seu estilo à personalidade do cliente.';
+    
+    const enrichedContext = {
+      customerOrders: customerOrders?.length || 0,
+      restaurantOpen: isOpen,
+      agentPersonality,
+      sessionReopened: chat.reopened_count || 0
+    };
+    
+    console.log(`[${requestId}] ✅ Contexto enriquecido:`, enrichedContext);
+    
+    // ============= LOAD HISTORY =============
+    console.log(`[${requestId}] 📚 Carregando histórico de mensagens...`);
+    
+    const { data: messageHistory } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('chat_id', chat.id)
+      .order('created_at', { ascending: true });
+    
+    console.log(`[${requestId}] ✅ Histórico carregado: ${messageHistory?.length || 0} mensagens`);
+    
+    // ============= ORCHESTRATE =============
+    console.log(`[${requestId}] 🧠 Orquestrando...`);
+    
+    const orchestrationResult = await orchestrateAgentFlow(
+      requestId,
+      supabase,
+      agent,
+      chat,
+      messageContent,
+      messageHistory || [],
+      lastSummary,
+      enrichedContext
+    );
+    
+    console.log(`[${requestId}] ✅ Orquestração concluída`);
+    
+    // ============= SEND RESPONSE =============
+    if (orchestrationResult.finalResponse) {
+      console.log(`[${requestId}] 📤 Enviando resposta via WhatsApp...`);
+      
+      const sendResult = await sendWhatsAppMessage(
+        agent.evolution_api_instance,
+        agent.evolution_api_token,
+        customerPhone,
+        orchestrationResult.finalResponse,
+        requestId
+      );
+      
+      if (sendResult.success) {
+        // Salvar mensagem do bot
+        await supabase.from('messages').insert({
+          chat_id: chat.id,
+          sender_type: 'bot',
+          content: orchestrationResult.finalResponse,
+          session_id: chat.session_id
+        });
+        
+        console.log(`[${requestId}] ✅ Resposta enviada e salva com sucesso`);
+      } else {
+        console.error(`[${requestId}] ❌ Falha ao enviar resposta WhatsApp`);
+      }
+    }
+    
+  } catch (error) {
+    console.error(`[${requestId}] ❌ Erro no processamento da IA:`, error);
+    throw error;
+  }
 }
 
 serve(async (req) => {
