@@ -315,7 +315,53 @@ async function processWithAI(
     
     // 1. Verificar status do restaurante
     console.log(`[${requestId}] 🏪 Verificando status do restaurante...`);
-    const isOpen = isRestaurantOpen(agent.restaurants.working_hours || {});
+    
+    // CRÍTICO: Converter UTC para timezone do Brasil
+    const now = new Date();
+    const brasiliaTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+    const currentHour = brasiliaTime.getHours();
+    const currentMinute = brasiliaTime.getMinutes();
+    const currentTimeInMinutes = currentHour * 60 + currentMinute;
+
+    // Obter dia da semana em inglês (lowercase) para bater com working_hours
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayOfWeek = dayNames[brasiliaTime.getDay()];
+
+    console.log(`[${requestId}] 🕐 Horário UTC: ${now.toISOString()}`);
+    console.log(`[${requestId}] 🇧🇷 Horário Brasília: ${brasiliaTime.toLocaleString('pt-BR')} (${currentHour}:${String(currentMinute).padStart(2, '0')})`);
+    console.log(`[${requestId}] 📅 Dia da semana: ${dayOfWeek}`);
+
+    // Buscar working_hours do restaurante
+    const workingHours = agent.restaurants.working_hours?.[dayOfWeek];
+
+    console.log(`[${requestId}] ⏰ Working hours hoje: ${JSON.stringify(workingHours)}`);
+
+    let isOpen = false;
+
+    if (!workingHours) {
+      console.log(`[${requestId}] ⚠️ Working hours não configurado para ${dayOfWeek}`);
+      isOpen = false;
+    } else if (!workingHours.enabled) {
+      console.log(`[${requestId}] 🚫 Restaurante fechado - dia não habilitado`);
+      isOpen = false;
+    } else {
+      // Parse horários de abertura/fechamento
+      const [openHour, openMin] = workingHours.open.split(':').map(Number);
+      const [closeHour, closeMin] = workingHours.close.split(':').map(Number);
+      
+      const openTimeInMinutes = openHour * 60 + openMin;
+      const closeTimeInMinutes = closeHour * 60 + closeMin;
+      
+      console.log(`[${requestId}] 🟢 Abre às: ${workingHours.open} (${openTimeInMinutes} minutos)`);
+      console.log(`[${requestId}] 🔴 Fecha às: ${workingHours.close} (${closeTimeInMinutes} minutos)`);
+      console.log(`[${requestId}] ⏱️ Agora são: ${currentHour}:${String(currentMinute).padStart(2, '0')} (${currentTimeInMinutes} minutos)`);
+      
+      // Verificar se está dentro do horário
+      isOpen = currentTimeInMinutes >= openTimeInMinutes && 
+               currentTimeInMinutes <= closeTimeInMinutes;
+      
+      console.log(`[${requestId}] ${isOpen ? '✅ ABERTO' : '❌ FECHADO'}`);
+    }
     
     // 2. Buscar histórico de pedidos do cliente
     console.log(`[${requestId}] 📊 Buscando histórico do cliente ${customerPhone}...`);
