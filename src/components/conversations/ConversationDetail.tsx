@@ -89,10 +89,10 @@ export function ConversationDetail({
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('chat_messages')
+      const { data, error} = await supabase
+        .from('messages')
         .select('*')
-        .eq('conversation_id', conversation.id)
+        .eq('chat_id', parseInt(conversation.id))
         .order('created_at', { ascending: true });
 
       if (error) throw error;
