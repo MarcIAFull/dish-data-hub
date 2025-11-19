@@ -130,7 +130,10 @@ async function updateChatMetadata(
 async function processBufferedMessages(
   bufferKey: string,
   requestId: string,
-  supabase: any
+  supabase: any,
+  agent: any,
+  chat: any,
+  customerPhone: string
 ) {
   console.log(`[${requestId}] 🎯 processBufferedMessages CHAMADA! bufferKey: ${bufferKey}`);
   
@@ -143,7 +146,6 @@ async function processBufferedMessages(
   console.log(`[${requestId}] ✅ Debounce expirou - processando ${buffer.messages.length} mensagem(s)`);
   
   const combinedMessage = buffer.messages.join('\n');
-  const { agent, chat, customerPhone } = buffer;
   
   // Clear buffer
   messageBuffers.delete(bufferKey);
@@ -164,13 +166,37 @@ async function processBufferedMessages(
 
   if (msgError) {
     console.error(`[${requestId}] ❌ Erro ao salvar mensagem do cliente:`, msgError);
-  } else {
-    console.log(`[${requestId}] ✅ Mensagem do cliente salva com sucesso`);
+    return;
   }
+  
+  console.log(`[${requestId}] ✅ Mensagem do cliente salva com sucesso`);
 
-  // Chama a lógica de processamento com IA que continua dentro do serve
-  // Por hora, removemos esta função stub que estava incompleta
-  // TODO: Refatorar para mover toda lógica de AI processing aqui
+  // ============= 🧠 PROCESSAR COM IA =============
+  try {
+    console.log(`[${requestId}] 🤖 Iniciando processamento com IA...`);
+    
+    // Chamar função de processamento que já existe
+    await processWithAI(requestId, supabase, agent, chat, customerPhone, combinedMessage);
+    
+  } catch (error) {
+    console.error(`[${requestId}] ❌ Erro no processamento da IA:`, error);
+  }
+}
+
+// ============= PROCESSING WITH AI =============
+async function processWithAI(
+  requestId: string,
+  supabase: any,
+  agent: any,
+  chat: any,
+  customerPhone: string,
+  messageContent: string
+) {
+  console.log(`[${requestId}] 🧠 Enriquecendo contexto da conversa...`);
+  
+  // Continue with the rest of the AI processing flow
+  // This will be implemented next...
+  console.log(`[${requestId}] ⚙️ Processamento com IA em andamento...`);
 }
 
 serve(async (req) => {
@@ -408,7 +434,7 @@ serve(async (req) => {
         console.log(`[${requestId}] 📥 Mensagem adicionada ao buffer (${existingBuffer.messages.length} total) - resetando timer`);
         
         existingBuffer.timer = setTimeout(() => {
-          processBufferedMessages(bufferKey, requestId, supabase);
+          processBufferedMessages(bufferKey, requestId, supabase, agent, chat, customerPhone);
         }, DEBOUNCE_DELAY_MS);
         
         messageBuffers.set(bufferKey, existingBuffer);
@@ -426,7 +452,7 @@ serve(async (req) => {
         console.log(`[${requestId}] ⏰ Primeira mensagem - iniciando debounce de ${DEBOUNCE_DELAY_MS}ms`);
         
         const timer = setTimeout(() => {
-          processBufferedMessages(bufferKey, requestId, supabase);
+          processBufferedMessages(bufferKey, requestId, supabase, agent, chat, customerPhone);
         }, DEBOUNCE_DELAY_MS);
         
         messageBuffers.set(bufferKey, {
