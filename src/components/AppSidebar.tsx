@@ -51,6 +51,7 @@ const businessItems = [
 
 const configItems = [
   { title: "Configurações", url: "/settings", icon: Settings },
+  { title: "Debug Webhook", url: "/webhook-debug-v2", icon: Bug },
 ];
 
 export function AppSidebar() {
