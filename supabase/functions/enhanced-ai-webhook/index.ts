@@ -539,7 +539,12 @@ serve(async (req) => {
             description,
             address,
             phone,
-            whatsapp
+            whatsapp,
+            working_hours,
+            estimated_prep_time,
+            estimated_delivery_time,
+            max_delivery_distance,
+            packaging_fee
           )
         `)
         .eq('is_active', true)
