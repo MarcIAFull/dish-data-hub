@@ -205,9 +205,17 @@ export default function ChatExporter({ chatId }: ChatExporterProps) {
       .order('created_at', { ascending: true });
 
     // Extrair tool calls dos logs
-    const toolCalls = aiLogs?.flatMap(log => 
-      log.tools_executed ? JSON.parse(log.tools_executed as string) : []
-    ) || [];
+    const toolCalls = aiLogs?.flatMap(log => {
+      if (!log.tools_executed) return [];
+      try {
+        const parsed = typeof log.tools_executed === 'string' 
+          ? JSON.parse(log.tools_executed) 
+          : log.tools_executed;
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }) || [];
 
     // 4. Buscar erros relacionados
     const { data: errors } = await supabase
