@@ -7,6 +7,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { Package, Clipboard, Download, FileText, CheckCircle } from "lucide-react";
 
+interface ConversationFlowEvent {
+  timestamp: string;
+  event_type: 'customer_message' | 'agent_message' | 'system_message' | 'tool_call' | 'ai_processing';
+  data: any;
+}
+
 interface ChatExportData {
   export_metadata: {
     exported_at: string;
@@ -16,12 +22,19 @@ interface ChatExportData {
   };
   chat_info?: any;
   agent_info?: any;
+  agent_config?: any;
   restaurant_info?: any;
   messages?: any[];
+  conversation_flow?: ConversationFlowEvent[];
   state_transitions?: any[];
   tool_calls?: any[];
   errors?: any[];
   analytics?: any;
+  debug_info?: {
+    export_complete: boolean;
+    warnings: string[];
+    total_events: number;
+  };
 }
 
 interface ChatExporterProps {
@@ -69,6 +82,56 @@ function calculateAnalytics(chat: any, messages: any[], toolCalls: any[]) {
   };
 }
 
+// Criar fluxo cronológico de eventos
+function createConversationFlow(messages: any[], toolCalls: any[], aiLogs: any[]): ConversationFlowEvent[] {
+  const events: ConversationFlowEvent[] = [];
+  
+  // Adicionar mensagens
+  messages.forEach(msg => {
+    events.push({
+      timestamp: msg.created_at,
+      event_type: msg.sender_type === 'customer' ? 'customer_message' 
+                : msg.sender_type === 'agent' ? 'agent_message' 
+                : 'system_message',
+      data: {
+        id: msg.id,
+        content: msg.content,
+        message_type: msg.message_type,
+        metadata: msg.metadata
+      }
+    });
+  });
+  
+  // Adicionar tool calls
+  toolCalls.forEach(tc => {
+    events.push({
+      timestamp: tc.log_created_at || tc.created_at,
+      event_type: 'tool_call',
+      data: tc
+    });
+  });
+  
+  // Adicionar processamentos AI
+  aiLogs.forEach(log => {
+    events.push({
+      timestamp: log.created_at,
+      event_type: 'ai_processing',
+      data: {
+        request_id: log.request_id,
+        current_state: log.current_state,
+        new_state: log.new_state,
+        detected_intents: log.detected_intents,
+        processing_time_ms: log.processing_time_ms
+      }
+    });
+  });
+  
+  // Ordenar por timestamp
+  events.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  
+  return events;
+}
+
 // Detectar transições de estado do metadata
 function detectStateTransitions(messages: any[], chat: any) {
   const transitions = [];
@@ -101,6 +164,13 @@ function formatAsReadableText(data: ChatExportData): string {
   text += `📞 Telefone: ${data.export_metadata.phone}\n`;
   text += `🆔 Chat ID: ${data.export_metadata.chat_id}\n\n`;
   
+  // Warnings
+  if (data.debug_info && data.debug_info.warnings.length > 0) {
+    text += '⚠️ AVISOS:\n';
+    data.debug_info.warnings.forEach(w => text += `   - ${w}\n`);
+    text += '\n';
+  }
+  
   if (data.chat_info) {
     text += '─────────────────────────────────────────────\n';
     text += '📊 INFORMAÇÕES DO CHAT\n';
@@ -108,45 +178,95 @@ function formatAsReadableText(data: ChatExportData): string {
     text += `Status: ${data.chat_info.status}\n`;
     text += `Estado: ${data.chat_info.conversation_state}\n`;
     text += `IA Habilitada: ${data.chat_info.ai_enabled ? 'Sim' : 'Não'}\n`;
-    text += `Criado em: ${data.chat_info.created_at}\n\n`;
+    text += `Criado em: ${data.chat_info.created_at}\n`;
+    text += `Última mensagem: ${data.chat_info.last_message_at}\n\n`;
   }
   
-  if (data.messages) {
+  if (data.agent_info) {
     text += '─────────────────────────────────────────────\n';
-    text += '💬 HISTÓRICO DE MENSAGENS\n';
-    text += '─────────────────────────────────────────────\n\n';
-    
-    data.messages.forEach((msg) => {
-      const emoji = msg.sender_type === 'customer' ? '👤' : 
-                    msg.sender_type === 'agent' ? '🤖' : '⚙️';
-      text += `${emoji} [${msg.sender_type.toUpperCase()}] ${msg.created_at}\n`;
-      text += `${msg.content}\n\n`;
-    });
+    text += '🤖 INFORMAÇÕES DO AGENTE\n';
+    text += '─────────────────────────────────────────────\n';
+    text += `Nome: ${data.agent_info.name}\n`;
+    text += `Personalidade: ${data.agent_info.personality}\n`;
+    if (data.agent_config) {
+      text += `\nConfigurações:\n`;
+      text += `  - Criação de pedidos: ${data.agent_config.tools_enabled.order_creation ? 'Sim' : 'Não'}\n`;
+      text += `  - Busca de produtos: ${data.agent_config.tools_enabled.product_search ? 'Sim' : 'Não'}\n`;
+      text += `  - Confirmação obrigatória: ${data.agent_config.tools_enabled.order_confirmation ? 'Sim' : 'Não'}\n`;
+    }
+    text += '\n';
   }
   
-  if (data.tool_calls && data.tool_calls.length > 0) {
+  // Fluxo cronológico
+  if (data.conversation_flow && data.conversation_flow.length > 0) {
     text += '─────────────────────────────────────────────\n';
-    text += '🛠️ TOOL CALLS\n';
+    text += '📅 FLUXO CRONOLÓGICO DA CONVERSA\n';
     text += '─────────────────────────────────────────────\n\n';
     
-    data.tool_calls.forEach(tc => {
-      text += `⚡ ${tc.function_name}\n`;
-      text += `   Status: ${tc.success ? '✅ Sucesso' : '❌ Falhou'}\n`;
-      text += `   Tempo: ${tc.execution_time_ms}ms\n`;
-      text += `   Timestamp: ${tc.created_at}\n\n`;
+    data.conversation_flow.forEach((event, idx) => {
+      const time = new Date(event.timestamp).toLocaleString('pt-BR');
+      
+      switch (event.event_type) {
+        case 'customer_message':
+          text += `${idx + 1}. 👤 [CLIENTE] ${time}\n`;
+          text += `   ${event.data.content}\n\n`;
+          break;
+        case 'agent_message':
+          text += `${idx + 1}. 🤖 [AGENTE] ${time}\n`;
+          text += `   ${event.data.content}\n\n`;
+          break;
+        case 'system_message':
+          text += `${idx + 1}. ⚙️ [SISTEMA] ${time}\n`;
+          text += `   ${event.data.content}\n\n`;
+          break;
+        case 'tool_call':
+          text += `${idx + 1}. 🛠️ [TOOL CALL] ${time}\n`;
+          text += `   Função: ${event.data.function_name || event.data.name}\n`;
+          text += `   Status: ${event.data.success ? '✅ Sucesso' : '❌ Falhou'}\n`;
+          if (event.data.execution_time_ms) {
+            text += `   Tempo: ${event.data.execution_time_ms}ms\n`;
+          }
+          text += '\n';
+          break;
+        case 'ai_processing':
+          text += `${idx + 1}. 🧠 [AI PROCESSING] ${time}\n`;
+          if (event.data.current_state !== event.data.new_state) {
+            text += `   Estado: ${event.data.current_state} → ${event.data.new_state}\n`;
+          }
+          if (event.data.processing_time_ms) {
+            text += `   Tempo: ${event.data.processing_time_ms}ms\n`;
+          }
+          text += '\n';
+          break;
+      }
     });
   }
   
   if (data.analytics) {
     text += '─────────────────────────────────────────────\n';
-    text += '📈 ANALÍTICAS\n';
+    text += '📈 ESTATÍSTICAS\n';
     text += '─────────────────────────────────────────────\n';
     text += `Total de mensagens: ${data.analytics.total_messages}\n`;
-    text += `Mensagens do cliente: ${data.analytics.customer_messages}\n`;
-    text += `Mensagens do agente: ${data.analytics.agent_messages}\n`;
-    text += `Tool calls: ${data.analytics.total_tool_calls}\n`;
-    text += `Duração: ${data.analytics.conversation_duration_seconds}s\n`;
+    text += `  └─ Cliente: ${data.analytics.customer_messages}\n`;
+    text += `  └─ Agente: ${data.analytics.agent_messages}\n`;
+    text += `  └─ Sistema: ${data.analytics.system_messages}\n\n`;
+    text += `Tool calls executadas: ${data.analytics.total_tool_calls}\n`;
+    text += `  └─ Sucesso: ${data.analytics.successful_tool_calls}\n`;
+    text += `  └─ Falhas: ${data.analytics.failed_tool_calls}\n\n`;
+    text += `Duração total: ${data.analytics.conversation_duration_seconds}s\n`;
     text += `Tempo médio de resposta: ${data.analytics.avg_response_time_seconds}s\n\n`;
+  }
+  
+  if (data.debug_info) {
+    text += '─────────────────────────────────────────────\n';
+    text += '🔍 DEBUG INFO\n';
+    text += '─────────────────────────────────────────────\n';
+    text += `Export completo: ${data.debug_info.export_complete ? 'Sim' : 'Não'}\n`;
+    text += `Total de eventos: ${data.debug_info.total_events}\n`;
+    if (data.debug_info.warnings.length > 0) {
+      text += `Avisos: ${data.debug_info.warnings.length}\n`;
+    }
+    text += '\n';
   }
   
   text += '═══════════════════════════════════════════════\n';
@@ -158,6 +278,7 @@ function formatAsReadableText(data: ChatExportData): string {
 
 export default function ChatExporter({ chatId }: ChatExporterProps) {
   const [isExporting, setIsExporting] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
   const [includeOptions, setIncludeOptions] = useState({
     chat_info: true,
@@ -170,9 +291,27 @@ export default function ChatExporter({ chatId }: ChatExporterProps) {
     analytics: true
   });
 
+  const handleTest = async () => {
+    setIsTesting(true);
+    console.log('🧪 [ChatExporter] TESTE DE EXPORT INICIADO');
+    
+    try {
+      await getExportData();
+      toast.success('✅ Teste de export bem-sucedido! Verifique o console.');
+    } catch (error) {
+      console.error('❌ [ChatExporter] TESTE FALHOU:', error);
+      toast.error('Teste falhou! Verifique o console para detalhes.');
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
   const getExportData = async (): Promise<ChatExportData> => {
+    console.log('🔍 [ChatExporter] Iniciando export para chatId:', chatId);
+    
     // 1. Buscar dados do chat completo
-    const { data: chat } = await supabase
+    console.log('📊 [ChatExporter] Buscando dados do chat...');
+    const { data: chat, error: chatError } = await supabase
       .from('chats')
       .select(`
         *,
@@ -188,49 +327,121 @@ export default function ChatExporter({ chatId }: ChatExporterProps) {
       .eq('id', chatId)
       .single();
 
-    if (!chat) throw new Error('Chat não encontrado');
+    if (chatError) {
+      console.error('❌ [ChatExporter] Erro ao buscar chat:', chatError);
+      throw new Error(`Erro ao buscar chat: ${chatError.message}`);
+    }
+    
+    if (!chat) {
+      console.error('❌ [ChatExporter] Chat não encontrado');
+      throw new Error('Chat não encontrado');
+    }
+    
+    console.log('✅ [ChatExporter] Chat encontrado:', {
+      id: chat.id,
+      phone: chat.phone,
+      status: chat.status,
+      conversation_state: chat.conversation_state
+    });
 
     // 2. Buscar todas as mensagens
-    const { data: messages } = await supabase
+    console.log('💬 [ChatExporter] Buscando mensagens...');
+    const { data: messages, error: messagesError } = await supabase
       .from('messages')
       .select('*')
       .eq('chat_id', chatId)
       .order('created_at', { ascending: true });
 
+    if (messagesError) {
+      console.error('❌ [ChatExporter] Erro ao buscar mensagens:', messagesError);
+    } else {
+      console.log('✅ [ChatExporter] Mensagens encontradas:', messages?.length || 0);
+      if (messages && messages.length > 0) {
+        console.log('📝 [ChatExporter] Primeira mensagem:', messages[0]);
+        console.log('📝 [ChatExporter] Última mensagem:', messages[messages.length - 1]);
+      }
+    }
+
     // 3. Buscar AI processing logs (contém tool calls)
-    const { data: aiLogs } = await supabase
+    console.log('🤖 [ChatExporter] Buscando AI processing logs...');
+    const { data: aiLogs, error: aiLogsError } = await supabase
       .from('ai_processing_logs')
       .select('*')
       .eq('chat_id', chatId)
       .order('created_at', { ascending: true });
 
+    if (aiLogsError) {
+      console.error('❌ [ChatExporter] Erro ao buscar AI logs:', aiLogsError);
+    } else {
+      console.log('✅ [ChatExporter] AI logs encontrados:', aiLogs?.length || 0);
+    }
+
     // Extrair tool calls dos logs
-    const toolCalls = aiLogs?.flatMap(log => {
+    const toolCalls = aiLogs?.flatMap((log, index) => {
       if (!log.tools_executed) return [];
       try {
         const parsed = typeof log.tools_executed === 'string' 
           ? JSON.parse(log.tools_executed) 
           : log.tools_executed;
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
+        const calls = Array.isArray(parsed) ? parsed : [];
+        console.log(`🛠️ [ChatExporter] Log ${index + 1}: ${calls.length} tool calls`);
+        return calls.map((call: any) => ({
+          ...call,
+          log_created_at: log.created_at,
+          request_id: log.request_id
+        }));
+      } catch (e) {
+        console.error(`❌ [ChatExporter] Erro ao parsear tools_executed do log ${index + 1}:`, e);
         return [];
       }
     }) || [];
+    
+    console.log('✅ [ChatExporter] Total de tool calls extraídos:', toolCalls.length);
 
     // 4. Buscar erros relacionados
-    const { data: errors } = await supabase
+    console.log('⚠️ [ChatExporter] Buscando erros...');
+    const { data: errors, error: errorsError } = await supabase
       .from('error_logs')
       .select('*')
       .contains('context', { chat_id: chatId })
       .order('created_at', { ascending: true });
 
+    if (errorsError) {
+      console.error('❌ [ChatExporter] Erro ao buscar error logs:', errorsError);
+    } else {
+      console.log('✅ [ChatExporter] Erros encontrados:', errors?.length || 0);
+    }
+
     // 5. Calcular analíticas
+    console.log('📈 [ChatExporter] Calculando analíticas...');
     const analytics = calculateAnalytics(chat, messages || [], toolCalls);
+    console.log('✅ [ChatExporter] Analíticas:', analytics);
 
     // 6. Detectar transições de estado
+    console.log('🔄 [ChatExporter] Detectando transições de estado...');
     const stateTransitions = detectStateTransitions(messages || [], chat);
+    console.log('✅ [ChatExporter] Transições encontradas:', stateTransitions.length);
 
-    // 7. Montar objeto final
+    // 7. Criar fluxo cronológico
+    console.log('📅 [ChatExporter] Criando fluxo cronológico...');
+    const conversationFlow = createConversationFlow(messages || [], toolCalls, aiLogs || []);
+    console.log('✅ [ChatExporter] Eventos no fluxo:', conversationFlow.length);
+
+    // 8. Validar export
+    const warnings: string[] = [];
+    if (!messages || messages.length === 0) {
+      warnings.push('Nenhuma mensagem encontrada para este chat');
+    }
+    if (!aiLogs || aiLogs.length === 0) {
+      warnings.push('Nenhum log de processamento AI encontrado');
+    }
+    if (toolCalls.length === 0) {
+      warnings.push('Nenhuma tool call encontrada');
+    }
+    
+    console.log('⚠️ [ChatExporter] Warnings:', warnings);
+
+    // 9. Montar objeto final
     const exportData: ChatExportData = {
       export_metadata: {
         exported_at: new Date().toISOString(),
@@ -262,6 +473,14 @@ export default function ChatExporter({ chatId }: ChatExporterProps) {
         enable_order_creation: chat.agents.enable_order_creation,
         enable_product_search: chat.agents.enable_product_search,
         order_confirmation_required: chat.agents.order_confirmation_required
+      };
+      
+      exportData.agent_config = {
+        tools_enabled: {
+          order_creation: chat.agents.enable_order_creation,
+          product_search: chat.agents.enable_product_search,
+          order_confirmation: chat.agents.order_confirmation_required
+        }
       };
     }
 
@@ -301,6 +520,22 @@ export default function ChatExporter({ chatId }: ChatExporterProps) {
     if (includeOptions.analytics) {
       exportData.analytics = analytics;
     }
+
+    // Adicionar fluxo cronológico
+    exportData.conversation_flow = conversationFlow;
+
+    // Adicionar debug info
+    exportData.debug_info = {
+      export_complete: warnings.length === 0,
+      warnings,
+      total_events: conversationFlow.length
+    };
+
+    console.log('✅ [ChatExporter] Export completo:', {
+      has_messages: !!exportData.messages && exportData.messages.length > 0,
+      has_flow: conversationFlow.length > 0,
+      warnings: warnings.length
+    });
 
     return exportData;
   };
@@ -391,6 +626,16 @@ export default function ChatExporter({ chatId }: ChatExporterProps) {
             </div>
           ))}
         </div>
+
+        {/* Botão de teste */}
+        <Button 
+          onClick={handleTest}
+          disabled={isTesting}
+          variant="secondary"
+          className="w-full"
+        >
+          🧪 {isTesting ? 'Testando...' : 'Testar Export (veja console)'}
+        </Button>
 
         {/* Botões de ação */}
         <div className="flex gap-2 flex-wrap">
