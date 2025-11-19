@@ -183,6 +183,122 @@ async function processBufferedMessages(
   }
 }
 
+// ============= UTILITY FUNCTIONS =============
+
+// Check if restaurant is open
+function isRestaurantOpen(workingHours: any): boolean {
+  if (!workingHours || typeof workingHours !== 'object') {
+    return true; // Default to open if no hours configured
+  }
+  
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const today = days[dayOfWeek];
+  
+  const todayHours = workingHours[today];
+  if (!todayHours || !todayHours.isOpen) {
+    return false;
+  }
+  
+  const currentTime = now.getHours() * 60 + now.getMinutes();
+  const [openHour, openMin] = (todayHours.open || '00:00').split(':').map(Number);
+  const [closeHour, closeMin] = (todayHours.close || '23:59').split(':').map(Number);
+  
+  const openTime = openHour * 60 + openMin;
+  const closeTime = closeHour * 60 + closeMin;
+  
+  return currentTime >= openTime && currentTime <= closeTime;
+}
+
+// Send WhatsApp message with retry logic
+async function sendWhatsAppMessage(
+  instance: string,
+  apiToken: string,
+  phone: string,
+  message: string,
+  requestId: string
+): Promise<{ success: boolean; error?: string }> {
+  const MAX_RETRIES = 3;
+  let lastError: any = null;
+  
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      console.log(`[${requestId}] 📤 Enviando WhatsApp (tentativa ${attempt}/${MAX_RETRIES})...`);
+      
+      const response = await fetch(`https://evolution.fullbpo.com/message/sendText/${instance}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': apiToken
+        },
+        body: JSON.stringify({
+          number: phone,
+          text: message
+        })
+      });
+      
+      if (response.ok) {
+        console.log(`[${requestId}] ✅ WhatsApp enviado com sucesso (tentativa ${attempt})`);
+        return { success: true };
+      }
+      
+      lastError = await response.text();
+      console.error(`[${requestId}] ❌ Erro no envio (tentativa ${attempt}):`, lastError);
+      
+      if (attempt < MAX_RETRIES) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    } catch (error) {
+      lastError = error;
+      console.error(`[${requestId}] ❌ Exceção no envio (tentativa ${attempt}):`, error);
+      
+      if (attempt < MAX_RETRIES) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+  }
+  
+  console.log(`[${requestId}] ❌ WhatsApp falhou após ${MAX_RETRIES} tentativa(s)`);
+  return { success: false, error: String(lastError) };
+}
+
+// Orchestrate agent flow
+async function orchestrateAgentFlow(
+  requestId: string,
+  supabase: any,
+  agent: any,
+  chat: any,
+  messageContent: string,
+  messageHistory: any[],
+  lastSummary: any,
+  enrichedContext: any
+): Promise<{ finalResponse: string }> {
+  console.log(`[${requestId}] 🔄 Orquestrando fluxo de agentes...`);
+  
+  // Build conversation context
+  const conversationContext = messageHistory.map(msg => {
+    if (msg.sender_type === 'user') {
+      return `Cliente: ${msg.content}`;
+    } else {
+      return `Assistente: ${msg.content}`;
+    }
+  }).join('\n');
+  
+  // Simple response for now - this should be replaced with actual AI orchestration
+  const response = `Olá! Recebi sua mensagem: "${messageContent}". 
+  
+${!enrichedContext.restaurantOpen ? '⚠️ No momento estamos fechados.' : '✅ Estamos abertos!'}
+
+Como posso ajudar você hoje?`;
+  
+  console.log(`[${requestId}] ✅ Resposta gerada`);
+  
+  return {
+    finalResponse: response
+  };
+}
+
 // ============= PROCESSING WITH AI =============
 async function processWithAI(
   requestId: string,
