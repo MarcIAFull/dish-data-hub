@@ -227,7 +227,7 @@ export type Database = {
           },
         ]
       }
-      chat_messages: {
+      chat_messages_backup_20251119: {
         Row: {
           active: boolean | null
           app: string | null
